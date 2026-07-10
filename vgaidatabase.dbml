@@ -1,0 +1,247 @@
+// ======================================
+// vgAI Database Schema
+// ======================================
+
+Enum scene_density {
+  small
+  medium
+  high
+}
+
+Enum generation_status {
+  pending
+  generating
+  completed
+  failed
+}
+
+Enum payment_status {
+  pending
+  success
+  failed
+  refunded
+}
+
+Table users {
+  id uuid [pk, default: `gen_random_uuid()`]
+
+  name varchar(200)
+  email varchar(255) [not null, unique]
+  profile_image_url text
+
+  // Credits
+  current_credit_balance numeric [not null, default: 0]
+
+  // Lifetime credit usage
+  image_credits_spent numeric [not null, default: 0]
+  llm_credits_spent numeric [not null, default: 0]
+  animation_credits_spent numeric [not null, default: 0]
+  voiceover_credits_spent numeric [not null, default: 0]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+}
+
+Table projects {
+  id uuid [pk, default: `gen_random_uuid()`]
+
+  user_id uuid [not null]
+
+  name varchar(200) [not null]
+  script text
+
+  // small = 1-10 words
+  // medium = 10-15 words
+  // high = 15-25 words
+  scene_density scene_density [not null, default: 'small']
+
+  // AI Models
+  llm_model_id varchar(200)
+  image_model_id varchar(200)
+  animation_model_id varchar(200)
+
+  // Snapshot of selected Style Template
+  snapshot_styletemplate_name varchar(200)
+  snapshot_styletemplate_image_prompt text
+  snapshot_styletemplate_animation_prompt text
+  snapshot_styletemplate_youtube_title_prompt text
+  snapshot_styletemplate_youtube_description_tags_prompt text
+  snapshot_styletemplate_youtube_thumbnail_image_prompt text
+  snapshot_styletemplate_description text
+
+  // YouTube Metadata
+  thumbnail_prompt text
+  thumbnail_image_url text
+
+  title_of_video text
+  description_of_video text
+  tags_of_video text
+
+  // Voice Settings
+  vo_voice_id text [default: '95etAma035P6Ys5iv7Oo']
+  vo_model_id text [default: 'eleven_multilingual_v2']
+  vo_stability numeric [default: 40]
+  vo_similarity numeric [default: 70]
+  vo_style numeric [default: 30]
+  vo_speaker_boost boolean [default: true]
+  vo_speed numeric [default: 0.88]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+}
+
+Table style_templates {
+  id uuid [pk, default: `gen_random_uuid()`]
+
+  user_id uuid [not null]
+
+  name varchar(200) [not null]
+
+  image_prompt text [not null]
+  animation_prompt text [not null]
+  youtube_title_prompt text
+  youtube_description_tags_prompt text
+  youtube_thumbnail_image_prompt text
+  description text [not null]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+}
+
+Table characters {
+  id uuid [pk, default: `gen_random_uuid()`]
+
+  user_id uuid [not null]
+
+  name varchar(200) [not null]
+  description text [not null]
+  character_sheet_url text [not null]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+}
+
+Table generate_scripts {
+  id uuid [pk, default: `gen_random_uuid()`]
+
+  user_id uuid [not null]
+
+  category varchar(200) [not null]
+  description text [not null]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+}
+
+Table project_characters {
+  id uuid [pk, default: `gen_random_uuid()`]
+
+  project_id uuid [not null]
+
+  snapshot_name varchar(200) [not null]
+  snapshot_description text [not null]
+  snapshot_character_sheet_url text [not null]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+}
+
+Table scenes {
+  id uuid [pk, default: `gen_random_uuid()`]
+
+  project_id uuid [not null]
+
+  scene_number int [not null]
+  scene_text text [not null]
+
+  scene_image_prompt text
+  scene_animation_prompt text
+
+  generated_image_url text
+  generated_animation_url text
+
+  generated_image_model varchar(200)
+  generated_animation_model varchar(200)
+
+  image_status generation_status [not null, default: 'pending']
+  animation_status generation_status [not null, default: 'pending']
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  indexes {
+    (project_id, scene_number) [unique]
+  }
+}
+
+Table scene_characters {
+  id uuid [pk, default: `gen_random_uuid()`]
+
+  scene_id uuid [not null]
+  project_character_id uuid [not null]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  indexes {
+    (scene_id, project_character_id) [unique]
+  }
+}
+
+Table project_voiceovers {
+  id uuid [pk, default: `gen_random_uuid()`]
+
+  project_id uuid [not null]
+
+  voiceover_number int [not null]
+  voiceover_url text [not null]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  indexes {
+    (project_id, voiceover_number) [unique]
+  }
+}
+
+Table credit_topups {
+  id uuid [pk, default: `gen_random_uuid()`]
+
+  user_id uuid [not null]
+
+  // Razorpay Details
+  razorpay_order_id varchar(255) [not null, unique]
+  razorpay_payment_id varchar(255)
+  razorpay_signature text
+
+  // Payment
+  amount_paid numeric [not null]
+  currency varchar(10) [not null, default: 'INR']
+
+  // Credits
+  credits_added numeric [not null]
+
+  // User's balance immediately after this top-up
+  credits_balance_after numeric [not null]
+
+  payment_status payment_status [not null, default: 'pending']
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+}
+// ==========================
+// Relationships
+// ==========================
+
+Ref: projects.user_id > users.id
+Ref: characters.user_id > users.id
+Ref: style_templates.user_id > users.id
+Ref: generate_scripts.user_id > users.id
+Ref: credit_topups.user_id > users.id
+
+Ref: project_characters.project_id > projects.id
+Ref: scenes.project_id > projects.id
+Ref: project_voiceovers.project_id > projects.id
+
+Ref: scene_characters.scene_id > scenes.id
+Ref: scene_characters.project_character_id > project_characters.id

@@ -1,0 +1,404 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\geometry{a4paper, margin=0.85in}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{mdframed}
+\usepackage{enumitem}
+\usepackage{lmodern}
+\usepackage{parskip}
+\usepackage{needspace}  % prevents bad page breaks
+\usepackage{etoolbox}
+
+% ─── Colours ────────────────────────────────────────────────────────────────
+\definecolor{codebackground}{RGB}{30,30,30}
+\definecolor{codetext}{RGB}{220,220,220}
+\definecolor{commandbg}{RGB}{13,17,23}
+\definecolor{commandborder}{RGB}{48,54,61}
+\definecolor{codekeyword}{RGB}{86,156,214}
+\definecolor{codestring}{RGB}{206,145,120}
+\definecolor{codecomment}{RGB}{106,153,85}
+\definecolor{sectioncolor}{RGB}{31,120,200}
+\definecolor{warningbg}{RGB}{255,248,220}
+\definecolor{warningborder}{RGB}{220,140,0}
+\definecolor{tipbg}{RGB}{240,248,255}
+\definecolor{tipborder}{RGB}{70,130,180}
+\definecolor{stepbg}{RGB}{240,240,255}
+
+% ─── Section styling ────────────────────────────────────────────────────────
+\titleformat{\section}{\large\bfseries\color{sectioncolor}}{}{0em}{}[\titlerule]
+\titleformat{\subsection}{\normalsize\bfseries\color{black}}{}{0em}{\textbullet\ }
+\titlespacing{\section}{0pt}{16pt}{6pt}
+\titlespacing{\subsection}{0pt}{10pt}{4pt}
+
+% ─── Page header/footer ─────────────────────────────────────────────────────
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\textcolor{gray}{\small Docker Cheat Sheet — \texttt{mdk7866}}}
+\lhead{\textcolor{gray}{\small FastAPI (uv) + Next.js}}
+\cfoot{\textcolor{gray}{\thepage}}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% ─── Code listing style (no line numbers = clean copy-paste) ─────────────────
+\lstdefinestyle{codestyle}{
+    backgroundcolor=\color{codebackground},
+    basicstyle=\ttfamily\footnotesize\color{codetext},
+    keywordstyle=\color{codekeyword}\bfseries,
+    stringstyle=\color{codestring},
+    commentstyle=\color{codecomment}\itshape,
+    breaklines=true,
+    breakatwhitespace=false,
+    keepspaces=true,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2,
+    columns=fullflexible,
+    numbers=none,
+    frame=single,
+    rulecolor=\color{commandborder},
+    framesep=6pt,
+    xleftmargin=6pt,
+    xrightmargin=6pt,
+    aboveskip=4pt,
+    belowskip=4pt,
+}
+
+% ─── Terminal / command style ────────────────────────────────────────────────
+\lstdefinestyle{commandstyle}{
+    backgroundcolor=\color{commandbg},
+    basicstyle=\ttfamily\footnotesize\color{green!70!white},
+    breaklines=true,
+    columns=fullflexible,
+    numbers=none,
+    frame=single,
+    rulecolor=\color{commandborder},
+    framesep=6pt,
+    xleftmargin=6pt,
+    xrightmargin=6pt,
+    aboveskip=4pt,
+    belowskip=4pt,
+    commentstyle=\color{gray}\itshape,
+    morecomment=[l]{\#},
+}
+
+\lstset{style=codestyle}
+
+% ─── Custom boxes ───────────────────────────────────────────────────────────
+\newmdenv[
+  backgroundcolor=warningbg,
+  linecolor=warningborder,
+  linewidth=2pt,
+  innerleftmargin=10pt, innerrightmargin=10pt,
+  innertopmargin=6pt, innerbottommargin=6pt,
+  skipabove=6pt, skipbelow=6pt,
+]{warningbox}
+
+\newmdenv[
+  backgroundcolor=tipbg,
+  linecolor=tipborder,
+  linewidth=2pt,
+  innerleftmargin=10pt, innerrightmargin=10pt,
+  innertopmargin=6pt, innerbottommargin=6pt,
+  skipabove=6pt, skipbelow=6pt,
+]{tipbox}
+
+\newmdenv[
+  backgroundcolor=stepbg,
+  linecolor=sectioncolor,
+  linewidth=1.5pt,
+  innerleftmargin=10pt, innerrightmargin=10pt,
+  innertopmargin=6pt, innerbottommargin=6pt,
+  skipabove=6pt, skipbelow=6pt,
+]{stepbox}
+
+% ─── Helper: code block that never breaks across pages ───────────────────────
+\newenvironment{codeblock}{%
+  \needspace{6\baselineskip}%
+  \noindent\minipage{\linewidth}%
+}{%
+  \endminipage%
+}
+
+% ────────────────────────────────────────────────────────────────────────────
+\begin{document}
+
+% ─── Title ──────────────────────────────────────────────────────────────────
+\begin{center}
+  {\Huge\bfseries\color{sectioncolor} Docker Setup Guide}\\[6pt]
+  {\large\color{gray} FastAPI (uv) Backend\ +\ Next.js Frontend}\\[4pt]
+  {\normalsize Docker Hub: \texttt{\textbf{mdk7866}}}\\[2pt]
+  \textcolor{gray}{\small \today}
+\end{center}
+\vspace{4pt}\hrule\vspace{10pt}
+
+% ════════════════════════════════════════════════════════════════════════════
+\section{Files to Add in Your Source Code}
+
+These files go \textbf{inside your Git repository} and are used to build Docker images.
+
+% ── backend/Dockerfile ───────────────────────────────────────────────────────
+\subsection{backend/Dockerfile}
+
+\begin{codeblock}
+\begin{lstlisting}[style=codestyle]
+# Use Python 3.13 slim image
+FROM python:3.13-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
+
+WORKDIR /app
+
+# Copy metadata files first (layer caching)
+COPY pyproject.toml README.md ./
+
+# Install Python dependencies
+RUN pip install --no-cache-dir hatchling && \
+    pip install --no-cache-dir .
+
+# Copy the rest of the application
+COPY . .
+
+EXPOSE 8000
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+\end{lstlisting}
+\end{codeblock}
+
+% ── backend/.dockerignore ────────────────────────────────────────────────────
+\subsection{backend/.dockerignore}
+
+\begin{codeblock}
+\begin{lstlisting}[style=codestyle]
+__pycache__/
+*.py[cod]
+.env
+.venv
+venv/
+env/
+Pipfile.lock
+.pytest_cache/
+dist/
+build/
+*.egg-info/
+downloads/
+.git
+.gitignore
+\end{lstlisting}
+\end{codeblock}
+
+% ── frontendweb/Dockerfile ───────────────────────────────────────────────────
+\subsection{frontendweb/Dockerfile}
+
+\begin{codeblock}
+\begin{lstlisting}[style=codestyle]
+# Stage 1: Build
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package.json package-lock.json* ./
+RUN npm install
+COPY . .
+RUN npm run build
+
+# Stage 2: Run
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/package-lock.json* ./
+COPY --from=builder /app/next.config.ts ./
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/node_modules ./node_modules
+EXPOSE 3000
+CMD ["npm", "run", "start"]
+\end{lstlisting}
+\end{codeblock}
+
+% ── frontendweb/.dockerignore ────────────────────────────────────────────────
+\subsection{frontendweb/.dockerignore}
+
+\begin{codeblock}
+\begin{lstlisting}[style=codestyle]
+node_modules
+npm-debug.log
+.next
+out
+build
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.DS_Store
+.git
+.gitignore
+\end{lstlisting}
+\end{codeblock}
+
+% ════════════════════════════════════════════════════════════════════════════
+\section{Build \& Push Images to Docker Hub (You Do This)}
+
+Run from the \textbf{root of your project}. Do this every time you update your code.
+
+\subsection{Step 1 — Login}
+\begin{codeblock}
+\begin{lstlisting}[style=commandstyle]
+docker login
+# Enter username: mdk7866  and your password
+\end{lstlisting}
+\end{codeblock}
+
+\subsection{Step 2 — Build and Push Backend}
+\begin{codeblock}
+\begin{lstlisting}[style=commandstyle]
+docker build -t mdk7866/vgai-backend:latest ./backend
+docker push  mdk7866/vgai-backend:latest
+\end{lstlisting}
+\end{codeblock}
+
+\subsection{Step 3 — Build and Push Frontend}
+\begin{warningbox}
+\textbf{Important:} Next.js bakes \texttt{NEXT\_PUBLIC\_} variables into the static build at \textbf{build time}. Make sure \texttt{NEXT\_PUBLIC\_BACKEND\_URL=http://localhost:8000} is set in \texttt{frontendweb/.env} before building.
+\end{warningbox}
+\begin{codeblock}
+\begin{lstlisting}[style=commandstyle]
+docker build -t mdk7866/vgai-frontend:latest ./frontendweb
+docker push  mdk7866/vgai-frontend:latest
+\end{lstlisting}
+\end{codeblock}
+
+% ════════════════════════════════════════════════════════════════════════════
+\section{Sharing With a Friend (No Source Code Needed)}
+
+Create a new empty folder, put \textbf{exactly these 3 files} inside, and send/zip it:
+
+\needspace{10\baselineskip}
+\begin{center}
+\noindent\begin{minipage}{0.55\linewidth}
+\begin{mdframed}[linecolor=sectioncolor,linewidth=1.5pt,backgroundcolor=stepbg,
+  innerleftmargin=14pt,innerrightmargin=14pt,innertopmargin=8pt,innerbottommargin=8pt]
+\ttfamily
+my-vgai-run/\\
+\hspace*{1em}|-- docker-compose.yml\\
+\hspace*{1em}|-- .env.backend\\
+\hspace*{1em}|-- .env.frontend
+\end{mdframed}
+\end{minipage}
+\end{center}
+
+\subsection{docker-compose.yml (goes in sharing folder)}
+\begin{codeblock}
+\begin{lstlisting}[style=codestyle]
+services:
+  backend:
+    image: mdk7866/vgai-backend:latest
+    container_name: vgai-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./downloads:/app/downloads
+    env_file:
+      - .env.backend
+    restart: always
+
+  frontend:
+    image: mdk7866/vgai-frontend:latest
+    container_name: vgai-frontend
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.frontend
+    depends_on:
+      - backend
+    restart: always
+
+networks:
+  default:
+    name: vgai-network
+\end{lstlisting}
+\end{codeblock}
+
+\subsection{.env.backend (copy from backend/.env)}
+\begin{codeblock}
+\begin{lstlisting}[style=codestyle]
+SUPABASE_URL=https://xxxx.supabase.co
+SUPABASE_SECRET_KEY=your_secret_key
+CLOUDINARY_API_KEY=your_key
+CLOUDINARY_API_SECRET=your_secret
+GEMINI_FREE_API_KEY_MUJAMAHE=your_gemini_key
+\end{lstlisting}
+\end{codeblock}
+
+\subsection{.env.frontend (copy from frontendweb/.env)}
+\begin{codeblock}
+\begin{lstlisting}[style=codestyle]
+NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
+\end{lstlisting}
+\end{codeblock}
+
+\subsection{Instructions for Your Friend}
+\begin{stepbox}
+\begin{enumerate}[leftmargin=*, label=\textbf{\arabic*.}, itemsep=3pt]
+  \item Install \textbf{Docker Desktop} from \texttt{https://www.docker.com/products/docker-desktop}
+  \item Unzip the folder you received
+  \item Open a terminal \textbf{inside} that folder
+  \item Run: \quad\texttt{\color{sectioncolor}docker-compose up -d}
+  \item Open browser $\rightarrow$ \texttt{http://localhost:3000} \checkmark
+  \item To stop: \quad\texttt{\color{sectioncolor}docker-compose down}
+\end{enumerate}
+\end{stepbox}
+
+% ════════════════════════════════════════════════════════════════════════════
+\section{Docker Commands Cheat Sheet}
+
+\subsection{Start / Stop}
+\begin{codeblock}
+\begin{lstlisting}[style=commandstyle]
+docker-compose up -d            # start all (background)
+docker-compose down             # stop and remove containers
+docker-compose restart vgai-backend  # restart one service
+\end{lstlisting}
+\end{codeblock}
+
+\subsection{Build \& Push}
+\begin{codeblock}
+\begin{lstlisting}[style=commandstyle]
+docker build -t mdk7866/vgai-backend:latest  ./backend
+docker build -t mdk7866/vgai-frontend:latest ./frontendweb
+docker push mdk7866/vgai-backend:latest
+docker push mdk7866/vgai-frontend:latest
+\end{lstlisting}
+\end{codeblock}
+
+\subsection{Logs \& Status}
+\begin{codeblock}
+\begin{lstlisting}[style=commandstyle]
+docker ps                        # list running containers
+docker logs -f vgai-backend      # live backend logs
+docker logs -f vgai-frontend     # live frontend logs
+docker system df                 # disk usage
+\end{lstlisting}
+\end{codeblock}
+
+\subsection{Cleanup}
+\begin{codeblock}
+\begin{lstlisting}[style=commandstyle]
+docker system prune -a           # remove all unused images & cache
+docker rmi mdk7866/vgai-backend:latest  # remove a specific image
+docker pull mdk7866/vgai-backend:latest # pull latest from Docker Hub
+\end{lstlisting}
+\end{codeblock}
+
+\begin{tipbox}
+\textbf{Tip:} Run \texttt{docker system prune -a} occasionally to free up disk space from old cached build layers.
+\end{tipbox}
+
+\end{document}
