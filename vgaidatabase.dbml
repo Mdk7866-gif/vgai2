@@ -50,6 +50,8 @@ Table projects {
   name varchar(200) [not null]
   script text
 
+  is_liked boolean [not null, default: false]
+
   // small = 1-10 words
   // medium = 10-15 words
   // high = 15-25 words
