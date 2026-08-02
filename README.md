@@ -120,7 +120,7 @@ Whichever generation path is used, the AI returns a structured response containi
 
 - **`sceneData`** — an array of scenes: `scene_number`, `scene_text`, `scene_image_prompt`, `scene_animation_prompt`, `scene_involved_characters`.
 - **`metadata`** — YouTube packaging: `video_title`, `video_description`, `video_tags`, `video_thumbnail_prompt`.
-- **`compact_image_prompt`** / **`compact_animation_prompt`** — token-saving prompt fragments. Rather than repeating the full style description in every single scene's prompt, a shared style prefix constant is defined once and reused, e.g.:
+- **`compact_image_prompt`** — a token-saving prompt fragment for image generation. Rather than repeating the full style description in every single scene's image prompt, a shared style prefix constant is defined once and reused, e.g.:
 
   ```js
   const STYLE_PREFIX =
@@ -129,7 +129,7 @@ Whichever generation path is used, the AI returns a structured response containi
     "bright and colorful. aspect ratio 16:9";
   ```
 
-  Each scene's actual image/animation prompt is composed from `STYLE_PREFIX` + the scene-specific detail, keeping per-scene prompts short and cheap.
+  Each scene's actual image prompt is composed from `STYLE_PREFIX` + the scene-specific detail, keeping per-scene prompts short and cheap. `scene_animation_prompt` is left uncompacted — animation generation is image-to-video (driven by `scene_animation_prompt` + the already-generated scene image), so the style is already carried by the reference image and doesn't need to be re-stated in the prompt text.
 
 #### Voiceover generation
 
