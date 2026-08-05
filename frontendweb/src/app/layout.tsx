@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import SplashScreen from "@/components/SplashScreen";
-import MainLayout from "@/components/MainLayout";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { AuthProvider } from "@/context/AuthContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -57,8 +57,10 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground transition-colors duration-200">
         <ThemeProvider>
-          <SplashScreen />
-          <MainLayout>{children}</MainLayout>
+          <AuthProvider>
+            <SplashScreen />
+            {children}
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

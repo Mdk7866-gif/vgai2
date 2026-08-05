@@ -455,3 +455,10 @@ Ref: project_voiceovers.project_id > projects.id
 Ref: scene_characters.scene_id > scenes.id
 Ref: scene_characters.project_character_id > project_characters.id
 ```
+
+---
+
+## 8. UI/UX Requirements
+
+- **Light/dark theme toggle** is a required, first-class feature across the entire app — every page and component must support both themes cleanly (no unstyled/half-styled states in either mode).
+- **Responsive, but desktop-first**: the site must remain usable down to mobile/tablet widths, but the primary design target is desktop/large screens, since the core user base is video editors/creators working at a desk on big monitors. Optimize the workspace-heavy pages (`/project_folder/{project_id}` scene grid, character/style-template libraries) for large-screen layouts first, and treat small-screen behavior as a graceful fallback rather than the primary design constraint.

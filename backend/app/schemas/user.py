@@ -1,16 +1,13 @@
 from pydantic import BaseModel
-from datetime import datetime
 
-class UserBase(BaseModel):
-    email: str
-    is_active: bool = True
 
-class UserCreate(UserBase):
-    password: str
-
-class User(UserBase):
+class User(BaseModel):
     id: str
-    created_at: datetime
+    name: str | None = None
+    email: str
+    profile_image_url: str | None = None
+    current_credit_balance: float
+    miscellaneous_credit_spent: float
 
     class Config:
         from_attributes = True
