@@ -5,7 +5,7 @@ from app.config import settings
 from app.routes.router import api_router
 
 app = FastAPI(
-    title="ZScrape3 Backend",
+    title="vgAI2 Backend",
     version="1.0.0",
 )
 
