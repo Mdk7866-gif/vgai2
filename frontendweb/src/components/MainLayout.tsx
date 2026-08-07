@@ -31,7 +31,7 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
         <Navbar onMenuClick={() => setIsMobileMenuOpen(true)} />
         
         <main className="flex-1 overflow-y-auto px-4 py-6 md:p-8">
-          <div className="max-w-6xl 2xl:max-w-7xl 3xl:max-w-8xl mx-auto h-full">
+          <div className="max-w-7xl 2xl:max-w-[100rem] mx-auto h-full">
             {children}
           </div>
         </main>
