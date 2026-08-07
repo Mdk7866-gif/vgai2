@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import Image from "next/image";
 import { X, ImagePlus, Loader2 } from "lucide-react";
 import type { Character } from "@/types/character";
+import Toggle from "@/components/Toggle";
 
 export interface CharacterFormValues {
   name: string;
@@ -162,15 +163,7 @@ export const EditCharacterCardPopUp = ({
             </div>
 
             {/* Is default */}
-            <label className="flex items-center gap-2.5 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={isDefault}
-                onChange={(e) => setIsDefault(e.target.checked)}
-                className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500/50 cursor-pointer"
-              />
-              <span className="text-sm text-slate-700 dark:text-slate-300">Mark as default character</span>
-            </label>
+            <Toggle checked={isDefault} onChange={setIsDefault} label="Mark as default character" />
           </div>
 
           {/* Right: description */}
