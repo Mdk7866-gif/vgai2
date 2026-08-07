@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useCallback, useState } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import { X, ZoomIn, ZoomOut, RotateCcw, Loader2 } from "lucide-react";
 
@@ -264,7 +265,7 @@ export default function ImageZoomPopUp({ isOpen, onClose, imageUrl, alt = "Image
 
     const isZoomed = displayScale > 1;
 
-    return (
+    return createPortal(
         <div
             ref={overlayRef}
             className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95"
@@ -368,6 +369,7 @@ export default function ImageZoomPopUp({ isOpen, onClose, imageUrl, alt = "Image
                     Pinch · Scroll · Double-tap to zoom &nbsp;·&nbsp; Drag when zoomed &nbsp;·&nbsp; Esc to close
                 </p>
             )}
-        </div>
+        </div>,
+        document.body
     );
 }

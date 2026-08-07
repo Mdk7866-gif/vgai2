@@ -14,18 +14,25 @@ if settings.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME and settings.CLOUDINARY_API_KEY an
         secure=True
     )
 
-async def upload_image(file: UploadFile) -> str:
+async def upload_image(file: UploadFile, folder: str, public_id_prefix: str = "img") -> str:
+    """Uploads to <CLOUDINARY_FOLDER_NAME>/<folder>/<public_id_prefix>_<random>.
+
+    `folder` is the path *under* the root folder, e.g. f"{user_id}/characters" or
+    f"{user_id}/{project_id}/scene_images" — see README.md's "Media Storage" section
+    for the full per-user / per-project layout.
+    """
     if not settings.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME:
         raise HTTPException(status_code=500, detail="Cloudinary is not configured on the backend.")
 
     try:
         file_content = await file.read()
+        root = settings.CLOUDINARY_FOLDER_NAME or "vgAI"
 
         # Upload using the Cloudinary SDK
         response = cloudinary.uploader.upload(
             file_content,
-            folder=settings.CLOUDINARY_FOLDER_NAME or "vgAI",
-            public_id=f"character_{uuid.uuid4().hex[:8]}"
+            folder=f"{root}/{folder}",
+            public_id=f"{public_id_prefix}_{uuid.uuid4().hex[:8]}"
         )
 
         # Cloudinary returns 'secure_url' for https links

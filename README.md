@@ -462,3 +462,26 @@ Ref: scene_characters.project_character_id > project_characters.id
 
 - **Light/dark theme toggle** is a required, first-class feature across the entire app — every page and component must support both themes cleanly (no unstyled/half-styled states in either mode).
 - **Responsive, but desktop-first**: the site must remain usable down to mobile/tablet widths, but the primary design target is desktop/large screens, since the core user base is video editors/creators working at a desk on big monitors. Optimize the workspace-heavy pages (`/project_folder/{project_id}` scene grid, character/style-template libraries) for large-screen layouts first, and treat small-screen behavior as a graceful fallback rather than the primary design constraint.
+
+---
+
+## 9. Media Storage (Cloudinary)
+
+All uploaded/generated media (character sheets, scene images, scene animations, voiceovers, project thumbnails) lives in one Cloudinary account, under a single root folder — `CLOUDINARY_FOLDER_NAME` in `backend/.env` (currently `vgai2`). Everything under that root is nested by owner, so a given user's or project's assets are easy to browse and safe to bulk-clean:
+
+```
+vgai2/
+  <user_id>/
+    characters/                  # character sheets from /characters (library, not tied to a project)
+    <project_id>/
+      project_characters/        # snapshots of characters imported into this project
+      scene_images/
+      scene_animation/
+      voiceovers/
+      thumbnail_image/           # generated YouTube thumbnail for this project
+```
+
+- `<user_id>` / `<project_id>` are the Supabase row UUIDs (`users.id`, `projects.id`).
+- `upload_image()` (`backend/app/cloudinary.py`) takes a `folder` argument that is the path *under* the root — e.g. `f"{user_id}/characters"` or, once `/project_folder/{project_id}` exists, `f"{user_id}/{project_id}/scene_images"`. Callers build that path; the helper just prefixes the root folder and picks a unique `public_id`.
+- `delete_media()` (same file) is the matching cleanup: it parses the `public_id` back out of a stored `secure_url` and deletes that asset from Cloudinary, so removing/replacing a row (a character today; scenes/voiceovers/thumbnails later) also removes its Cloudinary file instead of leaving it orphaned.
+- **Current state**: only `<user_id>/characters/` is wired up, via the `/characters` CRUD routes. The `<project_id>/*` subfolders above are the target layout for the future `/project_folder/{project_id}` feature — scene image/animation generation, voiceover chunking, and thumbnail generation should each upload into their respective subfolder under that project once built.

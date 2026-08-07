@@ -39,7 +39,9 @@ async def create_character(
     character_sheet: UploadFile = File(...),
     current_user: SupabaseUser = Depends(get_current_user),
 ):
-    image_url = await upload_image(character_sheet)
+    image_url = await upload_image(
+        character_sheet, folder=f"{current_user.id}/characters", public_id_prefix="character"
+    )
 
     new_character = {
         "user_id": current_user.id,
@@ -69,7 +71,9 @@ async def update_character(
         "is_default": is_default,
     }
     if character_sheet is not None and character_sheet.filename:
-        update_data["character_sheet_url"] = await upload_image(character_sheet)
+        update_data["character_sheet_url"] = await upload_image(
+            character_sheet, folder=f"{current_user.id}/characters", public_id_prefix="character"
+        )
         await delete_media(existing["character_sheet_url"], resource_type="image")
 
     updated = (

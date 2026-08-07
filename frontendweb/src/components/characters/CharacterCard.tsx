@@ -1,9 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Image from "next/image";
 import { Pencil, Trash2, Star } from "lucide-react";
 import type { Character } from "@/types/character";
+import ImageZoomPopUp from "@/components/ImageZoomPopUp";
 
 interface CharacterCardProps {
   character: Character;
@@ -12,9 +13,14 @@ interface CharacterCardProps {
 }
 
 export const CharacterCard = ({ character, onEdit, onDelete }: CharacterCardProps) => {
+  const [zoomOpen, setZoomOpen] = useState(false);
+
   return (
     <div className="group bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl overflow-hidden shadow-sm hover:shadow-lg dark:hover:shadow-slate-900/50 hover:-translate-y-0.5 transition-all duration-200">
-      <div className="relative w-full aspect-video bg-slate-100 dark:bg-slate-900">
+      <div
+        className="relative w-full aspect-video bg-slate-100 dark:bg-slate-900 cursor-zoom-in"
+        onClick={() => setZoomOpen(true)}
+      >
         <Image
           src={character.character_sheet_url}
           alt={character.name}
@@ -32,14 +38,20 @@ export const CharacterCard = ({ character, onEdit, onDelete }: CharacterCardProp
 
         <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5">
           <button
-            onClick={() => onEdit(character)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(character);
+            }}
             aria-label={`Edit ${character.name}`}
             className="p-2 rounded-full bg-white/90 dark:bg-slate-800/90 text-slate-600 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 shadow-sm hover:shadow transition-all cursor-pointer"
           >
             <Pencil className="w-3.5 h-3.5" />
           </button>
           <button
-            onClick={() => onDelete(character)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(character);
+            }}
             aria-label={`Delete ${character.name}`}
             className="p-2 rounded-full bg-white/90 dark:bg-slate-800/90 text-slate-600 dark:text-slate-200 hover:text-red-600 dark:hover:text-red-400 shadow-sm hover:shadow transition-all cursor-pointer"
           >
@@ -47,6 +59,13 @@ export const CharacterCard = ({ character, onEdit, onDelete }: CharacterCardProp
           </button>
         </div>
       </div>
+
+      <ImageZoomPopUp
+        isOpen={zoomOpen}
+        onClose={() => setZoomOpen(false)}
+        imageUrl={character.character_sheet_url}
+        alt={character.name}
+      />
 
       <div className="p-4">
         <h3 className="font-semibold text-[15px] text-slate-900 dark:text-slate-100 truncate">

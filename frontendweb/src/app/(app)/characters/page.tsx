@@ -25,6 +25,7 @@ export default function CharactersPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState<Character | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [alert, setAlert] = useState<{ title: string; message: string } | null>(null);
 
   useEffect(() => {
@@ -87,6 +88,7 @@ export default function CharactersPage() {
   const confirmDelete = async () => {
     if (!deleteTarget) return;
     const target = deleteTarget;
+    setDeleting(true);
     try {
       await authFetch(`/characters/delete/${target.id}`, { method: "DELETE" });
       setCharacters((prev) => prev.filter((c) => c.id !== target.id));
@@ -96,6 +98,7 @@ export default function CharactersPage() {
         message: err instanceof Error ? err.message : "Something went wrong.",
       });
     } finally {
+      setDeleting(false);
       setDeleteTarget(null);
     }
   };
@@ -203,13 +206,14 @@ export default function CharactersPage() {
 
       <ConformationMessagePopUp
         isOpen={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
+        onClose={() => !deleting && setDeleteTarget(null)}
         onConfirm={confirmDelete}
         title="Delete Character"
         message={`Are you sure you want to delete "${deleteTarget?.name}"? This action cannot be undone.`}
         confirmText="Delete"
         cancelText="Cancel"
         isDestructive
+        confirming={deleting}
       />
 
       <AlertMessagePopUp

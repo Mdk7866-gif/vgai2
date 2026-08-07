@@ -109,7 +109,7 @@ export default function Home() {
       <ConformationMessagePopUp 
         isOpen={showConfirm} 
         onClose={() => setShowConfirm(false)} 
-        onConfirm={() => console.log("Confirmed")} 
+        onConfirm={() => { console.log("Confirmed"); setShowConfirm(false); }}
         title="Delete Scene" 
         message="Are you sure you want to delete this scene? This action cannot be undone and you will lose any generated prompts and images associated with it."
         confirmText="Delete"
