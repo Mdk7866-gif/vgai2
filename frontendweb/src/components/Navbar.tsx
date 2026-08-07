@@ -14,9 +14,11 @@ interface NavbarProps {
 
 export const Navbar = ({ onMenuClick }: NavbarProps) => {
   const { theme, toggleTheme } = useTheme();
-  const { user, signOut } = useAuth();
+  const { user, signOut, openLoginModal } = useAuth();
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [avatarFailed, setAvatarFailed] = useState(false);
+  const avatarUrl = user?.user_metadata?.avatar_url ?? user?.user_metadata?.picture;
 
   const handleLogout = async () => {
     setIsMenuOpen(false);
@@ -38,8 +40,8 @@ export const Navbar = ({ onMenuClick }: NavbarProps) => {
       
       <div className="hidden md:flex items-center gap-6 text-[15px] font-medium text-slate-600 dark:text-slate-300">
         <Link href="/" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Home</Link>
-        <Link href="#" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">About</Link>
-        <Link href="#" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Contact</Link>
+        <Link href="/about" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">About</Link>
+        <Link href="/contact" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Contact</Link>
       </div>
       
       <div className="flex items-center gap-2 md:gap-4">
@@ -55,17 +57,27 @@ export const Navbar = ({ onMenuClick }: NavbarProps) => {
           )}
         </button>
 
+        {!user ? (
+          <button
+            onClick={openLoginModal}
+            className="ml-2 flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-sm transition-all active:scale-95 cursor-pointer"
+          >
+            Login
+          </button>
+        ) : (
         <div className="relative">
           <button
             onClick={() => setIsMenuOpen((open) => !open)}
             className="w-8 h-8 md:w-9 md:h-9 ml-2 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 font-medium shadow-sm hover:shadow transition-shadow cursor-pointer overflow-hidden"
             aria-label="Account menu"
           >
-            {user?.user_metadata?.avatar_url ? (
+            {avatarUrl && !avatarFailed ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={user.user_metadata.avatar_url}
+                src={avatarUrl}
                 alt={user.user_metadata?.full_name ?? "Account"}
+                referrerPolicy="no-referrer"
+                onError={() => setAvatarFailed(true)}
                 className="w-full h-full object-cover"
               />
             ) : (
@@ -99,6 +111,7 @@ export const Navbar = ({ onMenuClick }: NavbarProps) => {
             </>
           )}
         </div>
+        )}
       </div>
     </nav>
   );

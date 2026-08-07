@@ -10,6 +10,11 @@ interface AuthContextType {
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
+  loginModalOpen: boolean;
+  openLoginModal: () => void;
+  closeLoginModal: () => void;
+  /** Returns true if already signed in. Otherwise opens the login modal and returns false. */
+  requireAuth: () => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -28,6 +33,7 @@ async function syncUserWithBackend(accessToken: string) {
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -41,6 +47,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (event === "SIGNED_IN" && newSession) {
         syncUserWithBackend(newSession.access_token);
+        setLoginModalOpen(false);
       }
     });
 
@@ -51,7 +58,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: window.location.origin,
+        redirectTo: window.location.href,
       },
     });
   };
@@ -60,9 +67,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     await supabase.auth.signOut();
   };
 
+  const openLoginModal = () => setLoginModalOpen(true);
+  const closeLoginModal = () => setLoginModalOpen(false);
+
+  const requireAuth = () => {
+    if (session?.user) return true;
+    openLoginModal();
+    return false;
+  };
+
   return (
     <AuthContext.Provider
-      value={{ user: session?.user ?? null, session, loading, signInWithGoogle, signOut }}
+      value={{
+        user: session?.user ?? null,
+        session,
+        loading,
+        signInWithGoogle,
+        signOut,
+        loginModalOpen,
+        openLoginModal,
+        closeLoginModal,
+        requireAuth,
+      }}
     >
       {children}
     </AuthContext.Provider>

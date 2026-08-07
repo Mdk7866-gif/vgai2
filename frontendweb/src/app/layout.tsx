@@ -4,6 +4,7 @@ import "./globals.css";
 import SplashScreen from "@/components/SplashScreen";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/context/AuthContext";
+import LoginModal from "@/components/LoginModal";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -60,6 +61,7 @@ export default function RootLayout({
           <AuthProvider>
             <SplashScreen />
             {children}
+            <LoginModal />
           </AuthProvider>
         </ThemeProvider>
       </body>
