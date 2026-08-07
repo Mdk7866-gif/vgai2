@@ -26,6 +26,7 @@ export default function StyleTemplatesPage() {
 
   const [deleteTarget, setDeleteTarget] = useState<StyleTemplate | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [togglingDefaultId, setTogglingDefaultId] = useState<string | null>(null);
   const [alert, setAlert] = useState<{ title: string; message: string } | null>(null);
 
   useEffect(() => {
@@ -103,6 +104,46 @@ export default function StyleTemplatesPage() {
     }
   };
 
+  const handleToggleDefault = async (template: StyleTemplate) => {
+    if (!requireAuth()) return;
+    setTogglingDefaultId(template.id);
+    try {
+      const payload = {
+        name: template.name,
+        description: template.description,
+        image_prompt: template.image_prompt,
+        animation_prompt: template.animation_prompt,
+        youtube_title_description_tags_prompt: template.youtube_title_description_tags_prompt,
+        youtube_thumbnail_image_prompt: template.youtube_thumbnail_image_prompt,
+        scene_density: template.scene_density,
+        image_aspect_ratio: template.image_aspect_ratio,
+        video_aspect_ratio: template.video_aspect_ratio,
+        is_default: !template.is_default,
+      };
+      const res = await authFetch(`/styletemplates/update/${template.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const updated: StyleTemplate = await res.json();
+      // Only one style template can be default at a time — the backend already
+      // cleared the previous default in the DB, mirror that locally.
+      setTemplates((prev) =>
+        prev.map((t) => {
+          if (t.id === updated.id) return updated;
+          return updated.is_default ? { ...t, is_default: false } : t;
+        })
+      );
+    } catch (err) {
+      setAlert({
+        title: "Failed to update default",
+        message: err instanceof Error ? err.message : "Something went wrong.",
+      });
+    } finally {
+      setTogglingDefaultId(null);
+    }
+  };
+
   const handleFormSubmit = async (values: StyleTemplateFormValues) => {
     setSubmitting(true);
     try {
@@ -126,7 +167,12 @@ export default function StyleTemplatesPage() {
           body: JSON.stringify(payload),
         });
         const created: StyleTemplate = await res.json();
-        setTemplates((prev) => [created, ...prev]);
+        // Only one style template can be default at a time — the backend already
+        // cleared the previous default in the DB, mirror that locally.
+        setTemplates((prev) => [
+          created,
+          ...(created.is_default ? prev.map((t) => ({ ...t, is_default: false })) : prev),
+        ]);
       } else if (editingTemplate) {
         const res = await authFetch(`/styletemplates/update/${editingTemplate.id}`, {
           method: "PUT",
@@ -134,7 +180,12 @@ export default function StyleTemplatesPage() {
           body: JSON.stringify(payload),
         });
         const updated: StyleTemplate = await res.json();
-        setTemplates((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+        setTemplates((prev) =>
+          prev.map((t) => {
+            if (t.id === updated.id) return updated;
+            return updated.is_default ? { ...t, is_default: false } : t;
+          })
+        );
       }
       setPopupOpen(false);
     } finally {
@@ -201,6 +252,8 @@ export default function StyleTemplatesPage() {
               template={template}
               onEdit={handleEditClick}
               onDelete={handleDeleteClick}
+              onToggleDefault={handleToggleDefault}
+              togglingDefault={togglingDefaultId === template.id}
             />
           ))}
         </div>

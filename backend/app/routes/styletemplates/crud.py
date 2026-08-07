@@ -15,6 +15,20 @@ def _get_owned_template(template_id: str, user_id: str) -> dict:
     return result.data[0]
 
 
+def _clear_existing_default(user_id: str, exclude_id: str | None = None) -> None:
+    """Unsets is_default on the user's other templates so at most one stays
+    default, matching the partial unique index (idx_user_default_style)."""
+    query = (
+        supabase.table("style_templates")
+        .update({"is_default": False})
+        .eq("user_id", user_id)
+        .eq("is_default", True)
+    )
+    if exclude_id:
+        query = query.neq("id", exclude_id)
+    query.execute()
+
+
 @router.get("/", response_model=list[StyleTemplate])
 async def list_style_templates(current_user: SupabaseUser = Depends(get_current_user)):
     result = (
@@ -32,6 +46,8 @@ async def create_style_template(
     payload: StyleTemplateCreate,
     current_user: SupabaseUser = Depends(get_current_user),
 ):
+    if payload.is_default:
+        _clear_existing_default(current_user.id)
     new_template = {**payload.model_dump(), "user_id": current_user.id}
     created = supabase.table("style_templates").insert(new_template).execute()
     return created.data[0]
@@ -44,6 +60,8 @@ async def update_style_template(
     current_user: SupabaseUser = Depends(get_current_user),
 ):
     _get_owned_template(styletemplate_id, current_user.id)
+    if payload.is_default:
+        _clear_existing_default(current_user.id, exclude_id=styletemplate_id)
     updated = (
         supabase.table("style_templates")
         .update(payload.model_dump())

@@ -1,22 +1,24 @@
 "use client";
 
 import React from "react";
-import { Pencil, Trash2, Star, Palette } from "lucide-react";
+import { Pencil, Trash2, Star, Palette, Loader2 } from "lucide-react";
 import type { StyleTemplate } from "@/types/styletemplate";
 
 interface StyleTemplateCardProps {
   template: StyleTemplate;
   onEdit: (template: StyleTemplate) => void;
   onDelete: (template: StyleTemplate) => void;
+  onToggleDefault: (template: StyleTemplate) => void;
+  togglingDefault?: boolean;
 }
 
-const DENSITY_LABEL: Record<StyleTemplate["scene_density"], string> = {
-  small: "Small density",
-  medium: "Medium density",
-  high: "High density",
-};
-
-export const StyleTemplateCard = ({ template, onEdit, onDelete }: StyleTemplateCardProps) => {
+export const StyleTemplateCard = ({
+  template,
+  onEdit,
+  onDelete,
+  onToggleDefault,
+  togglingDefault = false,
+}: StyleTemplateCardProps) => {
   return (
     <div className="bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl overflow-hidden shadow-sm hover:shadow-lg dark:hover:shadow-slate-900/50 hover:-translate-y-0.5 transition-all duration-200">
       <div className="relative p-4 pb-3 flex items-start justify-between gap-3 border-b border-slate-100 dark:border-slate-700/60">
@@ -28,12 +30,9 @@ export const StyleTemplateCard = ({ template, onEdit, onDelete }: StyleTemplateC
             <h3 className="font-semibold text-[15px] text-slate-900 dark:text-slate-100 truncate">
               {template.name}
             </h3>
-            {template.is_default && (
-              <span className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
-                <Star className="w-3 h-3 fill-current" />
-                Default
-              </span>
-            )}
+            <span className="mt-1 inline-block px-2 py-0.5 rounded-full text-[11px] font-medium bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/30">
+              Image {template.image_aspect_ratio}
+            </span>
           </div>
         </div>
 
@@ -55,22 +54,28 @@ export const StyleTemplateCard = ({ template, onEdit, onDelete }: StyleTemplateC
         </div>
       </div>
 
-      <div className="p-4">
+      <div className="p-4 flex flex-col gap-3">
         <p className="text-[13px] text-slate-500 dark:text-slate-400 line-clamp-3 leading-relaxed min-h-[3.9em]">
-          {template.description}
+          {template.image_prompt}
         </p>
 
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          <span className="px-2 py-1 rounded-full text-[11px] font-medium bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/30">
-            Image {template.image_aspect_ratio}
-          </span>
-          <span className="px-2 py-1 rounded-full text-[11px] font-medium bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-500/30">
-            Video {template.video_aspect_ratio}
-          </span>
-          <span className="px-2 py-1 rounded-full text-[11px] font-medium bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/30">
-            {DENSITY_LABEL[template.scene_density]}
-          </span>
-        </div>
+        <button
+          onClick={() => onToggleDefault(template)}
+          disabled={togglingDefault}
+          aria-label={template.is_default ? `Remove ${template.name} as default` : `Mark ${template.name} as default`}
+          className={`self-start flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1.5 rounded-full shadow-sm transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${
+            template.is_default
+              ? "bg-amber-500/95 text-white hover:bg-amber-500"
+              : "bg-slate-50 dark:bg-slate-900/60 text-slate-500 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:text-amber-600 dark:hover:text-amber-400"
+          }`}
+        >
+          {togglingDefault ? (
+            <Loader2 className="w-3 h-3 animate-spin" />
+          ) : (
+            <Star className={`w-3 h-3 ${template.is_default ? "fill-current" : ""}`} />
+          )}
+          {template.is_default ? "Default" : "Set default"}
+        </button>
       </div>
     </div>
   );

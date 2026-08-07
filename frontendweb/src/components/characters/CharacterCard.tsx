@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
-import { Pencil, Trash2, Star } from "lucide-react";
+import { Pencil, Trash2, Star, Loader2 } from "lucide-react";
 import type { Character } from "@/types/character";
 import ImageZoomPopUp from "@/components/ImageZoomPopUp";
 
@@ -10,9 +10,17 @@ interface CharacterCardProps {
   character: Character;
   onEdit: (character: Character) => void;
   onDelete: (character: Character) => void;
+  onToggleDefault: (character: Character) => void;
+  togglingDefault?: boolean;
 }
 
-export const CharacterCard = ({ character, onEdit, onDelete }: CharacterCardProps) => {
+export const CharacterCard = ({
+  character,
+  onEdit,
+  onDelete,
+  onToggleDefault,
+  togglingDefault = false,
+}: CharacterCardProps) => {
   const [zoomOpen, setZoomOpen] = useState(false);
 
   return (
@@ -29,12 +37,26 @@ export const CharacterCard = ({ character, onEdit, onDelete }: CharacterCardProp
           className="object-cover"
         />
 
-        {character.is_default && (
-          <span className="absolute top-2.5 left-2.5 flex items-center gap-1 bg-amber-500/95 text-white text-[11px] font-semibold px-2 py-1 rounded-full shadow-sm">
-            <Star className="w-3 h-3 fill-current" />
-            Default
-          </span>
-        )}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleDefault(character);
+          }}
+          disabled={togglingDefault}
+          aria-label={character.is_default ? `Remove ${character.name} as default` : `Mark ${character.name} as default`}
+          className={`absolute top-2.5 left-2.5 flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-full shadow-sm transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${
+            character.is_default
+              ? "bg-amber-500/95 text-white hover:bg-amber-500"
+              : "bg-white/90 dark:bg-slate-800/90 text-slate-600 dark:text-slate-200 hover:text-amber-600 dark:hover:text-amber-400"
+          }`}
+        >
+          {togglingDefault ? (
+            <Loader2 className="w-3 h-3 animate-spin" />
+          ) : (
+            <Star className={`w-3 h-3 ${character.is_default ? "fill-current" : ""}`} />
+          )}
+          {character.is_default ? "Default" : "Set default"}
+        </button>
 
         <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5">
           <button

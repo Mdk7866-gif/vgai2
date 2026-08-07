@@ -26,6 +26,7 @@ export default function CharactersPage() {
 
   const [deleteTarget, setDeleteTarget] = useState<Character | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [togglingDefaultId, setTogglingDefaultId] = useState<string | null>(null);
   const [alert, setAlert] = useState<{ title: string; message: string } | null>(null);
 
   useEffect(() => {
@@ -100,6 +101,30 @@ export default function CharactersPage() {
     } finally {
       setDeleting(false);
       setDeleteTarget(null);
+    }
+  };
+
+  const handleToggleDefault = async (character: Character) => {
+    if (!requireAuth()) return;
+    setTogglingDefaultId(character.id);
+    try {
+      const formData = new FormData();
+      formData.append("name", character.name);
+      formData.append("description", character.description);
+      formData.append("is_default", String(!character.is_default));
+      const res = await authFetch(`/characters/update/${character.id}`, {
+        method: "PUT",
+        body: formData,
+      });
+      const updated: Character = await res.json();
+      setCharacters((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+    } catch (err) {
+      setAlert({
+        title: "Failed to update default",
+        message: err instanceof Error ? err.message : "Something went wrong.",
+      });
+    } finally {
+      setTogglingDefaultId(null);
     }
   };
 
@@ -189,6 +214,8 @@ export default function CharactersPage() {
               character={character}
               onEdit={handleEditClick}
               onDelete={handleDeleteClick}
+              onToggleDefault={handleToggleDefault}
+              togglingDefault={togglingDefaultId === character.id}
             />
           ))}
         </div>

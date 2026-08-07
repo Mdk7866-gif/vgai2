@@ -168,7 +168,12 @@ export const EditStyleTemplateCardPopUp = ({
             />
           </div>
 
-          <Toggle checked={isDefault} onChange={setIsDefault} label="Mark as default style template" />
+          <div>
+            <Toggle checked={isDefault} onChange={setIsDefault} label="Mark as default style template" />
+            <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">
+              Only one style template can be default — marking this one will unset any existing default.
+            </p>
+          </div>
 
           <div className="pt-1 border-t border-slate-100 dark:border-slate-700/60">
             <button
