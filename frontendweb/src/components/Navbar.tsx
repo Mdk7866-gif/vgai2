@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { User, Menu, Sun, Moon, LogOut } from "lucide-react";
+import { User, Menu, Sun, Moon, LogOut, UserCircle } from "lucide-react";
 import Logo from "./Logo";
 import { useTheme } from "./ThemeProvider";
 import { useAuth } from "@/context/AuthContext";
@@ -100,6 +100,14 @@ export const Navbar = ({ onMenuClick }: NavbarProps) => {
                     {user?.email}
                   </p>
                 </div>
+                <Link
+                  href="/profile"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/70 transition-colors cursor-pointer"
+                >
+                  <UserCircle className="w-4 h-4" />
+                  Profile
+                </Link>
                 <button
                   onClick={handleLogout}
                   className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer"
