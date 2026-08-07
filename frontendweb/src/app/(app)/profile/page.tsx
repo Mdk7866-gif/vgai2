@@ -6,7 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { authFetch } from "@/lib/api";
 import { loadRazorpayScript } from "@/lib/razorpay";
 import type { User } from "@/types/user";
-import AddCreditsPopUp from "@/components/AddCreditsPopUp";
+import AddCreditsPopUp from "@/components/profile/AddCreditsPopUp";
 import AlertMessagePopUp from "@/components/AlertMessagePopUp";
 
 export default function ProfilePage() {

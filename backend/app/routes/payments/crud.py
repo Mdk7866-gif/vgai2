@@ -11,11 +11,10 @@ from app.supabase import supabase
 
 router = APIRouter(prefix="/payments", tags=["payments"])
 
-# Approximate USD->INR rate used to price credits (README: 100 credits = $1).
+# Fixed USD->INR rate used to price credits (README: 100 credits = $1).
 # Razorpay is INR-only until international payments are approved on the
 # account, so credits are priced in INR using this fixed rate for now.
-# Revisit with a real/live FX rate (or a fixed INR price list) before launch.
-USD_TO_INR_RATE = 83
+USD_TO_INR_RATE = 100
 PAISE_PER_CREDIT = USD_TO_INR_RATE  # 100 credits = $1 = USD_TO_INR_RATE rupees = USD_TO_INR_RATE * 100 paise, so 1 credit = USD_TO_INR_RATE paise
 
 

@@ -4,7 +4,9 @@ from pydantic import BaseModel, Field
 
 
 class CreateOrderRequest(BaseModel):
-    credits: int = Field(..., ge=100, description="Number of credits the user wants to purchase.")
+    credits: int = Field(
+        ..., ge=10, le=50000, description="Number of credits the user wants to purchase."
+    )
 
 
 class CreateOrderResponse(BaseModel):
