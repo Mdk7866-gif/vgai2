@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Plus, Loader2, Palette, LogIn } from "lucide-react";
+import { Plus, Loader2, Palette, LogIn, Sparkles } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { authFetch } from "@/lib/api";
 import type { StyleTemplate } from "@/types/styletemplate";
@@ -9,6 +9,7 @@ import StyleTemplateCard from "@/components/styletemplates/StyleTemplateCard";
 import EditStyleTemplateCardPopUp, {
   StyleTemplateFormValues,
 } from "@/components/styletemplates/EditStyleTemplateCardPopUp";
+import GenerateStyleTemplatePopUp from "@/components/styletemplates/GenerateStyleTemplatePopUp";
 import ConformationMessagePopUp from "@/components/ConformationMessagePopUp";
 import AlertMessagePopUp from "@/components/AlertMessagePopUp";
 
@@ -23,6 +24,9 @@ export default function StyleTemplatesPage() {
   const [editingTemplate, setEditingTemplate] = useState<StyleTemplate | null>(null);
   const [popupKey, setPopupKey] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+
+  const [generatePopupOpen, setGeneratePopupOpen] = useState(false);
+  const [generatePopupKey, setGeneratePopupKey] = useState(0);
 
   const [deleteTarget, setDeleteTarget] = useState<StyleTemplate | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -71,6 +75,17 @@ export default function StyleTemplatesPage() {
     setEditingTemplate(null);
     setPopupKey((k) => k + 1);
     setPopupOpen(true);
+  };
+
+  const handleGenerateClick = () => {
+    if (!requireAuth()) return;
+    setGeneratePopupKey((k) => k + 1);
+    setGeneratePopupOpen(true);
+  };
+
+  const handleGenerated = (template: StyleTemplate) => {
+    setTemplates((prev) => [template, ...prev]);
+    setGeneratePopupOpen(false);
   };
 
   const handleEditClick = (template: StyleTemplate) => {
@@ -204,13 +219,22 @@ export default function StyleTemplatesPage() {
             Save reusable visual styles — prompts, scene density, and aspect ratios — ready to import into any project.
           </p>
         </div>
-        <button
-          onClick={handleAddClick}
-          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-xl font-medium shadow-md shadow-indigo-200 dark:shadow-indigo-900/40 transition-all active:scale-95 w-full sm:w-auto justify-center cursor-pointer ring-1 ring-indigo-700 dark:ring-indigo-500"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Add Style Template</span>
-        </button>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <button
+            onClick={handleGenerateClick}
+            className="flex items-center gap-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-indigo-600 dark:text-indigo-400 px-5 py-2.5 rounded-xl font-medium shadow-sm transition-all active:scale-95 flex-1 sm:flex-none justify-center cursor-pointer ring-1 ring-indigo-200 dark:ring-indigo-500/40"
+          >
+            <Sparkles className="w-5 h-5" />
+            <span>Generate Style Template</span>
+          </button>
+          <button
+            onClick={handleAddClick}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-xl font-medium shadow-md shadow-indigo-200 dark:shadow-indigo-900/40 transition-all active:scale-95 flex-1 sm:flex-none justify-center cursor-pointer ring-1 ring-indigo-700 dark:ring-indigo-500"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Add Style Template</span>
+          </button>
+        </div>
       </div>
 
       {!user ? (
@@ -267,6 +291,13 @@ export default function StyleTemplatesPage() {
         template={editingTemplate}
         onSubmit={handleFormSubmit}
         submitting={submitting}
+      />
+
+      <GenerateStyleTemplatePopUp
+        key={generatePopupKey}
+        isOpen={generatePopupOpen}
+        onClose={() => setGeneratePopupOpen(false)}
+        onAccepted={handleGenerated}
       />
 
       <ConformationMessagePopUp

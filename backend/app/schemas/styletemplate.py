@@ -41,3 +41,18 @@ class StyleTemplateCreate(BaseModel):
 
 class StyleTemplateUpdate(StyleTemplateCreate):
     pass
+
+
+class GenerateStyleTemplateRequest(BaseModel):
+    template_name: str
+    description: str
+
+
+class GenerateStyleTemplateResponse(BaseModel):
+    description: str
+    image_prompt: str
+    animation_prompt: str
+    youtube_title_description_tags_prompt: str
+    youtube_thumbnail_image_prompt: str
+    credits_spent: float
+    credits_remaining: float

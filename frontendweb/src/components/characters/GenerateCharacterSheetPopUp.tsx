@@ -154,7 +154,7 @@ export const GenerateCharacterSheetPopUp = ({
 
       const formData = new FormData();
       formData.append("name", name.trim());
-      formData.append("description", description.trim());
+      formData.append("description", result.character_prompt);
       formData.append("is_default", "false");
       formData.append("character_sheet", imageFile);
 
