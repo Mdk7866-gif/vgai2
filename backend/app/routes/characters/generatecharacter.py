@@ -16,7 +16,7 @@ router = APIRouter(prefix="/characters", tags=["characters"])
 # Miscellaneous-spend cost of one "Generate Character Sheet" attempt.
 # "Pro" uses gpt-image-2 at quality="high" instead of "low" and costs more.
 GENERATE_CREDIT_COST = 4
-GENERATE_PRO_CREDIT_COST = 8
+GENERATE_PRO_CREDIT_COST = 20
 
 # gpt-image-2 requires both edges to be multiples of 16. 1792x1008 = 16*112 x 16*63,
 # and 112:63 reduces to exactly 16:9 (unlike the legacy 1792x1024 DALL-E-3 size, which is 1.75:1).

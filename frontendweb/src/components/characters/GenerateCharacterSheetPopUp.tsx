@@ -74,6 +74,20 @@ export const GenerateCharacterSheetPopUp = ({
     };
   }, []);
 
+  /** Re-fetches the live balance — used right before submit so a stale balance
+   * (e.g. spent in another tab while this popup sat open) can't slip past the
+   * disabled-button check and hit the backend's 402 unnecessarily. */
+  const refreshBalance = async (): Promise<number | null> => {
+    try {
+      const res = await authFetch("/users/me");
+      const data = await res.json();
+      setBalance(data.current_credit_balance);
+      return data.current_credit_balance as number;
+    } catch {
+      return balance;
+    }
+  };
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !generating && !accepting) onClose();
@@ -119,6 +133,15 @@ export const GenerateCharacterSheetPopUp = ({
       return;
     }
     setError(null);
+
+    const freshBalance = await refreshBalance();
+    if (freshBalance !== null && freshBalance < creditCost) {
+      setError(
+        `Not enough credits — generating${proMode ? " with Pro" : ""} costs ${creditCost} credits, you have ${freshBalance}.`
+      );
+      return;
+    }
+
     setGenerating(true);
     try {
       const formData = new FormData();

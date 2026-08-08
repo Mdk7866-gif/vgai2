@@ -12,28 +12,38 @@ from app.supabase import supabase
 router = APIRouter(prefix="/styletemplates", tags=["styletemplates"])
 
 # Miscellaneous-spend cost of one "Generate Style Template" attempt.
-GENERATE_CREDIT_COST = 4
+GENERATE_CREDIT_COST = 2
 
-# Keep these targets in sync with the word limits enforced in
-# EditStyleTemplateCardPopUp.tsx, so an accepted draft doesn't immediately fail
-# client-side validation.
+# Hard word-count ceilings — MUST match EditStyleTemplateCardPopUp.tsx exactly.
+# The LLM is only ever *asked* to respect these via the prompt below, which isn't
+# a guarantee, so _build_style_template_draft() also hard-truncates each field
+# to its limit before returning — otherwise an over-limit draft would fail the
+# frontend's own word-count validation the moment the user tries to import it.
+DESCRIPTION_MAX_WORDS = 150
+IMAGE_PROMPT_MAX_WORDS = 300
+ANIMATION_PROMPT_MAX_WORDS = 200
+YOUTUBE_PROMPT_MAX_WORDS = 150
+
 STYLE_TEMPLATE_SYSTEM_MESSAGE = (
     "You are a creative director's assistant for an AI video-production app. Given a "
     "style template's name and a short description of the desired visual style, write "
     "a complete style template:\n\n"
-    "- description: a refined, concise description of the visual style (150 words max)\n"
+    f"- description: a refined, concise description of the visual style "
+    f"({DESCRIPTION_MAX_WORDS} words max)\n"
     "- image_prompt: a detailed prompt fragment used to generate every scene's image in "
     "this style — art style, rendering technique, color treatment, linework, mood "
-    "(300 words max)\n"
+    f"({IMAGE_PROMPT_MAX_WORDS} words max)\n"
     "- animation_prompt: a detailed prompt fragment used to animate each scene's "
-    "already-generated image — motion style, camera movement feel, pacing (200 words "
-    "max)\n"
+    "already-generated image — motion style, camera movement feel, pacing "
+    f"({ANIMATION_PROMPT_MAX_WORDS} words max)\n"
     "- youtube_title_description_tags_prompt: a prompt for later generating a YouTube "
-    "title, description, and tags matching this style and tone (150 words max)\n"
+    f"title, description, and tags matching this style and tone ({YOUTUBE_PROMPT_MAX_WORDS} words max)\n"
     "- youtube_thumbnail_image_prompt: a prompt for later generating a YouTube "
-    "thumbnail image matching this style (150 words max)\n\n"
+    f"thumbnail image matching this style ({YOUTUBE_PROMPT_MAX_WORDS} words max)\n\n"
     "Keep every field consistent with the others and grounded in the given name and "
-    "description."
+    "description. Stay comfortably under each word limit — it will be hard-truncated "
+    "at that word count, so an unfinished sentence at the cutoff looks worse than a "
+    "shorter, complete one."
 )
 
 
@@ -43,6 +53,13 @@ class _StyleTemplateDraft(BaseModel):
     animation_prompt: str
     youtube_title_description_tags_prompt: str
     youtube_thumbnail_image_prompt: str
+
+
+def _truncate_words(text: str, max_words: int) -> str:
+    words = text.split()
+    if len(words) <= max_words:
+        return text
+    return " ".join(words[:max_words])
 
 
 async def _build_style_template_draft(template_name: str, description: str) -> _StyleTemplateDraft:
@@ -61,6 +78,17 @@ async def _build_style_template_draft(template_name: str, description: str) -> _
 
     if not isinstance(draft, _StyleTemplateDraft):
         raise HTTPException(status_code=502, detail="Style template generation returned an unexpected format.")
+
+    # Hard safety net — see the comment on the word-limit constants above.
+    draft.description = _truncate_words(draft.description, DESCRIPTION_MAX_WORDS)
+    draft.image_prompt = _truncate_words(draft.image_prompt, IMAGE_PROMPT_MAX_WORDS)
+    draft.animation_prompt = _truncate_words(draft.animation_prompt, ANIMATION_PROMPT_MAX_WORDS)
+    draft.youtube_title_description_tags_prompt = _truncate_words(
+        draft.youtube_title_description_tags_prompt, YOUTUBE_PROMPT_MAX_WORDS
+    )
+    draft.youtube_thumbnail_image_prompt = _truncate_words(
+        draft.youtube_thumbnail_image_prompt, YOUTUBE_PROMPT_MAX_WORDS
+    )
 
     return draft
 

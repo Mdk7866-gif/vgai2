@@ -62,13 +62,13 @@ Every user has a `current_credit_balance`. Spend is tracked two ways:
 ### `/characters`
 
 - Full CRUD: add, update, delete characters.
-- **Generate Character Sheet** button: user enters a character name, a brief description, and optionally a reference image. The backend uses **Gemini** (text reasoning) plus **OpenAI** (image generation) to produce a character sheet image. The user reviews and accepts it, and it's added to their character library.
+- **Generate Character Sheet** button: user enters a character name, a brief description, and optionally a reference image. The backend uses **OpenAI** end-to-end — `ChatOpenAI` (LangChain) writes a detailed character-sheet image prompt (front/3-4/back/left-profile/right-profile views plus happy/sad/angry/confused/thinking/surprised expression close-ups, laid out as a labeled two-row grid), then `gpt-image-2` renders it. A "Generate with Pro" toggle switches the render from `quality="low"` (4 credits) to `quality="high"` (8 credits). The user reviews the generated sheet and accepts or rejects it before it's added to their character library, with the generated image prompt itself stored as the character's `description`.
 
 ### `/style_templates`
 
 - Full CRUD: add, edit, delete style templates.
 - Each style template defines: `image_prompt`, `animation_prompt`, YouTube packaging prompts, a `description`, a `scene_density`, and — importantly — its own **`image_aspect_ratio`** and **`video_aspect_ratio`** (e.g. `16:9`, `9:16`, `1:1`). This is what lets vgAI support both long-form landscape videos and short-form vertical videos: whichever style template a project imports determines the aspect ratio of everything generated in that project.
-- **Generate Style Template** button: user provides a name and description, and **Gemini** generates a full style template (prompts + description) for review before it's accepted and added to the library.
+- **Generate Style Template** button: user provides a name and description, and **OpenAI** (`ChatOpenAI` via LangChain, structured output) generates a full style template — `description`, `image_prompt`, `animation_prompt`, and both YouTube packaging prompts — for review before it's accepted and added to the library. Each generated field is capped to the same word limit enforced on manual entry (150/300/200/150/150 words respectively) so an accepted draft is always editable afterward without failing validation.
 
 ### `/liked_projects`
 
@@ -153,11 +153,12 @@ Google sign-in only, via **Supabase Auth**.
 - **Orchestration:** LangChain
 - **Database & Auth:** Supabase (Postgres + Row Level Security for multi-tenant isolation, Google OAuth)
 - **AI Integrations:**
-  - **Gemini API** — text generation (character sheets, style templates) and automatic scene/script splitting.
-  - **OpenAI API** — character sheet images and scene image generation.
+  - **Gemini API** — automatic scene/script splitting (not yet built — see `CLAUDE.md`'s "Current state").
+  - **OpenAI API** — character sheet generation end-to-end (prompt via `ChatOpenAI`, image via `gpt-image-2`), style template generation (`ChatOpenAI`, structured output), and scene image generation.
   - **OpenRouter** — gateway for **Perplexity** (viral topic research) and **Claude** (script generation & "improvise" regeneration).
   - **ElevenLabs API** — chunked text-to-speech voiceover generation, kept independent of OpenRouter for dedicated TTS quality control.
   - **FFmpeg** — stitching voiceover chunks into a single audio file.
+- **Payments:** Razorpay — credit top-ups via Checkout (order creation + signature verification), INR-only for now.
 
 ---
 

@@ -7,7 +7,7 @@ import { authFetch } from "@/lib/api";
 import type { StyleTemplate } from "@/types/styletemplate";
 import CreditCoinIcon from "@/components/CreditCoinIcon";
 
-const GENERATE_CREDIT_COST = 4;
+const GENERATE_CREDIT_COST = 2;
 
 interface GenerateResult {
   description: string;
@@ -65,6 +65,20 @@ export const GenerateStyleTemplatePopUp = ({
     };
   }, []);
 
+  /** Re-fetches the live balance — used right before submit so a stale balance
+   * (e.g. spent in another tab while this popup sat open) can't slip past the
+   * disabled-button check and hit the backend's 402 unnecessarily. */
+  const refreshBalance = async (): Promise<number | null> => {
+    try {
+      const res = await authFetch("/users/me");
+      const data = await res.json();
+      setBalance(data.current_credit_balance);
+      return data.current_credit_balance as number;
+    } catch {
+      return balance;
+    }
+  };
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !generating && !accepting) onClose();
@@ -82,6 +96,15 @@ export const GenerateStyleTemplatePopUp = ({
       return;
     }
     setError(null);
+
+    const freshBalance = await refreshBalance();
+    if (freshBalance !== null && freshBalance < GENERATE_CREDIT_COST) {
+      setError(
+        `Not enough credits — generating a style template costs ${GENERATE_CREDIT_COST} credits, you have ${freshBalance}.`
+      );
+      return;
+    }
+
     setGenerating(true);
     try {
       const res = await authFetch("/styletemplates/generate", {
