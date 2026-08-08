@@ -10,7 +10,7 @@ import CreditCoinIcon from "@/components/CreditCoinIcon";
 import Toggle from "@/components/Toggle";
 
 const GENERATE_CREDIT_COST = 4;
-const GENERATE_PRO_CREDIT_COST = 8;
+const GENERATE_PRO_CREDIT_COST = 20;
 const MAX_DESCRIPTION_WORDS = 300;
 
 const countWords = (text: string) => {
@@ -205,7 +205,7 @@ export const GenerateCharacterSheetPopUp = ({
                   Generating your character sheet…
                 </p>
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  This can take 30–60 seconds. Please wait.
+                  {proMode ? "This can take 1–2 minutes. Please wait." : "This can take 30–60 seconds. Please wait."}
                 </p>
               </div>
             </div>
