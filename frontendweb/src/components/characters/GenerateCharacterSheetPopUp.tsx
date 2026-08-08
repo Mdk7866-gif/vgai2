@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import Image from "next/image";
 import { ImagePlus, Loader2, RotateCcw, Sparkles, X } from "lucide-react";
 import { authFetch } from "@/lib/api";
+import { useCreditBalance } from "@/context/CreditBalanceContext";
 import type { Character } from "@/types/character";
 import CreditCoinIcon from "@/components/CreditCoinIcon";
 import Toggle from "@/components/Toggle";
@@ -45,7 +46,7 @@ export const GenerateCharacterSheetPopUp = ({
   const [proMode, setProMode] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [balance, setBalance] = useState<number | null>(null);
+  const { balance, setBalance, refreshBalance } = useCreditBalance();
   const [loadingBalance, setLoadingBalance] = useState(true);
 
   const [generating, setGenerating] = useState(false);
@@ -56,37 +57,19 @@ export const GenerateCharacterSheetPopUp = ({
   const wordCount = countWords(description);
   const overWordLimit = wordCount > MAX_DESCRIPTION_WORDS;
 
+  // Re-check on every open (this component remounts on open via a `key` prop
+  // on the parent) — the shared balance can go stale while this popup sits
+  // closed (spent in another tab/page).
   useEffect(() => {
     let cancelled = false;
-    authFetch("/users/me")
-      .then((res) => res.json())
-      .then((data) => {
-        if (!cancelled) setBalance(data.current_credit_balance);
-      })
-      .catch(() => {
-        if (!cancelled) setBalance(null);
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingBalance(false);
-      });
+    refreshBalance().finally(() => {
+      if (!cancelled) setLoadingBalance(false);
+    });
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  /** Re-fetches the live balance — used right before submit so a stale balance
-   * (e.g. spent in another tab while this popup sat open) can't slip past the
-   * disabled-button check and hit the backend's 402 unnecessarily. */
-  const refreshBalance = async (): Promise<number | null> => {
-    try {
-      const res = await authFetch("/users/me");
-      const data = await res.json();
-      setBalance(data.current_credit_balance);
-      return data.current_credit_balance as number;
-    } catch {
-      return balance;
-    }
-  };
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

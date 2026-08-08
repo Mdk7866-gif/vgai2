@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { User, Menu, Sun, Moon, LogOut, UserCircle } from "lucide-react";
 import Logo from "./Logo";
 import CreditCoinIcon from "./CreditCoinIcon";
 import { useTheme } from "./ThemeProvider";
 import { useAuth } from "@/context/AuthContext";
-import { authFetch } from "@/lib/api";
+import { useCreditBalance } from "@/context/CreditBalanceContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -25,28 +25,7 @@ export const Navbar = ({ onMenuClick }: NavbarProps) => {
   const avatarButtonRef = useRef<HTMLButtonElement>(null);
   const avatarUrl = user?.user_metadata?.avatar_url ?? user?.user_metadata?.picture;
 
-  const [balance, setBalance] = useState<number | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    if (!user) {
-      const timer = setTimeout(() => setBalance(null), 0);
-      return () => clearTimeout(timer);
-    }
-
-    authFetch("/users/me")
-      .then((res) => res.json())
-      .then((data) => {
-        if (!cancelled) setBalance(data.current_credit_balance);
-      })
-      .catch(() => {
-        if (!cancelled) setBalance(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
+  const { balance } = useCreditBalance();
 
   useLayoutEffect(() => {
     if (!isMenuOpen || !avatarButtonRef.current) return;

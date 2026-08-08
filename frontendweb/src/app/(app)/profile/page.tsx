@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { Loader2, LogIn, Plus, User as UserIcon } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { useCreditBalance } from "@/context/CreditBalanceContext";
 import { authFetch } from "@/lib/api";
 import { loadRazorpayScript } from "@/lib/razorpay";
 import type { User } from "@/types/user";
@@ -12,6 +13,7 @@ import CreditCoinIcon from "@/components/CreditCoinIcon";
 
 export default function ProfilePage() {
   const { user, requireAuth } = useAuth();
+  const { setBalance: setNavbarBalance } = useCreditBalance();
 
   const [profile, setProfile] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -103,6 +105,7 @@ export default function ProfilePage() {
               .then((res) => res.json())
               .then((updatedUser: User) => {
                 setProfile(updatedUser);
+                setNavbarBalance(updatedUser.current_credit_balance);
                 setPopupOpen(false);
                 setAlert({
                   title: "Credits added",

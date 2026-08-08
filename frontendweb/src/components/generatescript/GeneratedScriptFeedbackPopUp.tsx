@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Loader2, RefreshCcw, X } from "lucide-react";
 import { authFetch } from "@/lib/api";
+import { useCreditBalance } from "@/context/CreditBalanceContext";
 import { scriptCreditCost } from "@/lib/scriptGenerationOptions";
 import type { GeneratedScript } from "@/types/scripttemplate";
 import CreditCoinIcon from "@/components/CreditCoinIcon";
@@ -27,32 +28,27 @@ export const GeneratedScriptFeedbackPopUp = ({
   onImprovised,
 }: GeneratedScriptFeedbackPopUpProps) => {
   const [feedback, setFeedback] = useState("");
-  const [balance, setBalance] = useState<number | null>(null);
+  const { balance, refreshBalance } = useCreditBalance();
   const [loadingBalance, setLoadingBalance] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const creditCost = generated ? scriptCreditCost(generated.script_word_length) : 0;
 
+  // Re-check every time this opens — the shared balance can go stale while it
+  // sits closed (spent elsewhere in the app).
   useEffect(() => {
     if (!isOpen) return;
     let cancelled = false;
     const startTimer = setTimeout(() => setLoadingBalance(true), 0);
-    authFetch("/users/me")
-      .then((res) => res.json())
-      .then((data) => {
-        if (!cancelled) setBalance(data.current_credit_balance);
-      })
-      .catch(() => {
-        if (!cancelled) setBalance(null);
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingBalance(false);
-      });
+    refreshBalance().finally(() => {
+      if (!cancelled) setLoadingBalance(false);
+    });
     return () => {
       cancelled = true;
       clearTimeout(startTimer);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   useEffect(() => {
@@ -62,17 +58,6 @@ export const GeneratedScriptFeedbackPopUp = ({
     if (isOpen) window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [isOpen, onClose, submitting]);
-
-  const refreshBalance = async (): Promise<number | null> => {
-    try {
-      const res = await authFetch("/users/me");
-      const data = await res.json();
-      setBalance(data.current_credit_balance);
-      return data.current_credit_balance as number;
-    } catch {
-      return balance;
-    }
-  };
 
   const insufficientCredits = balance !== null && balance < creditCost;
 

@@ -4,6 +4,7 @@ import "./globals.css";
 import SplashScreen from "@/components/SplashScreen";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/context/AuthContext";
+import { CreditBalanceProvider } from "@/context/CreditBalanceContext";
 import LoginModal from "@/components/LoginModal";
 
 const geistSans = Geist({
@@ -59,9 +60,11 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-background text-foreground transition-colors duration-200">
         <ThemeProvider>
           <AuthProvider>
-            <SplashScreen />
-            {children}
-            <LoginModal />
+            <CreditBalanceProvider>
+              <SplashScreen />
+              {children}
+              <LoginModal />
+            </CreditBalanceProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

@@ -13,6 +13,7 @@ from app.openrouter_client import CLAUDE_SCRIPT_MODEL, PERPLEXITY_RESEARCH_MODEL
 from app.routes.scriptgenerationtemplate.crud import _get_owned_script_template
 from app.schemas.scripttemplate import (
     GeneratedScriptRecord,
+    GeneratedScriptUpdate,
     InvolvedCharacter,
     ScriptGenerateRequest,
     ScriptGenerateResponse,
@@ -353,6 +354,20 @@ async def _build_improvised_script(topic: str, current_script: str, feedback: st
     return draft
 
 
+def _to_generated_script_record(row: dict, script_word_length: str) -> GeneratedScriptRecord:
+    return GeneratedScriptRecord(
+        id=row["id"],
+        script_template_id=row["script_template_id"],
+        topic=row["topic_name"],
+        script=row["script_text"],
+        word_count=len(row["script_text"].split()),
+        characters=_parse_characters(row["character_involved"]),
+        script_word_length=script_word_length,
+        created_at=row["created_at"],
+        updated_at=row["updated_at"],
+    )
+
+
 @router.get("/generatedscripts", response_model=list[GeneratedScriptRecord])
 async def list_generated_scripts(current_user: SupabaseUser = Depends(get_current_user)):
     """All of the user's generated scripts, across every research session, newest first."""
@@ -364,19 +379,44 @@ async def list_generated_scripts(current_user: SupabaseUser = Depends(get_curren
         .execute()
     )
     return [
-        GeneratedScriptRecord(
-            id=row["id"],
-            script_template_id=row["script_template_id"],
-            topic=row["topic_name"],
-            script=row["script_text"],
-            word_count=len(row["script_text"].split()),
-            characters=_parse_characters(row["character_involved"]),
-            script_word_length=(row.get("script_templates") or {}).get("script_word_length", ""),
-            created_at=row["created_at"],
-            updated_at=row["updated_at"],
-        )
+        _to_generated_script_record(row, (row.get("script_templates") or {}).get("script_word_length", ""))
         for row in result.data
     ]
+
+
+@router.put("/generatedscripts/{generated_script_id}", response_model=GeneratedScriptRecord)
+async def update_generated_script(
+    generated_script_id: str,
+    payload: GeneratedScriptUpdate,
+    current_user: SupabaseUser = Depends(get_current_user),
+):
+    """Manually edits a generated script's topic/text in place. No AI call, no credit cost."""
+    generated = _get_owned_generated_script(generated_script_id, current_user.id)
+    template = _get_owned_script_template(generated["script_template_id"], current_user.id)
+
+    updated = (
+        supabase.table("generated_scripts")
+        .update(
+            {
+                "topic_name": payload.topic,
+                "script_text": payload.script,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+        )
+        .eq("id", generated_script_id)
+        .execute()
+    )
+    return _to_generated_script_record(updated.data[0], template["script_word_length"])
+
+
+@router.delete("/generatedscripts/{generated_script_id}")
+async def delete_generated_script(
+    generated_script_id: str,
+    current_user: SupabaseUser = Depends(get_current_user),
+):
+    _get_owned_generated_script(generated_script_id, current_user.id)
+    supabase.table("generated_scripts").delete().eq("id", generated_script_id).execute()
+    return {"success": True}
 
 
 @router.post("/generatescript", response_model=ScriptGenerateResponse)

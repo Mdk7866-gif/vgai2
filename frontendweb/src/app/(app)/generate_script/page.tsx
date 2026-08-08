@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { FileText, Layers, Loader2, LogIn, Save, Sparkles, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { useCreditBalance } from "@/context/CreditBalanceContext";
 import { authFetch } from "@/lib/api";
 import { COUNTRIES } from "@/lib/countries";
 import {
@@ -20,6 +21,7 @@ import GeneratedScriptCard from "@/components/generatescript/GeneratedScriptCard
 import GeneratedScriptFeedbackPopUp from "@/components/generatescript/GeneratedScriptFeedbackPopUp";
 import ShowScriptTemplatesCardPopUp from "@/components/generatescript/ShowScriptTemplatesCardPopUp";
 import AlertMessagePopUp from "@/components/AlertMessagePopUp";
+import ConformationMessagePopUp from "@/components/ConformationMessagePopUp";
 
 const OTHER_CATEGORY = "Other";
 const CATEGORY_SELECT_OPTIONS = [...CATEGORY_OPTIONS, OTHER_CATEGORY];
@@ -62,7 +64,7 @@ export default function GenerateScriptPage() {
   // nudges the Script Length dropdown afterward without re-researching.
   const [activeWordLength, setActiveWordLength] = useState<string | null>(null);
 
-  const [balance, setBalance] = useState<number | null>(null);
+  const { balance, setBalance, refreshBalance } = useCreditBalance();
 
   const [researching, setResearching] = useState(false);
   const [topics, setTopics] = useState<ViralTopic[]>([]);
@@ -74,6 +76,9 @@ export default function GenerateScriptPage() {
 
   const [feedbackTarget, setFeedbackTarget] = useState<GeneratedScript | null>(null);
   const [feedbackPopupOpen, setFeedbackPopupOpen] = useState(false);
+
+  const [deleteTarget, setDeleteTarget] = useState<GeneratedScript | null>(null);
+  const [deletingScript, setDeletingScript] = useState(false);
 
   const [alert, setAlert] = useState<{ title: string; message: string; type?: "error" | "info" } | null>(null);
 
@@ -104,26 +109,6 @@ export default function GenerateScriptPage() {
     !!topicDescription.trim() &&
     !!scriptDescription.trim() &&
     !scriptDescriptionOverLimit;
-
-  useEffect(() => {
-    if (!user) {
-      const timer = setTimeout(() => setBalance(null), 0);
-      return () => clearTimeout(timer);
-    }
-
-    let cancelled = false;
-    authFetch("/users/me")
-      .then((res) => res.json())
-      .then((data) => {
-        if (!cancelled) setBalance(data.current_credit_balance);
-      })
-      .catch(() => {
-        if (!cancelled) setBalance(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
 
   // Restore the user's generated-script history (always) and, if they had an
   // active research session going, its form state + topics (once).
@@ -172,17 +157,6 @@ export default function GenerateScriptPage() {
       cancelled = true;
     };
   }, [user]);
-
-  const refreshBalance = async (): Promise<number | null> => {
-    try {
-      const res = await authFetch("/users/me");
-      const data = await res.json();
-      setBalance(data.current_credit_balance);
-      return data.current_credit_balance as number;
-    } catch {
-      return balance;
-    }
-  };
 
   const scriptCost = useMemo(() => scriptCreditCost(scriptWordLength), [scriptWordLength]);
   const activeGenerateCost = useMemo(
@@ -295,6 +269,56 @@ export default function GenerateScriptPage() {
     setGeneratedScripts((prev) => prev.map((g) => (g.id === updated.id ? updated : g)));
     setFeedbackPopupOpen(false);
     refreshBalance();
+  };
+
+  const handleUpdateGeneratedScript = async (
+    generated: GeneratedScript,
+    updates: { topic: string; script: string }
+  ) => {
+    try {
+      const res = await authFetch(`/scripttemplates/generatedscripts/${generated.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
+      const data = await res.json();
+      setGeneratedScripts((prev) =>
+        prev.map((g) =>
+          g.id === generated.id
+            ? {
+                id: data.id,
+                script_template_id: data.script_template_id,
+                topic: data.topic,
+                script: data.script,
+                word_count: data.word_count,
+                characters: data.characters,
+                script_word_length: data.script_word_length,
+              }
+            : g
+        )
+      );
+    } catch (err) {
+      setAlert({ title: "Failed to save changes", message: err instanceof Error ? err.message : "Something went wrong." });
+    }
+  };
+
+  const handleDeleteGeneratedScript = (generated: GeneratedScript) => {
+    if (!requireAuth()) return;
+    setDeleteTarget(generated);
+  };
+
+  const confirmDeleteGeneratedScript = async () => {
+    if (!deleteTarget) return;
+    setDeletingScript(true);
+    try {
+      await authFetch(`/scripttemplates/generatedscripts/${deleteTarget.id}`, { method: "DELETE" });
+      setGeneratedScripts((prev) => prev.filter((g) => g.id !== deleteTarget.id));
+      setDeleteTarget(null);
+    } catch (err) {
+      setAlert({ title: "Failed to delete script", message: err instanceof Error ? err.message : "Something went wrong." });
+    } finally {
+      setDeletingScript(false);
+    }
   };
 
   const handleSaveTemplate = async () => {
@@ -657,6 +681,8 @@ export default function GenerateScriptPage() {
                     generated={generated}
                     onImport={handleImport}
                     onImprovise={handleImprovise}
+                    onDelete={handleDeleteGeneratedScript}
+                    onUpdate={handleUpdateGeneratedScript}
                   />
                 ))}
               </div>
@@ -677,6 +703,18 @@ export default function GenerateScriptPage() {
         onClose={() => setFeedbackPopupOpen(false)}
         generated={feedbackTarget}
         onImprovised={handleImprovised}
+      />
+
+      <ConformationMessagePopUp
+        isOpen={!!deleteTarget}
+        onClose={() => !deletingScript && setDeleteTarget(null)}
+        onConfirm={confirmDeleteGeneratedScript}
+        title="Delete Generated Script"
+        message={`Are you sure you want to delete "${deleteTarget?.topic}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        isDestructive
+        confirming={deletingScript}
       />
 
       <AlertMessagePopUp

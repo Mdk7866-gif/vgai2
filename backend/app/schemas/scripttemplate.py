@@ -113,6 +113,11 @@ class ScriptImproviseResponse(BaseModel):
     credits_remaining: float
 
 
+class GeneratedScriptUpdate(BaseModel):
+    topic: str
+    script: str
+
+
 class GeneratedScriptRecord(BaseModel):
     id: str
     script_template_id: str
