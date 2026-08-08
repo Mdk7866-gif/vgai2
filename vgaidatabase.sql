@@ -146,17 +146,65 @@ create table script_templates (
   target_country varchar(200) not null,
   script_word_length varchar(20) not null,
 
+  -- false = auto-created behind a "Get Top 10 Viral Topics" / generate call the
+  -- user never explicitly saved; true = user clicked "Save as Template". The
+  -- "My Templates" list only shows is_saved = true rows.
+  is_saved boolean not null default false,
+
   created_at timestamp not null default now(),
   updated_at timestamp not null default now()
 );
 
 -- If script_templates already exists in your Supabase project from before
--- target_country/script_word_length were added, run this instead of the
--- create table above (it will fail on an existing table):
+-- target_country/script_word_length/is_saved were added, run this instead of
+-- the create table above (it will fail on an existing table):
 --   alter table script_templates add column target_country varchar(200) not null default '';
 --   alter table script_templates add column script_word_length varchar(20) not null default '';
 --   alter table script_templates alter column target_country drop default;
 --   alter table script_templates alter column script_word_length drop default;
+--   alter table script_templates add column is_saved boolean not null default true;
+-- (default true on backfill so your existing rows -- all of which you saved
+-- deliberately before is_saved existed -- keep showing up in "My Templates";
+-- the column's default for *new* rows going forward is false, set above.)
+
+create table researched_topics (
+  id uuid primary key default gen_random_uuid(),
+
+  script_template_id uuid not null references script_templates (id) on delete cascade,
+  user_id uuid not null references users (id) on delete cascade,
+
+  -- 1-10, one slot per topic in a "Get Top 10 Viral Topics" batch. Re-researching
+  -- the same script_template updates these 10 rows in place rather than creating
+  -- new ones, so a template always has at most 10 researched_topics rows.
+  topic_number int not null,
+
+  topic_name varchar(300) not null,
+  brief_description text not null,
+
+  created_at timestamp not null default now(),
+  updated_at timestamp not null default now(),
+
+  unique (script_template_id, topic_number)
+);
+
+create table generated_scripts (
+  id uuid primary key default gen_random_uuid(),
+
+  script_template_id uuid not null references script_templates (id) on delete cascade,
+  user_id uuid not null references users (id) on delete cascade,
+
+  -- Denormalized, not a FK to researched_topics -- a script must survive even
+  -- after its originating topic batch gets replaced by a later research call.
+  topic_name varchar(300) not null,
+  script_text text not null,
+
+  -- Characters involved, "#"-delimited (each entry itself "name:age, gender,
+  -- profession, appearance_description"), parsed by the backend on read.
+  character_involved text,
+
+  created_at timestamp not null default now(),
+  updated_at timestamp not null default now()
+);
 
 create table project_characters (
   id uuid primary key default gen_random_uuid(),
@@ -256,6 +304,8 @@ alter table projects enable row level security;
 alter table style_templates enable row level security;
 alter table characters enable row level security;
 alter table script_templates enable row level security;
+alter table researched_topics enable row level security;
+alter table generated_scripts enable row level security;
 alter table project_characters enable row level security;
 alter table scenes enable row level security;
 alter table scene_characters enable row level security;

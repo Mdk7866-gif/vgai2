@@ -156,13 +156,59 @@ Table script_templates {
   id uuid [pk, default: `gen_random_uuid()`]
 
   user_id uuid [not null]
-  
+
   category varchar(200) [not null]
   topic_description text [not null]
   script_description text [not null]
   content_type content_type [not null, default: 'long_videos']
   target_country varchar(200) [not null]
   script_word_length varchar(20) [not null]
+
+  // false = auto-created behind a "Get Top 10 Viral Topics" / generate call the
+  // user never explicitly saved; true = user clicked "Save as Template". The
+  // "My Templates" list only shows is_saved = true rows.
+  is_saved boolean [not null, default: false]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+}
+
+Table researched_topics {
+  id uuid [pk, default: `gen_random_uuid()`]
+
+  script_template_id uuid [not null]
+  user_id uuid [not null]
+
+  // 1-10, one slot per topic in a "Get Top 10 Viral Topics" batch. Re-researching
+  // the same script_template updates these 10 rows in place rather than creating
+  // new ones, so a template always has at most 10 researched_topics rows.
+  topic_number int [not null]
+
+  topic_name varchar(300) [not null]
+  brief_description text [not null]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  indexes {
+    (script_template_id, topic_number) [unique]
+  }
+}
+
+Table generated_scripts {
+  id uuid [pk, default: `gen_random_uuid()`]
+
+  script_template_id uuid [not null]
+  user_id uuid [not null]
+
+  // Denormalized, not a FK to researched_topics -- a script must survive even
+  // after its originating topic batch gets replaced by a later research call.
+  topic_name varchar(300) [not null]
+  script_text text [not null]
+
+  // Characters involved, "#"-delimited (each entry itself "name:age, gender,
+  // profession, appearance_description"), parsed by the backend on read.
+  character_involved text
 
   created_at timestamp [not null, default: `now()`]
   updated_at timestamp [not null, default: `now()`]
@@ -271,6 +317,11 @@ Ref: style_templates.user_id > users.id
 Ref: script_templates.user_id > users.id
 Ref: credit_topups.user_id > users.id
 Ref: project_expence_tracker.user_id > users.id
+
+Ref: researched_topics.script_template_id > script_templates.id
+Ref: researched_topics.user_id > users.id
+Ref: generated_scripts.script_template_id > script_templates.id
+Ref: generated_scripts.user_id > users.id
 
 Ref: project_characters.project_id > projects.id
 Ref: scenes.project_id > projects.id
