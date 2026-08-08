@@ -78,11 +78,12 @@ Every user has a `current_credit_balance`. Spend is tracked two ways:
 
 ### `/generate_script`
 
-1. User selects a `category`, and enters `topic_description`, `script_description`, and `video_type` (long-form video or YouTube Shorts).
-2. **Get Top 10 Viral Topics** — calls **Perplexity** (via OpenRouter) to research the web and return 10 trending/relevant topic ideas for the given category/description.
-3. User picks a topic and clicks **+ Generate Script** — **Claude** (via OpenRouter) writes a full script matching the `script_description`, along with a list of characters involved in the story (name, e.g. "Nick, 30, male", plus a brief physical appearance description).
-4. The generated script can be imported directly into a project folder to start working on it.
-5. **Improvise** — if the user doesn't like the result, they give feedback and Claude regenerates an improved script.
+1. User fills in a form: `category` (a dropdown of common YouTube content categories — Finance & Investing, News & Current Affairs, Entertainment, Story/Drama, True Crime & Mystery, Motivational & Self-Improvement, History, Technology, Health & Fitness, Educational/How-To, Comedy, Gaming, Travel, Food & Cooking, Science, Horror/Creepy, Business & Entrepreneurship, Relationships & Lifestyle, Sports, Kids & Family — with a free-text "Other" option), `target_country` (a dropdown of all countries — the audience Perplexity should research trends for), `video_type`/`content_type` (long-form video or YouTube Shorts/Reel), `script_word_length` (a dropdown of 100-word bands from `100-200` up to `1400-1500`), `topic_description`, and `script_description` (max 300 words — a free-form "skill file" the creator uses to tell Claude exactly how they want the script written: tone, structure, must-hit points, etc.).
+2. **Get Top 10 Viral Topics** (20 credits) — calls **Perplexity** (via OpenRouter, `perplexity/sonar-pro`) to research the web and return 10 trending/viral topic ideas for the given category, topic description, target country, and video format. Each shows as a card (title + why it's trending) with its own **+ Generate** button — no popup.
+3. Clicking **+ Generate** on a topic card calls **Claude** (via OpenRouter, `anthropic/claude-sonnet-5`) to write a full script matching the `script_description` and chosen word-length band, along with a list of characters involved in the story (name, e.g. "Nick, 30, male", plus profession and a brief physical appearance description). Cost scales with the word-length band: `words_per_credit = 5`, so a script capped at 900 words costs 180 credits. The result renders as its own card (topic, script, word count, character list) — also not a popup, and multiple generated-script cards can stack as the user tries different topics.
+4. **Import** — imports the generated script into a project folder to start working on it. *(Placeholder until `/project_folder/{project_id}` exists — see that section.)*
+5. **Improvise** — opens a feedback popup; the given feedback + the current script are sent back to Claude, which returns a revised script (same card, same word-length-based credit cost). Can be repeated as many times as the user likes.
+6. The form inputs (`category`, `topic_description`, `script_description`, `target_country`, `video_type`, `script_word_length`) can be saved as a reusable **script template** (`script_templates`) for later. A "My Templates" popup lists all of the user's saved templates so they can be imported back into the form (and re-used to research/generate again) without retyping everything.
 
 ### `/profile`
 
@@ -171,7 +172,7 @@ The full, current schema lives in [`vgaidatabase.dbml`](./vgaidatabase.dbml). Su
 - **`projects`** — script, `is_liked`, selected model ids, a full snapshot of the style template used, YouTube metadata, and ElevenLabs voice settings.
 - **`style_templates`** — reusable visual styles: image/animation/YouTube prompts, `scene_density`, `image_aspect_ratio`, `video_aspect_ratio`, `is_default`.
 - **`characters`** — reusable character library with `character_sheet_url` and `is_default`.
-- **`script_templates`** — saved script-generation requests: `category`, `topic_description`, `script_description`, `content_type` (`long_videos` / `short_videos`).
+- **`script_templates`** — saved script-generation requests: `category`, `topic_description`, `script_description`, `content_type` (`long_videos` / `short_videos`), `target_country`, `script_word_length`.
 - **`project_characters`** — per-project snapshot of imported characters.
 - **`scenes`** — per-project scene breakdown: text, image/animation prompts, generated URLs, and generation status enums.
 - **`scene_characters`** — join table linking scenes to the project characters involved in them.
@@ -340,6 +341,8 @@ Table script_templates {
   topic_description text [not null]
   script_description text [not null]
   content_type content_type [not null, default: 'long_videos']
+  target_country varchar(200) [not null]
+  script_word_length varchar(20) [not null]
 
   created_at timestamp [not null, default: `now()`]
   updated_at timestamp [not null, default: `now()`]

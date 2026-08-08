@@ -143,10 +143,20 @@ create table script_templates (
   topic_description text not null,
   script_description text not null,
   content_type content_type not null default 'long_videos',
+  target_country varchar(200) not null,
+  script_word_length varchar(20) not null,
 
   created_at timestamp not null default now(),
   updated_at timestamp not null default now()
 );
+
+-- If script_templates already exists in your Supabase project from before
+-- target_country/script_word_length were added, run this instead of the
+-- create table above (it will fail on an existing table):
+--   alter table script_templates add column target_country varchar(200) not null default '';
+--   alter table script_templates add column script_word_length varchar(20) not null default '';
+--   alter table script_templates alter column target_country drop default;
+--   alter table script_templates alter column script_word_length drop default;
 
 create table project_characters (
   id uuid primary key default gen_random_uuid(),

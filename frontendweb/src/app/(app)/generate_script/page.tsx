@@ -1,12 +1,541 @@
+"use client";
+
+import React, { useEffect, useMemo, useState } from "react";
+import { FileText, Layers, Loader2, LogIn, Save, Sparkles } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { authFetch } from "@/lib/api";
+import { COUNTRIES } from "@/lib/countries";
+import {
+  CATEGORY_OPTIONS,
+  CONTENT_TYPE_OPTIONS,
+  SCRIPT_DESCRIPTION_MAX_WORDS,
+  TOPIC_RESEARCH_CREDIT_COST,
+  WORD_LENGTH_OPTIONS,
+  scriptCreditCost,
+} from "@/lib/scriptGenerationOptions";
+import type { ContentType, GeneratedScript, ScriptTemplate, ViralTopic } from "@/types/scripttemplate";
+import CreditCoinIcon from "@/components/CreditCoinIcon";
+import SuggestionTopicCard from "@/components/generatescript/SuggestionTopicCard";
+import GeneratedScriptCard from "@/components/generatescript/GeneratedScriptCard";
+import GeneratedScriptFeedbackPopUp from "@/components/generatescript/GeneratedScriptFeedbackPopUp";
+import ShowScriptTemplatesCardPopUp from "@/components/generatescript/ShowScriptTemplatesCardPopUp";
+import AlertMessagePopUp from "@/components/AlertMessagePopUp";
+
+const OTHER_CATEGORY = "Other";
+const CATEGORY_SELECT_OPTIONS = [...CATEGORY_OPTIONS, OTHER_CATEGORY];
+
+const countWords = (text: string) => {
+  const trimmed = text.trim();
+  return trimmed === "" ? 0 : trimmed.split(/\s+/).length;
+};
+
+const inputClass =
+  "w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 transition-all";
+
+const labelClass = "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5";
+
 export default function GenerateScriptPage() {
+  const { user, requireAuth } = useAuth();
+
+  const [category, setCategory] = useState(CATEGORY_SELECT_OPTIONS[0]);
+  const [customCategory, setCustomCategory] = useState("");
+  const [targetCountry, setTargetCountry] = useState("");
+  const [contentType, setContentType] = useState<ContentType>("long_videos");
+  const [scriptWordLength, setScriptWordLength] = useState(WORD_LENGTH_OPTIONS[0]);
+  const [topicDescription, setTopicDescription] = useState("");
+  const [scriptDescription, setScriptDescription] = useState("");
+
+  const [balance, setBalance] = useState<number | null>(null);
+  const [loadingBalance, setLoadingBalance] = useState(true);
+
+  const [researching, setResearching] = useState(false);
+  const [topics, setTopics] = useState<ViralTopic[]>([]);
+  const [generatingTopicTitle, setGeneratingTopicTitle] = useState<string | null>(null);
+  const [generatedScripts, setGeneratedScripts] = useState<GeneratedScript[]>([]);
+
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [templatesPopupOpen, setTemplatesPopupOpen] = useState(false);
+
+  const [feedbackTarget, setFeedbackTarget] = useState<GeneratedScript | null>(null);
+  const [feedbackPopupOpen, setFeedbackPopupOpen] = useState(false);
+
+  const [alert, setAlert] = useState<{ title: string; message: string; type?: "error" | "info" } | null>(null);
+
+  const scriptDescriptionWordCount = countWords(scriptDescription);
+  const scriptDescriptionOverLimit = scriptDescriptionWordCount > SCRIPT_DESCRIPTION_MAX_WORDS;
+
+  const effectiveCategory = category === OTHER_CATEGORY ? customCategory.trim() : category;
+
+  const formValid =
+    !!effectiveCategory &&
+    !!targetCountry &&
+    !!topicDescription.trim() &&
+    !!scriptDescription.trim() &&
+    !scriptDescriptionOverLimit;
+
+  useEffect(() => {
+    if (!user) {
+      const timer = setTimeout(() => {
+        setBalance(null);
+        setLoadingBalance(false);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+
+    let cancelled = false;
+    const startTimer = setTimeout(() => setLoadingBalance(true), 0);
+    authFetch("/users/me")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled) setBalance(data.current_credit_balance);
+      })
+      .catch(() => {
+        if (!cancelled) setBalance(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingBalance(false);
+      });
+    return () => {
+      cancelled = true;
+      clearTimeout(startTimer);
+    };
+  }, [user]);
+
+  const refreshBalance = async (): Promise<number | null> => {
+    try {
+      const res = await authFetch("/users/me");
+      const data = await res.json();
+      setBalance(data.current_credit_balance);
+      return data.current_credit_balance as number;
+    } catch {
+      return balance;
+    }
+  };
+
+  const scriptCost = useMemo(() => scriptCreditCost(scriptWordLength), [scriptWordLength]);
+  const insufficientForResearch = balance !== null && balance < TOPIC_RESEARCH_CREDIT_COST;
+
+  const handleResearch = async () => {
+    if (!requireAuth()) return;
+    if (!formValid) {
+      setAlert({ title: "Missing info", message: "Please fill in category, target country, topic description, and script description first." });
+      return;
+    }
+
+    const freshBalance = await refreshBalance();
+    if (freshBalance !== null && freshBalance < TOPIC_RESEARCH_CREDIT_COST) {
+      setAlert({
+        title: "Not enough credits",
+        message: `Researching viral topics costs ${TOPIC_RESEARCH_CREDIT_COST} credits, you have ${freshBalance}.`,
+      });
+      return;
+    }
+
+    setResearching(true);
+    try {
+      const res = await authFetch("/scripttemplates/generatetopics", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category: effectiveCategory,
+          topic_description: topicDescription.trim(),
+          target_country: targetCountry,
+          content_type: contentType,
+        }),
+      });
+      const data = await res.json();
+      setTopics(data.topics);
+      setBalance(data.credits_remaining);
+    } catch (err) {
+      setAlert({ title: "Research failed", message: err instanceof Error ? err.message : "Something went wrong." });
+    } finally {
+      setResearching(false);
+    }
+  };
+
+  const handleGenerateScript = async (topic: ViralTopic) => {
+    if (!requireAuth()) return;
+
+    const freshBalance = await refreshBalance();
+    if (freshBalance !== null && freshBalance < scriptCost) {
+      setAlert({
+        title: "Not enough credits",
+        message: `Generating a ${scriptWordLength}-word script costs ${scriptCost} credits, you have ${freshBalance}.`,
+      });
+      return;
+    }
+
+    setGeneratingTopicTitle(topic.title);
+    try {
+      const res = await authFetch("/scripttemplates/generatescript", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          topic: topic.title,
+          category: effectiveCategory,
+          topic_description: topicDescription.trim(),
+          script_description: scriptDescription.trim(),
+          target_country: targetCountry,
+          content_type: contentType,
+          script_word_length: scriptWordLength,
+        }),
+      });
+      const data = await res.json();
+      const newScript: GeneratedScript = {
+        clientId: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        topic: data.topic,
+        script: data.script,
+        word_count: data.word_count,
+        characters: data.characters,
+        script_word_length: scriptWordLength,
+      };
+      setGeneratedScripts((prev) => [newScript, ...prev]);
+      setBalance(data.credits_remaining);
+    } catch (err) {
+      setAlert({ title: "Script generation failed", message: err instanceof Error ? err.message : "Something went wrong." });
+    } finally {
+      setGeneratingTopicTitle(null);
+    }
+  };
+
+  const handleImport = (generated: GeneratedScript) => {
+    setAlert({
+      title: "Coming soon",
+      message: `Importing "${generated.topic}" into a project folder isn't available yet — project folders haven't been built.`,
+      type: "info",
+    });
+  };
+
+  const handleImprovise = (generated: GeneratedScript) => {
+    if (!requireAuth()) return;
+    setFeedbackTarget(generated);
+    setFeedbackPopupOpen(true);
+  };
+
+  const handleImprovised = (updated: GeneratedScript) => {
+    setGeneratedScripts((prev) => prev.map((g) => (g.clientId === updated.clientId ? updated : g)));
+    setFeedbackPopupOpen(false);
+    refreshBalance();
+  };
+
+  const handleSaveTemplate = async () => {
+    if (!requireAuth()) return;
+    if (!formValid) {
+      setAlert({ title: "Missing info", message: "Please fill in category, target country, topic description, and script description first." });
+      return;
+    }
+
+    setSavingTemplate(true);
+    try {
+      await authFetch("/scripttemplates/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category: effectiveCategory,
+          topic_description: topicDescription.trim(),
+          script_description: scriptDescription.trim(),
+          content_type: contentType,
+          target_country: targetCountry,
+          script_word_length: scriptWordLength,
+        }),
+      });
+      setAlert({ title: "Template saved", message: "You can re-import it anytime from \"My Templates\".", type: "info" });
+    } catch (err) {
+      setAlert({ title: "Failed to save template", message: err instanceof Error ? err.message : "Something went wrong." });
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+
+  const handleImportTemplate = (template: ScriptTemplate) => {
+    const isKnownCategory = CATEGORY_OPTIONS.includes(template.category);
+    setCategory(isKnownCategory ? template.category : OTHER_CATEGORY);
+    setCustomCategory(isKnownCategory ? "" : template.category);
+    setTargetCountry(template.target_country);
+    setContentType(template.content_type);
+    setScriptWordLength(template.script_word_length);
+    setTopicDescription(template.topic_description);
+    setScriptDescription(template.script_description);
+    setTemplatesPopupOpen(false);
+  };
+
   return (
-    <div className="flex flex-col items-center justify-center text-center gap-3 py-24">
-      <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
-        Generate Script
-      </h1>
-      <p className="text-slate-500 dark:text-slate-400 max-w-md">
-        This page is coming soon.
-      </p>
+    <div className="flex flex-col gap-8 pb-16 animate-in fade-in duration-500">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+        <div>
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 dark:text-white">
+            Generate Script
+          </h1>
+          <p className="mt-2 text-slate-500 dark:text-slate-400 text-[15px] max-w-xl leading-relaxed">
+            Research trending topics and let AI write a full video script, ready to import into a project.
+          </p>
+        </div>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          {user && (
+            <div className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 ring-1 ring-slate-200 dark:ring-slate-700 text-sm font-medium text-slate-600 dark:text-slate-300">
+              <CreditCoinIcon className="w-4 h-4" />
+              {loadingBalance ? "…" : balance ?? "—"}
+            </div>
+          )}
+          <button
+            onClick={() => {
+              if (!requireAuth()) return;
+              setTemplatesPopupOpen(true);
+            }}
+            className="flex items-center gap-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-indigo-600 dark:text-indigo-400 px-5 py-2.5 rounded-xl font-medium shadow-sm transition-all active:scale-95 cursor-pointer ring-1 ring-indigo-200 dark:ring-indigo-500/40"
+          >
+            <Layers className="w-5 h-5" />
+            <span>My Templates</span>
+          </button>
+        </div>
+      </div>
+
+      {!user ? (
+        <div className="flex flex-col items-center justify-center text-center gap-3 py-20 bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl">
+          <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center">
+            <FileText className="w-6 h-6" />
+          </div>
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Login to generate scripts</h2>
+          <p className="text-slate-500 dark:text-slate-400 text-sm max-w-sm">
+            Script generation and your saved templates are tied to your account.
+          </p>
+          <button
+            onClick={() => requireAuth()}
+            className="mt-2 flex items-center gap-2 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 cursor-pointer"
+          >
+            <LogIn className="w-4 h-4" />
+            Login
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-5 sm:p-6 flex flex-col gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="gs-category" className={labelClass}>
+                  Category
+                </label>
+                <select
+                  id="gs-category"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className={inputClass}
+                >
+                  {CATEGORY_SELECT_OPTIONS.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+                {category === OTHER_CATEGORY && (
+                  <input
+                    type="text"
+                    value={customCategory}
+                    onChange={(e) => setCustomCategory(e.target.value)}
+                    placeholder="Type your category"
+                    className={`${inputClass} mt-2`}
+                  />
+                )}
+              </div>
+
+              <div>
+                <label htmlFor="gs-country" className={labelClass}>
+                  Target Country
+                </label>
+                <select
+                  id="gs-country"
+                  value={targetCountry}
+                  onChange={(e) => setTargetCountry(e.target.value)}
+                  className={inputClass}
+                >
+                  <option value="" disabled>
+                    Select a country
+                  </option>
+                  {COUNTRIES.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className={labelClass}>Video Type</label>
+                <div className="grid grid-cols-2 gap-3">
+                  {CONTENT_TYPE_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setContentType(opt.value)}
+                      aria-pressed={contentType === opt.value}
+                      className={`px-4 py-2.5 rounded-xl border text-sm font-semibold text-center transition-all cursor-pointer ${
+                        contentType === opt.value
+                          ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 ring-2 ring-indigo-500/30"
+                          : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-slate-600 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-600"
+                      }`}
+                    >
+                      {opt.label}
+                      <span className="block text-xs font-normal opacity-75">{opt.sublabel}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="gs-word-length" className={labelClass}>
+                  Script Length
+                </label>
+                <select
+                  id="gs-word-length"
+                  value={scriptWordLength}
+                  onChange={(e) => setScriptWordLength(e.target.value)}
+                  className={inputClass}
+                >
+                  {WORD_LENGTH_OPTIONS.map((w) => (
+                    <option key={w} value={w}>
+                      {w} words
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                  <CreditCoinIcon className="w-3 h-3" />
+                  {scriptCost} credits to generate a script in this range
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="gs-topic-description" className={labelClass}>
+                Topic Description
+              </label>
+              <textarea
+                id="gs-topic-description"
+                value={topicDescription}
+                onChange={(e) => setTopicDescription(e.target.value)}
+                placeholder="What's your channel/video generally about? This grounds the topic research."
+                rows={3}
+                className={`${inputClass} resize-none`}
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label htmlFor="gs-script-description" className={labelClass}>
+                  Script Description
+                </label>
+                <span
+                  className={`text-xs font-medium tabular-nums ${
+                    scriptDescriptionOverLimit ? "text-red-600 dark:text-red-400" : "text-slate-400 dark:text-slate-500"
+                  }`}
+                >
+                  {scriptDescriptionWordCount}/{SCRIPT_DESCRIPTION_MAX_WORDS} words
+                </span>
+              </div>
+              <textarea
+                id="gs-script-description"
+                value={scriptDescription}
+                onChange={(e) => setScriptDescription(e.target.value)}
+                placeholder="Tell the AI exactly how you want the script written — tone, structure, must-hit points, anything important."
+                rows={5}
+                className={`${inputClass} resize-none ${
+                  scriptDescriptionOverLimit
+                    ? "border-red-300 dark:border-red-500/60 focus:ring-red-500/50 focus:border-red-400"
+                    : ""
+                }`}
+              />
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-1">
+              <button
+                type="button"
+                onClick={handleResearch}
+                disabled={researching || !formValid || insufficientForResearch}
+                className="flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg shadow-md shadow-indigo-200 dark:shadow-indigo-900/40 transition-all active:scale-95 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {researching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                {researching ? "Researching…" : "Get Top 10 Viral Topics"}
+                <span className="flex items-center gap-1 pl-2 ml-0.5 border-l border-white/30 text-indigo-100">
+                  <CreditCoinIcon className="w-3.5 h-3.5" />
+                  {TOPIC_RESEARCH_CREDIT_COST}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveTemplate}
+                disabled={savingTemplate || !formValid}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700/70 rounded-lg ring-1 ring-slate-200 dark:ring-slate-700 transition-all active:scale-95 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {savingTemplate ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Save as Template
+              </button>
+            </div>
+          </div>
+
+          {researching ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-16">
+              <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Researching the web for trending topics — this can take up to 20 seconds.
+              </p>
+            </div>
+          ) : topics.length > 0 ? (
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Top 10 Viral Topics</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {topics.map((topic) => (
+                  <SuggestionTopicCard
+                    key={topic.title}
+                    topic={topic}
+                    creditCost={scriptCost}
+                    onGenerate={handleGenerateScript}
+                    generating={generatingTopicTitle === topic.title}
+                    disabled={generatingTopicTitle !== null && generatingTopicTitle !== topic.title}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {generatedScripts.length > 0 && (
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Generated Scripts</h2>
+              <div className="flex flex-col gap-5">
+                {generatedScripts.map((generated) => (
+                  <GeneratedScriptCard
+                    key={generated.clientId}
+                    generated={generated}
+                    onImport={handleImport}
+                    onImprovise={handleImprovise}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      <ShowScriptTemplatesCardPopUp
+        isOpen={templatesPopupOpen}
+        onClose={() => setTemplatesPopupOpen(false)}
+        onImport={handleImportTemplate}
+      />
+
+      <GeneratedScriptFeedbackPopUp
+        isOpen={feedbackPopupOpen}
+        onClose={() => setFeedbackPopupOpen(false)}
+        generated={feedbackTarget}
+        onImprovised={handleImprovised}
+      />
+
+      <AlertMessagePopUp
+        isOpen={!!alert}
+        onClose={() => setAlert(null)}
+        title={alert?.title ?? ""}
+        message={alert?.message ?? ""}
+        type={alert?.type ?? "error"}
+      />
     </div>
   );
 }

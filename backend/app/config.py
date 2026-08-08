@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     # OpenAI — character sheet / style template "Generate with AI" (see app/openai_client.py)
     CHATGPT_PAID_API_KEY: str | None = None
 
+    # OpenRouter — gateway for Perplexity (viral topic research) and Claude (script
+    # generation/improvise) used by /generate_script (see app/openrouter_client.py)
+    OPENROUTER_PAID_API_KEY: str | None = None
+
     # Razorpay — credit top-ups (see app/routes/payments/). RAZORPAY_WEBHOOK_SECRET
     # is only needed once app/routes/payments/webhook.py is wired up post-deploy.
     RAZORPAY_KEY_ID: str | None = None

@@ -160,7 +160,9 @@ Table script_templates {
   category varchar(200) [not null]
   topic_description text [not null]
   script_description text [not null]
-  content_type content_stype [not null, default: 'long_videos']
+  content_type content_type [not null, default: 'long_videos']
+  target_country varchar(200) [not null]
+  script_word_length varchar(20) [not null]
 
   created_at timestamp [not null, default: `now()`]
   updated_at timestamp [not null, default: `now()`]
