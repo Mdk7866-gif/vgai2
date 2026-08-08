@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
-import { FileText, Layers, Loader2, LogIn, Save, Sparkles } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { FileText, Layers, Loader2, LogIn, Save, Sparkles, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { authFetch } from "@/lib/api";
 import { COUNTRIES } from "@/lib/countries";
@@ -40,13 +40,15 @@ export default function GenerateScriptPage() {
   const [category, setCategory] = useState(CATEGORY_SELECT_OPTIONS[0]);
   const [customCategory, setCustomCategory] = useState("");
   const [targetCountry, setTargetCountry] = useState("");
+  const [countryQuery, setCountryQuery] = useState("");
+  const [countryOpen, setCountryOpen] = useState(false);
+  const countryBoxRef = useRef<HTMLDivElement>(null);
   const [contentType, setContentType] = useState<ContentType>("long_videos");
   const [scriptWordLength, setScriptWordLength] = useState(WORD_LENGTH_OPTIONS[0]);
   const [topicDescription, setTopicDescription] = useState("");
   const [scriptDescription, setScriptDescription] = useState("");
 
   const [balance, setBalance] = useState<number | null>(null);
-  const [loadingBalance, setLoadingBalance] = useState(true);
 
   const [researching, setResearching] = useState(false);
   const [topics, setTopics] = useState<ViralTopic[]>([]);
@@ -66,6 +68,22 @@ export default function GenerateScriptPage() {
 
   const effectiveCategory = category === OTHER_CATEGORY ? customCategory.trim() : category;
 
+  const filteredCountries = useMemo(() => {
+    const q = countryQuery.trim().toLowerCase();
+    if (!q) return COUNTRIES;
+    return COUNTRIES.filter((c) => c.toLowerCase().includes(q));
+  }, [countryQuery]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (countryBoxRef.current && !countryBoxRef.current.contains(e.target as Node)) {
+        setCountryOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
   const formValid =
     !!effectiveCategory &&
     !!targetCountry &&
@@ -75,15 +93,11 @@ export default function GenerateScriptPage() {
 
   useEffect(() => {
     if (!user) {
-      const timer = setTimeout(() => {
-        setBalance(null);
-        setLoadingBalance(false);
-      }, 0);
+      const timer = setTimeout(() => setBalance(null), 0);
       return () => clearTimeout(timer);
     }
 
     let cancelled = false;
-    const startTimer = setTimeout(() => setLoadingBalance(true), 0);
     authFetch("/users/me")
       .then((res) => res.json())
       .then((data) => {
@@ -91,13 +105,9 @@ export default function GenerateScriptPage() {
       })
       .catch(() => {
         if (!cancelled) setBalance(null);
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingBalance(false);
       });
     return () => {
       cancelled = true;
-      clearTimeout(startTimer);
     };
   }, [user]);
 
@@ -271,12 +281,6 @@ export default function GenerateScriptPage() {
           </p>
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto">
-          {user && (
-            <div className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 ring-1 ring-slate-200 dark:ring-slate-700 text-sm font-medium text-slate-600 dark:text-slate-300">
-              <CreditCoinIcon className="w-4 h-4" />
-              {loadingBalance ? "…" : balance ?? "—"}
-            </div>
-          )}
           <button
             onClick={() => {
               if (!requireAuth()) return;
@@ -338,25 +342,78 @@ export default function GenerateScriptPage() {
                 )}
               </div>
 
-              <div>
+              <div ref={countryBoxRef} className="relative">
                 <label htmlFor="gs-country" className={labelClass}>
                   Target Country
                 </label>
-                <select
-                  id="gs-country"
-                  value={targetCountry}
-                  onChange={(e) => setTargetCountry(e.target.value)}
-                  className={inputClass}
-                >
-                  <option value="" disabled>
-                    Select a country
-                  </option>
-                  {COUNTRIES.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <input
+                    id="gs-country"
+                    type="text"
+                    autoComplete="off"
+                    value={countryOpen ? countryQuery : targetCountry}
+                    onFocus={() => {
+                      setCountryQuery(targetCountry);
+                      setCountryOpen(true);
+                    }}
+                    onChange={(e) => setCountryQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        if (filteredCountries.length > 0) {
+                          setTargetCountry(filteredCountries[0]);
+                          setCountryQuery(filteredCountries[0]);
+                          setCountryOpen(false);
+                        }
+                      } else if (e.key === "Escape") {
+                        setCountryQuery(targetCountry);
+                        setCountryOpen(false);
+                      }
+                    }}
+                    placeholder="Select a country"
+                    className={`${inputClass} pr-9`}
+                  />
+                  {targetCountry && !countryOpen && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTargetCountry("");
+                        setCountryQuery("");
+                      }}
+                      aria-label="Clear country"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                {countryOpen && (
+                  <div className="absolute z-20 mt-1.5 w-full max-h-56 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg dark:shadow-slate-950/60">
+                    {filteredCountries.length === 0 ? (
+                      <p className="px-3.5 py-2.5 text-sm text-slate-400 dark:text-slate-500">No matching country</p>
+                    ) : (
+                      filteredCountries.map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => {
+                            setTargetCountry(c);
+                            setCountryQuery(c);
+                            setCountryOpen(false);
+                          }}
+                          className={`w-full text-left px-3.5 py-2 text-sm cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-500/10 ${
+                            c === targetCountry
+                              ? "text-indigo-600 dark:text-indigo-400 font-medium"
+                              : "text-slate-700 dark:text-slate-200"
+                          }`}
+                        >
+                          {c}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
