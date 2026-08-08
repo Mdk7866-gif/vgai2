@@ -23,11 +23,11 @@ from app.supabase import supabase
 router = APIRouter(prefix="/scripttemplates", tags=["scripttemplates"])
 
 # Flat miscellaneous-spend cost of one "Get Top 10 Viral Topics" research call.
-TOPIC_RESEARCH_CREDIT_COST = 20
+TOPIC_RESEARCH_CREDIT_COST = 5
 
 # Script generation/improvise cost scales with the chosen word-length band:
 # cost = (band's upper bound) / WORDS_PER_CREDIT, e.g. "800-900" words -> 900/5 = 180 credits.
-WORDS_PER_CREDIT = 5
+WORDS_PER_CREDIT = 30
 
 
 def _format_label(content_type: str) -> str:
