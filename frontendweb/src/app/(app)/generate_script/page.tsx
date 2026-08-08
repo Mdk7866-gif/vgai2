@@ -24,6 +24,10 @@ import AlertMessagePopUp from "@/components/AlertMessagePopUp";
 const OTHER_CATEGORY = "Other";
 const CATEGORY_SELECT_OPTIONS = [...CATEGORY_OPTIONS, OTHER_CATEGORY];
 
+// Remembers which script_template the user is currently working in, across
+// page reloads, so their researched topics/form state don't just vanish.
+const CURRENT_TEMPLATE_STORAGE_KEY = "vgai_current_script_template_id";
+
 const countWords = (text: string) => {
   const trimmed = text.trim();
   return trimmed === "" ? 0 : trimmed.split(/\s+/).length;
@@ -47,6 +51,16 @@ export default function GenerateScriptPage() {
   const [scriptWordLength, setScriptWordLength] = useState(WORD_LENGTH_OPTIONS[0]);
   const [topicDescription, setTopicDescription] = useState("");
   const [scriptDescription, setScriptDescription] = useState("");
+
+  // The script_templates row the current research/generate session is bound to.
+  // Re-researching while this is set updates that same row + its 10 topics in
+  // place rather than creating a new session.
+  const [currentScriptTemplateId, setCurrentScriptTemplateId] = useState<string | null>(null);
+  // The word-length band actually stored on that row as of the last successful
+  // research call — used for cost display/checks on the topic cards so they
+  // never drift from what the backend will actually charge, even if the user
+  // nudges the Script Length dropdown afterward without re-researching.
+  const [activeWordLength, setActiveWordLength] = useState<string | null>(null);
 
   const [balance, setBalance] = useState<number | null>(null);
 
@@ -111,6 +125,54 @@ export default function GenerateScriptPage() {
     };
   }, [user]);
 
+  // Restore the user's generated-script history (always) and, if they had an
+  // active research session going, its form state + topics (once).
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await authFetch("/scripttemplates/generatedscripts");
+        const data = (await res.json()) as GeneratedScript[];
+        if (!cancelled) setGeneratedScripts(data);
+      } catch {
+        // History just won't be restored this load — non-fatal.
+      }
+
+      const storedId = localStorage.getItem(CURRENT_TEMPLATE_STORAGE_KEY);
+      if (!storedId || cancelled) return;
+
+      try {
+        const [templateRes, topicsRes] = await Promise.all([
+          authFetch(`/scripttemplates/${storedId}`),
+          authFetch(`/scripttemplates/${storedId}/topics`),
+        ]);
+        const template = (await templateRes.json()) as ScriptTemplate;
+        const restoredTopics = (await topicsRes.json()) as ViralTopic[];
+        if (cancelled) return;
+
+        const isKnownCategory = CATEGORY_OPTIONS.includes(template.category);
+        setCategory(isKnownCategory ? template.category : OTHER_CATEGORY);
+        setCustomCategory(isKnownCategory ? "" : template.category);
+        setTargetCountry(template.target_country);
+        setContentType(template.content_type);
+        setScriptWordLength(template.script_word_length);
+        setTopicDescription(template.topic_description);
+        setScriptDescription(template.script_description);
+        setCurrentScriptTemplateId(storedId);
+        setActiveWordLength(template.script_word_length);
+        setTopics(restoredTopics);
+      } catch {
+        localStorage.removeItem(CURRENT_TEMPLATE_STORAGE_KEY);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
   const refreshBalance = async (): Promise<number | null> => {
     try {
       const res = await authFetch("/users/me");
@@ -123,6 +185,10 @@ export default function GenerateScriptPage() {
   };
 
   const scriptCost = useMemo(() => scriptCreditCost(scriptWordLength), [scriptWordLength]);
+  const activeGenerateCost = useMemo(
+    () => scriptCreditCost(activeWordLength ?? scriptWordLength),
+    [activeWordLength, scriptWordLength]
+  );
   const insufficientForResearch = balance !== null && balance < TOPIC_RESEARCH_CREDIT_COST;
 
   const handleResearch = async () => {
@@ -147,13 +213,19 @@ export default function GenerateScriptPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          script_template_id: currentScriptTemplateId,
           category: effectiveCategory,
           topic_description: topicDescription.trim(),
-          target_country: targetCountry,
+          script_description: scriptDescription.trim(),
           content_type: contentType,
+          target_country: targetCountry,
+          script_word_length: scriptWordLength,
         }),
       });
       const data = await res.json();
+      setCurrentScriptTemplateId(data.script_template_id);
+      localStorage.setItem(CURRENT_TEMPLATE_STORAGE_KEY, data.script_template_id);
+      setActiveWordLength(scriptWordLength);
       setTopics(data.topics);
       setBalance(data.credits_remaining);
     } catch (err) {
@@ -165,12 +237,13 @@ export default function GenerateScriptPage() {
 
   const handleGenerateScript = async (topic: ViralTopic) => {
     if (!requireAuth()) return;
+    if (!currentScriptTemplateId) return;
 
     const freshBalance = await refreshBalance();
-    if (freshBalance !== null && freshBalance < scriptCost) {
+    if (freshBalance !== null && freshBalance < activeGenerateCost) {
       setAlert({
         title: "Not enough credits",
-        message: `Generating a ${scriptWordLength}-word script costs ${scriptCost} credits, you have ${freshBalance}.`,
+        message: `Generating this script costs ${activeGenerateCost} credits, you have ${freshBalance}.`,
       });
       return;
     }
@@ -181,23 +254,19 @@ export default function GenerateScriptPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          script_template_id: currentScriptTemplateId,
           topic: topic.title,
-          category: effectiveCategory,
-          topic_description: topicDescription.trim(),
-          script_description: scriptDescription.trim(),
-          target_country: targetCountry,
-          content_type: contentType,
-          script_word_length: scriptWordLength,
         }),
       });
       const data = await res.json();
       const newScript: GeneratedScript = {
-        clientId: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        id: data.generated_script_id,
+        script_template_id: data.script_template_id,
         topic: data.topic,
         script: data.script,
         word_count: data.word_count,
         characters: data.characters,
-        script_word_length: scriptWordLength,
+        script_word_length: activeWordLength ?? scriptWordLength,
       };
       setGeneratedScripts((prev) => [newScript, ...prev]);
       setBalance(data.credits_remaining);
@@ -223,7 +292,7 @@ export default function GenerateScriptPage() {
   };
 
   const handleImprovised = (updated: GeneratedScript) => {
-    setGeneratedScripts((prev) => prev.map((g) => (g.clientId === updated.clientId ? updated : g)));
+    setGeneratedScripts((prev) => prev.map((g) => (g.id === updated.id ? updated : g)));
     setFeedbackPopupOpen(false);
     refreshBalance();
   };
@@ -237,10 +306,11 @@ export default function GenerateScriptPage() {
 
     setSavingTemplate(true);
     try {
-      await authFetch("/scripttemplates/create", {
+      const res = await authFetch("/scripttemplates/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          script_template_id: currentScriptTemplateId,
           category: effectiveCategory,
           topic_description: topicDescription.trim(),
           script_description: scriptDescription.trim(),
@@ -249,6 +319,9 @@ export default function GenerateScriptPage() {
           script_word_length: scriptWordLength,
         }),
       });
+      const data = await res.json();
+      setCurrentScriptTemplateId(data.id);
+      localStorage.setItem(CURRENT_TEMPLATE_STORAGE_KEY, data.id);
       setAlert({ title: "Template saved", message: "You can re-import it anytime from \"My Templates\".", type: "info" });
     } catch (err) {
       setAlert({ title: "Failed to save template", message: err instanceof Error ? err.message : "Something went wrong." });
@@ -257,7 +330,7 @@ export default function GenerateScriptPage() {
     }
   };
 
-  const handleImportTemplate = (template: ScriptTemplate) => {
+  const handleImportTemplate = async (template: ScriptTemplate) => {
     const isKnownCategory = CATEGORY_OPTIONS.includes(template.category);
     setCategory(isKnownCategory ? template.category : OTHER_CATEGORY);
     setCustomCategory(isKnownCategory ? "" : template.category);
@@ -267,6 +340,25 @@ export default function GenerateScriptPage() {
     setTopicDescription(template.topic_description);
     setScriptDescription(template.script_description);
     setTemplatesPopupOpen(false);
+
+    setCurrentScriptTemplateId(template.id);
+    localStorage.setItem(CURRENT_TEMPLATE_STORAGE_KEY, template.id);
+    setActiveWordLength(template.script_word_length);
+
+    try {
+      const res = await authFetch(`/scripttemplates/${template.id}/topics`);
+      setTopics((await res.json()) as ViralTopic[]);
+    } catch {
+      setTopics([]);
+    }
+  };
+
+  const handleTemplateDeleted = (deletedId: string) => {
+    if (deletedId !== currentScriptTemplateId) return;
+    localStorage.removeItem(CURRENT_TEMPLATE_STORAGE_KEY);
+    setCurrentScriptTemplateId(null);
+    setActiveWordLength(null);
+    setTopics([]);
   };
 
   return (
@@ -545,7 +637,7 @@ export default function GenerateScriptPage() {
                   <SuggestionTopicCard
                     key={topic.title}
                     topic={topic}
-                    creditCost={scriptCost}
+                    creditCost={activeGenerateCost}
                     onGenerate={handleGenerateScript}
                     generating={generatingTopicTitle === topic.title}
                     disabled={generatingTopicTitle !== null && generatingTopicTitle !== topic.title}
@@ -561,7 +653,7 @@ export default function GenerateScriptPage() {
               <div className="flex flex-col gap-5">
                 {generatedScripts.map((generated) => (
                   <GeneratedScriptCard
-                    key={generated.clientId}
+                    key={generated.id}
                     generated={generated}
                     onImport={handleImport}
                     onImprovise={handleImprovise}
@@ -577,6 +669,7 @@ export default function GenerateScriptPage() {
         isOpen={templatesPopupOpen}
         onClose={() => setTemplatesPopupOpen(false)}
         onImport={handleImportTemplate}
+        onDelete={handleTemplateDeleted}
       />
 
       <GeneratedScriptFeedbackPopUp

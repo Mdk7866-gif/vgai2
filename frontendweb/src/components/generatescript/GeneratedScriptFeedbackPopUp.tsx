@@ -97,15 +97,14 @@ export const GeneratedScriptFeedbackPopUp = ({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          topic: generated.topic,
-          script: generated.script,
+          generated_script_id: generated.id,
           feedback: feedback.trim(),
-          script_word_length: generated.script_word_length,
         }),
       });
       const data = await res.json();
       onImprovised({
-        clientId: generated.clientId,
+        id: generated.id,
+        script_template_id: data.script_template_id,
         topic: data.topic,
         script: data.script,
         word_count: data.word_count,

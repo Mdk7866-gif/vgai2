@@ -198,8 +198,9 @@ create table generated_scripts (
   topic_name varchar(300) not null,
   script_text text not null,
 
-  -- Characters involved, "#"-delimited (each entry itself "name:age, gender,
-  -- profession, appearance_description"), parsed by the backend on read.
+  -- Characters involved, serialized as delimited text (characters joined by
+  -- "|||", each character's fields joined by "::") and parsed back into
+  -- structured objects by the backend on read.
   character_involved text,
 
   created_at timestamp not null default now(),

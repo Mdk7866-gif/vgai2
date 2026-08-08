@@ -9,6 +9,7 @@ export interface ScriptTemplate {
   content_type: ContentType;
   target_country: string;
   script_word_length: string;
+  is_saved: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -27,8 +28,9 @@ export interface InvolvedCharacter {
 }
 
 export interface GeneratedScript {
-  /** Client-side id to key/remove a generated-script card — not a DB id. */
-  clientId: string;
+  /** DB id (generated_scripts.id) — used to key the card and to call Improvise. */
+  id: string;
+  script_template_id: string;
   topic: string;
   script: string;
   word_count: number;

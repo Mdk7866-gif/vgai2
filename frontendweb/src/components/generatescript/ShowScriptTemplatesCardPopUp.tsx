@@ -10,6 +10,8 @@ interface ShowScriptTemplatesCardPopUpProps {
   isOpen: boolean;
   onClose: () => void;
   onImport: (template: ScriptTemplate) => void;
+  /** Fired after a template is deleted, so the parent can drop any state tied to it. */
+  onDelete?: (templateId: string) => void;
 }
 
 const contentTypeLabel = (t: ScriptTemplate["content_type"]) =>
@@ -19,6 +21,7 @@ export const ShowScriptTemplatesCardPopUp = ({
   isOpen,
   onClose,
   onImport,
+  onDelete,
 }: ShowScriptTemplatesCardPopUpProps) => {
   const [templates, setTemplates] = useState<ScriptTemplate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,6 +65,7 @@ export const ShowScriptTemplatesCardPopUp = ({
     try {
       await authFetch(`/scripttemplates/delete/${template.id}`, { method: "DELETE" });
       setTemplates((prev) => prev.filter((t) => t.id !== template.id));
+      onDelete?.(template.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete script template.");
     } finally {

@@ -15,8 +15,8 @@ api_router.include_router(characters_crud.router)
 api_router.include_router(characters_generate.router)
 api_router.include_router(styletemplates_crud.router)
 api_router.include_router(styletemplates_generate.router)
-api_router.include_router(scripttemplates_crud.router)
 api_router.include_router(scripttemplates_generate.router)
+api_router.include_router(scripttemplates_crud.router)
 api_router.include_router(payments_crud.router)
 # app.routes.payments.webhook is a placeholder, not registered yet — see that
 # file's docstring for why and how to activate it.
