@@ -15,3 +15,10 @@ class Character(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class GenerateCharacterSheetResponse(BaseModel):
+    character_prompt: str
+    image_base64: str  # data URI, e.g. "data:image/png;base64,...."
+    credits_spent: float
+    credits_remaining: float

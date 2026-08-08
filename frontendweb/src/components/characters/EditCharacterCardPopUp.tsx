@@ -46,6 +46,7 @@ export const EditCharacterCardPopUp = ({
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(character?.character_sheet_url ?? null);
   const [error, setError] = useState<string | null>(null);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const wordCount = countWords(description);
@@ -62,6 +63,24 @@ export const EditCharacterCardPopUp = ({
   const handleFileChange = (file: File | null) => {
     setImageFile(file);
     setPreviewUrl(file ? URL.createObjectURL(file) : character?.character_sheet_url ?? null);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (!submitting) setIsDraggingOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingOver(false);
+    if (submitting) return;
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith("image/")) handleFileChange(file);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -130,19 +149,30 @@ export const EditCharacterCardPopUp = ({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="relative w-full aspect-video rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/40 overflow-hidden flex items-center justify-center hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors cursor-pointer"
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`relative w-full aspect-video rounded-xl border-2 border-dashed overflow-hidden flex items-center justify-center transition-colors cursor-pointer ${
+                  isDraggingOver
+                    ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10"
+                    : "border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/40 hover:border-indigo-400 dark:hover:border-indigo-500"
+                }`}
               >
                 {previewUrl ? (
                   <Image src={previewUrl} alt="Character sheet preview" fill unoptimized className="object-cover" />
                 ) : (
-                  <span className="flex flex-col items-center gap-2 text-slate-400 dark:text-slate-500 text-sm">
+                  <span className="flex flex-col items-center gap-2 text-slate-400 dark:text-slate-500 text-sm text-center px-3">
                     <ImagePlus className="w-6 h-6" />
-                    Click to upload an image
+                    {isDraggingOver ? "Drop image here" : "Click or drag & drop an image"}
                   </span>
                 )}
                 {previewUrl && (
-                  <span className="absolute inset-0 bg-black/0 hover:bg-black/40 flex items-center justify-center text-white text-sm font-medium opacity-0 hover:opacity-100 transition-all">
-                    Change image
+                  <span
+                    className={`absolute inset-0 bg-black/0 hover:bg-black/40 flex items-center justify-center text-white text-sm font-medium opacity-0 hover:opacity-100 transition-all ${
+                      isDraggingOver ? "bg-indigo-900/40 opacity-100" : ""
+                    }`}
+                  >
+                    {isDraggingOver ? "Drop to replace" : "Change image"}
                   </span>
                 )}
               </button>

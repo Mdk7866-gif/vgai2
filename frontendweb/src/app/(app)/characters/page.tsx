@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Plus, Loader2, Users, LogIn } from "lucide-react";
+import { Plus, Loader2, Users, LogIn, Sparkles } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { authFetch } from "@/lib/api";
 import type { Character } from "@/types/character";
@@ -9,6 +9,7 @@ import CharacterCard from "@/components/characters/CharacterCard";
 import EditCharacterCardPopUp, {
   CharacterFormValues,
 } from "@/components/characters/EditCharacterCardPopUp";
+import GenerateCharacterSheetPopUp from "@/components/characters/GenerateCharacterSheetPopUp";
 import ConformationMessagePopUp from "@/components/ConformationMessagePopUp";
 import AlertMessagePopUp from "@/components/AlertMessagePopUp";
 
@@ -23,6 +24,9 @@ export default function CharactersPage() {
   const [editingCharacter, setEditingCharacter] = useState<Character | null>(null);
   const [popupKey, setPopupKey] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+
+  const [generatePopupOpen, setGeneratePopupOpen] = useState(false);
+  const [generatePopupKey, setGeneratePopupKey] = useState(0);
 
   const [deleteTarget, setDeleteTarget] = useState<Character | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -71,6 +75,17 @@ export default function CharactersPage() {
     setEditingCharacter(null);
     setPopupKey((k) => k + 1);
     setPopupOpen(true);
+  };
+
+  const handleGenerateClick = () => {
+    if (!requireAuth()) return;
+    setGeneratePopupKey((k) => k + 1);
+    setGeneratePopupOpen(true);
+  };
+
+  const handleGenerated = (character: Character) => {
+    setCharacters((prev) => [character, ...prev]);
+    setGeneratePopupOpen(false);
   };
 
   const handleEditClick = (character: Character) => {
@@ -166,13 +181,22 @@ export default function CharactersPage() {
             Save reusable characters with a consistent look, ready to import into any project.
           </p>
         </div>
-        <button
-          onClick={handleAddClick}
-          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-xl font-medium shadow-md shadow-indigo-200 dark:shadow-indigo-900/40 transition-all active:scale-95 w-full sm:w-auto justify-center cursor-pointer ring-1 ring-indigo-700 dark:ring-indigo-500"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Add Character</span>
-        </button>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <button
+            onClick={handleGenerateClick}
+            className="flex items-center gap-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-indigo-600 dark:text-indigo-400 px-5 py-2.5 rounded-xl font-medium shadow-sm transition-all active:scale-95 flex-1 sm:flex-none justify-center cursor-pointer ring-1 ring-indigo-200 dark:ring-indigo-500/40"
+          >
+            <Sparkles className="w-5 h-5" />
+            <span>Generate Character</span>
+          </button>
+          <button
+            onClick={handleAddClick}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-xl font-medium shadow-md shadow-indigo-200 dark:shadow-indigo-900/40 transition-all active:scale-95 flex-1 sm:flex-none justify-center cursor-pointer ring-1 ring-indigo-700 dark:ring-indigo-500"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Add Character</span>
+          </button>
+        </div>
       </div>
 
       {!user ? (
@@ -229,6 +253,13 @@ export default function CharactersPage() {
         character={editingCharacter}
         onSubmit={handleFormSubmit}
         submitting={submitting}
+      />
+
+      <GenerateCharacterSheetPopUp
+        key={generatePopupKey}
+        isOpen={generatePopupOpen}
+        onClose={() => setGeneratePopupOpen(false)}
+        onAccepted={handleGenerated}
       />
 
       <ConformationMessagePopUp

@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     CLOUDINARY_API_SECRET: str | None = None
     CLOUDINARY_FOLDER_NAME: str | None = None
 
+    # OpenAI — character sheet / style template "Generate with AI" (see app/openai_client.py)
+    CHATGPT_PAID_API_KEY: str | None = None
+
     # Razorpay — credit top-ups (see app/routes/payments/). RAZORPAY_WEBHOOK_SECRET
     # is only needed once app/routes/payments/webhook.py is wired up post-deploy.
     RAZORPAY_KEY_ID: str | None = None
