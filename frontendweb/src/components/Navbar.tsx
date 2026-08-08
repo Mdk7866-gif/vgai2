@@ -1,10 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { User, Menu, Sun, Moon, LogOut, UserCircle } from "lucide-react";
 import Logo from "./Logo";
+import CreditCoinIcon from "./CreditCoinIcon";
 import { useTheme } from "./ThemeProvider";
 import { useAuth } from "@/context/AuthContext";
+import { authFetch } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -18,7 +21,38 @@ export const Navbar = ({ onMenuClick }: NavbarProps) => {
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [avatarFailed, setAvatarFailed] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, right: 0 });
+  const avatarButtonRef = useRef<HTMLButtonElement>(null);
   const avatarUrl = user?.user_metadata?.avatar_url ?? user?.user_metadata?.picture;
+
+  const [balance, setBalance] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!user) {
+      const timer = setTimeout(() => setBalance(null), 0);
+      return () => clearTimeout(timer);
+    }
+
+    authFetch("/users/me")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled) setBalance(data.current_credit_balance);
+      })
+      .catch(() => {
+        if (!cancelled) setBalance(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  useLayoutEffect(() => {
+    if (!isMenuOpen || !avatarButtonRef.current) return;
+    const rect = avatarButtonRef.current.getBoundingClientRect();
+    setMenuPosition({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
+  }, [isMenuOpen]);
 
   const handleLogout = async () => {
     setIsMenuOpen(false);
@@ -65,8 +99,20 @@ export const Navbar = ({ onMenuClick }: NavbarProps) => {
             Login
           </button>
         ) : (
-        <div className="relative">
+        <>
+          {balance !== null && (
+            <Link
+              href="/profile"
+              className="flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-full bg-amber-50 dark:bg-amber-500/10 border border-amber-200/80 dark:border-amber-500/25 text-amber-800 dark:text-amber-300 text-sm font-medium hover:bg-amber-100 dark:hover:bg-amber-500/15 transition-colors"
+              title="Credit balance"
+            >
+              <CreditCoinIcon className="w-4 h-4" />
+              {balance}
+            </Link>
+          )}
+
           <button
+            ref={avatarButtonRef}
             onClick={() => setIsMenuOpen((open) => !open)}
             className="w-8 h-8 md:w-9 md:h-9 ml-2 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 font-medium shadow-sm hover:shadow transition-shadow cursor-pointer overflow-hidden"
             aria-label="Account menu"
@@ -85,40 +131,42 @@ export const Navbar = ({ onMenuClick }: NavbarProps) => {
             )}
           </button>
 
-          {isMenuOpen && (
-            <>
-              <div
-                className="fixed inset-0 z-40"
-                onClick={() => setIsMenuOpen(false)}
-              />
-              <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg z-50 overflow-hidden">
-                <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700">
-                  <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
-                    {user?.user_metadata?.full_name ?? "Account"}
-                  </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                    {user?.email}
-                  </p>
+          {isMenuOpen &&
+            createPortal(
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setIsMenuOpen(false)} />
+                <div
+                  className="fixed w-56 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg z-50 overflow-hidden"
+                  style={{ top: menuPosition.top, right: menuPosition.right }}
+                >
+                  <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700">
+                    <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
+                      {user?.user_metadata?.full_name ?? "Account"}
+                    </p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                      {user?.email}
+                    </p>
+                  </div>
+                  <Link
+                    href="/profile"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/70 transition-colors cursor-pointer"
+                  >
+                    <UserCircle className="w-4 h-4" />
+                    Profile
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Logout
+                  </button>
                 </div>
-                <Link
-                  href="/profile"
-                  onClick={() => setIsMenuOpen(false)}
-                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/70 transition-colors cursor-pointer"
-                >
-                  <UserCircle className="w-4 h-4" />
-                  Profile
-                </Link>
-                <button
-                  onClick={handleLogout}
-                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer"
-                >
-                  <LogOut className="w-4 h-4" />
-                  Logout
-                </button>
-              </div>
-            </>
-          )}
-        </div>
+              </>,
+              document.body
+            )}
+        </>
         )}
       </div>
     </nav>

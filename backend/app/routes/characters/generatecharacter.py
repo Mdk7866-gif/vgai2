@@ -14,7 +14,9 @@ from app.supabase import supabase
 router = APIRouter(prefix="/characters", tags=["characters"])
 
 # Miscellaneous-spend cost of one "Generate Character Sheet" attempt.
+# "Pro" uses gpt-image-2 at quality="high" instead of "low" and costs more.
 GENERATE_CREDIT_COST = 4
+GENERATE_PRO_CREDIT_COST = 8
 
 # gpt-image-2 requires both edges to be multiples of 16. 1792x1008 = 16*112 x 16*63,
 # and 112:63 reduces to exactly 16:9 (unlike the legacy 1792x1024 DALL-E-3 size, which is 1.75:1).
@@ -23,12 +25,21 @@ SHEET_IMAGE_SIZE = "1792x1008"
 CHARACTER_PROMPT_SYSTEM_MESSAGE = (
     "You are a concept artist's assistant. Given a character's name and description "
     "(and optionally a reference photo), write a single detailed image-generation prompt "
-    "for a character reference sheet: a clean, evenly lit grid on a plain neutral "
-    "background showing the SAME character consistently across a front view, a 3/4 view, "
-    "a back view, a left profile view, a right profile view, and headshot expressions for "
-    "happy, sad, angry, confused, thinking, and surprised. Keep the character's "
-    "proportions, outfit, and features identical across every panel. Output ONLY the "
-    "image-generation prompt text, nothing else — no preamble, no markdown, no labels."
+    "for a character reference sheet laid out as a two-row grid on a plain, evenly lit "
+    "neutral-gray background, with a thin divider line between each cell:\n\n"
+    "- Row 1 — five equal-height full-body panels, same character scale and ground line "
+    "in every panel, left to right: 3/4 view, front view, back view, right profile view, "
+    "left profile view.\n"
+    "- Row 2 — six equal-width head-and-shoulders close-up panels, left to right: happy, "
+    "sad, angry, confused, thinking, surprised.\n\n"
+    "Keep the character's proportions, outfit, hairstyle, and features perfectly "
+    "identical across all eleven panels — only the pose/angle (row 1) or facial "
+    "expression (row 2) changes. Label each panel with small bold uppercase text above "
+    "it naming that view or expression, and put the character's name once as a title "
+    "above the whole sheet — these are the ONLY text elements allowed. Do not include a "
+    "color palette, swatches, measurements, callouts, watermarks, or any other "
+    "labeling/annotation. Output ONLY the image-generation prompt text itself, nothing "
+    "else — no preamble, no markdown."
 )
 
 
@@ -66,6 +77,7 @@ async def _generate_sheet_image(
     reference_bytes: bytes | None,
     reference_filename: str | None,
     reference_mime: str | None,
+    quality: str,
 ) -> str:
     try:
         if reference_bytes:
@@ -74,14 +86,14 @@ async def _generate_sheet_image(
                 image=(reference_filename or "reference.png", reference_bytes, reference_mime or "image/png"),
                 prompt=prompt,
                 size=SHEET_IMAGE_SIZE,
-                quality="low",
+                quality=quality,
             )
         else:
             result = await openai_client.images.generate(
                 model="gpt-image-2",
                 prompt=prompt,
                 size=SHEET_IMAGE_SIZE,
-                quality="low",
+                quality=quality,
             )
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Failed to generate character sheet image: {e}")
@@ -97,6 +109,7 @@ async def generate_character_sheet(
     character_name: str = Form(...),
     description: str = Form(...),
     reference_image: UploadFile | None = File(None),
+    pro: bool = Form(False),
     current_user: SupabaseUser = Depends(get_current_user),
 ):
     """Generates a character sheet preview (image + prompt) for the user to review.
@@ -104,9 +117,14 @@ async def generate_character_sheet(
     Nothing is persisted here — the image is returned as a base64 data URI. If the
     user accepts it, the frontend re-submits it as a file to POST /characters/create,
     which does the actual Cloudinary upload + characters row insert.
+
+    `pro=true` generates at gpt-image-2 quality="high" instead of "low", for
+    GENERATE_PRO_CREDIT_COST credits instead of GENERATE_CREDIT_COST.
     """
     if openai_client is None:
         raise HTTPException(status_code=500, detail="OpenAI is not configured on the backend.")
+
+    credit_cost = GENERATE_PRO_CREDIT_COST if pro else GENERATE_CREDIT_COST
 
     user_result = (
         supabase.table("users")
@@ -118,12 +136,12 @@ async def generate_character_sheet(
         raise HTTPException(status_code=404, detail="User not found")
 
     current_balance = float(user_result.data[0]["current_credit_balance"])
-    if current_balance < GENERATE_CREDIT_COST:
+    if current_balance < credit_cost:
         raise HTTPException(
             status_code=402,
             detail=(
-                f"Not enough credits — generating a character sheet costs "
-                f"{GENERATE_CREDIT_COST} credits, you have {current_balance:g}."
+                f"Not enough credits — generating a{' pro' if pro else ''} character sheet costs "
+                f"{credit_cost} credits, you have {current_balance:g}."
             ),
         )
 
@@ -141,10 +159,11 @@ async def generate_character_sheet(
         reference_bytes,
         reference_image.filename if reference_image else None,
         reference_mime,
+        "high" if pro else "low",
     )
 
-    new_balance = current_balance - GENERATE_CREDIT_COST
-    new_misc_spent = float(user_result.data[0]["miscellaneous_credit_spent"]) + GENERATE_CREDIT_COST
+    new_balance = current_balance - credit_cost
+    new_misc_spent = float(user_result.data[0]["miscellaneous_credit_spent"]) + credit_cost
     supabase.table("users").update(
         {"current_credit_balance": new_balance, "miscellaneous_credit_spent": new_misc_spent}
     ).eq("id", current_user.id).execute()
@@ -152,6 +171,6 @@ async def generate_character_sheet(
     return GenerateCharacterSheetResponse(
         character_prompt=character_prompt,
         image_base64=f"data:image/png;base64,{image_b64}",
-        credits_spent=GENERATE_CREDIT_COST,
+        credits_spent=credit_cost,
         credits_remaining=new_balance,
     )

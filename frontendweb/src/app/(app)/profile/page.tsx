@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Coins, Loader2, LogIn, Plus, User as UserIcon } from "lucide-react";
+import { Loader2, LogIn, Plus, User as UserIcon } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { authFetch } from "@/lib/api";
 import { loadRazorpayScript } from "@/lib/razorpay";
 import type { User } from "@/types/user";
 import AddCreditsPopUp from "@/components/profile/AddCreditsPopUp";
 import AlertMessagePopUp from "@/components/AlertMessagePopUp";
+import CreditCoinIcon from "@/components/CreditCoinIcon";
 
 export default function ProfilePage() {
   const { user, requireAuth } = useAuth();
@@ -190,7 +191,7 @@ export default function ProfilePage() {
 
           <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700/80 rounded-xl px-4 py-3">
             <div className="flex items-center gap-2">
-              <Coins className="w-5 h-5 text-amber-500" />
+              <CreditCoinIcon className="w-5 h-5" />
               <div>
                 <p className="text-xs text-slate-500 dark:text-slate-400">Credit Balance</p>
                 <p className="text-lg font-semibold text-slate-900 dark:text-white leading-tight">

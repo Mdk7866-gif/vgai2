@@ -3,11 +3,14 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
-import { Coins, ImagePlus, Loader2, RotateCcw, Sparkles, X } from "lucide-react";
+import { ImagePlus, Loader2, RotateCcw, Sparkles, X } from "lucide-react";
 import { authFetch } from "@/lib/api";
 import type { Character } from "@/types/character";
+import CreditCoinIcon from "@/components/CreditCoinIcon";
+import Toggle from "@/components/Toggle";
 
 const GENERATE_CREDIT_COST = 4;
+const GENERATE_PRO_CREDIT_COST = 8;
 const MAX_DESCRIPTION_WORDS = 300;
 
 const countWords = (text: string) => {
@@ -39,6 +42,7 @@ export const GenerateCharacterSheetPopUp = ({
   const [referenceFile, setReferenceFile] = useState<File | null>(null);
   const [referencePreviewUrl, setReferencePreviewUrl] = useState<string | null>(null);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [proMode, setProMode] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [balance, setBalance] = useState<number | null>(null);
@@ -101,7 +105,8 @@ export const GenerateCharacterSheetPopUp = ({
     if (file && file.type.startsWith("image/")) handleFileChange(file);
   };
 
-  const insufficientCredits = balance !== null && balance < GENERATE_CREDIT_COST;
+  const creditCost = proMode ? GENERATE_PRO_CREDIT_COST : GENERATE_CREDIT_COST;
+  const insufficientCredits = balance !== null && balance < creditCost;
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,6 +124,7 @@ export const GenerateCharacterSheetPopUp = ({
       const formData = new FormData();
       formData.append("character_name", name.trim());
       formData.append("description", description.trim());
+      formData.append("pro", String(proMode));
       if (referenceFile) formData.append("reference_image", referenceFile);
 
       const res = await authFetch("/characters/generate", { method: "POST", body: formData });
@@ -253,6 +259,14 @@ export const GenerateCharacterSheetPopUp = ({
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 transition-all"
                   />
                 </div>
+
+                <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 px-3.5 py-2.5">
+                  <Toggle
+                    checked={proMode}
+                    onChange={setProMode}
+                    label={`Generate with Pro · higher quality, ${GENERATE_PRO_CREDIT_COST} credits`}
+                  />
+                </div>
               </div>
 
               <div className="flex-1 flex flex-col gap-1.5 min-w-0">
@@ -306,7 +320,7 @@ export const GenerateCharacterSheetPopUp = ({
 
         <div className="mt-auto px-6 py-4 flex items-center justify-between gap-3 bg-slate-50/80 dark:bg-slate-900/40 border-t border-slate-100 dark:border-slate-700/50">
           <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
-            <Coins className="w-3.5 h-3.5 text-amber-500" />
+            <CreditCoinIcon className="w-3.5 h-3.5" />
             {generating ? (
               <span>Generating…</span>
             ) : loadingBalance ? (
@@ -328,10 +342,10 @@ export const GenerateCharacterSheetPopUp = ({
               className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg shadow-md shadow-indigo-200 dark:shadow-indigo-900/40 transition-all active:scale-95 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <Sparkles className="w-4 h-4" />
-              Generate
+              Generate{proMode ? " with Pro" : ""}
               <span className="flex items-center gap-1 pl-2 ml-0.5 border-l border-white/30 text-indigo-100">
-                <Coins className="w-3.5 h-3.5" />
-                {GENERATE_CREDIT_COST}
+                <CreditCoinIcon className="w-3.5 h-3.5" />
+                {creditCost}
               </span>
             </button>
           ) : (

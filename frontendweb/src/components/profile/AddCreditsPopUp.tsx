@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Coins, Loader2, X } from "lucide-react";
+import { Loader2, X } from "lucide-react";
+import CreditCoinIcon from "@/components/CreditCoinIcon";
 
 interface AddCreditsPopUpProps {
   isOpen: boolean;
@@ -89,7 +90,7 @@ export const AddCreditsPopUp = ({
       >
         <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700/60 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-            <Coins className="w-5 h-5 text-amber-500" />
+            <CreditCoinIcon className="w-5 h-5" />
             Add Credits
           </h2>
           <button
