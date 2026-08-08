@@ -28,13 +28,26 @@ interface EditStyleTemplateCardPopUpProps {
   submitting?: boolean;
 }
 
-const ASPECT_RATIOS = ["16:9", "9:16", "1:1"];
+const ASPECT_RATIO_OPTIONS = [
+  { value: "16:9", label: "16:9", sublabel: "Long Video" },
+  { value: "9:16", label: "9:16", sublabel: "Reels" },
+] as const;
 const SCENE_DENSITIES: SceneDensity[] = ["small", "medium", "high"];
 
 const IMAGE_PROMPT_MAX_WORDS = 300;
 const ANIMATION_PROMPT_MAX_WORDS = 200;
 const DESCRIPTION_MAX_WORDS = 150;
 const YOUTUBE_PROMPT_MAX_WORDS = 150;
+
+// Generic starting text for the advanced fields on a brand-new template, so a
+// user who never opens Advanced Settings still ends up with a usable value —
+// they can freely edit or replace any of this before saving.
+const DEFAULT_DESCRIPTION =
+  "A consistent visual style for this project — defines the art style, color palette, lighting, and mood applied across every generated character, scene image, and animation so the whole video looks cohesive from start to finish.";
+const DEFAULT_YOUTUBE_TITLE_DESCRIPTION_TAGS_PROMPT =
+  "Based on the video's script and topic, write a short, curiosity-driven YouTube title under 70 characters, a 2-3 sentence description that summarizes the story and encourages viewers to watch till the end, and 10-15 relevant SEO tags covering the video's topic, genre, and target audience.";
+const DEFAULT_YOUTUBE_THUMBNAIL_PROMPT =
+  "A bold, high-contrast YouTube thumbnail featuring the main character with an exaggerated expression, a simple uncluttered background that keeps focus on the subject, minimal large readable text, bright saturated colors, and strong contrast so it stands out at a small size in search results.";
 
 const countWords = (text: string) => {
   const trimmed = text.trim();
@@ -61,18 +74,25 @@ export const EditStyleTemplateCardPopUp = ({
   const [animationPrompt, setAnimationPrompt] = useState(template?.animation_prompt ?? "");
   const [isDefault, setIsDefault] = useState(template?.is_default ?? false);
 
-  // Advanced settings — placeholder defaults for now, will be revisited later.
+  // Advanced settings — on create, seeded with generic defaults (editable/
+  // replaceable) so a user who never opens this section still gets usable
+  // values; on edit, always show the template's actual saved values.
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [description, setDescription] = useState(template?.description ?? "");
+  const [description, setDescription] = useState(
+    template?.description ?? (mode === "create" ? DEFAULT_DESCRIPTION : "")
+  );
   const [youtubeTitleDescriptionTagsPrompt, setYoutubeTitleDescriptionTagsPrompt] = useState(
-    template?.youtube_title_description_tags_prompt ?? ""
+    template?.youtube_title_description_tags_prompt ??
+      (mode === "create" ? DEFAULT_YOUTUBE_TITLE_DESCRIPTION_TAGS_PROMPT : "")
   );
   const [youtubeThumbnailImagePrompt, setYoutubeThumbnailImagePrompt] = useState(
-    template?.youtube_thumbnail_image_prompt ?? ""
+    template?.youtube_thumbnail_image_prompt ??
+      (mode === "create" ? DEFAULT_YOUTUBE_THUMBNAIL_PROMPT : "")
   );
   const [sceneDensity, setSceneDensity] = useState<SceneDensity>(template?.scene_density ?? "small");
-  const [imageAspectRatio, setImageAspectRatio] = useState(template?.image_aspect_ratio ?? ASPECT_RATIOS[0]);
-  const [videoAspectRatio, setVideoAspectRatio] = useState(template?.video_aspect_ratio ?? ASPECT_RATIOS[0]);
+  const [aspectRatio, setAspectRatio] = useState<string>(
+    template?.image_aspect_ratio === "9:16" ? "9:16" : "16:9"
+  );
   const [error, setError] = useState<string | null>(null);
 
   const imagePromptWordCount = countWords(imagePrompt);
@@ -124,8 +144,8 @@ export const EditStyleTemplateCardPopUp = ({
         youtubeTitleDescriptionTagsPrompt: youtubeTitleDescriptionTagsPrompt.trim(),
         youtubeThumbnailImagePrompt: youtubeThumbnailImagePrompt.trim(),
         sceneDensity,
-        imageAspectRatio,
-        videoAspectRatio,
+        imageAspectRatio: aspectRatio,
+        videoAspectRatio: aspectRatio,
         isDefault,
       });
     } catch (err) {
@@ -229,6 +249,28 @@ export const EditStyleTemplateCardPopUp = ({
           </div>
 
           <div>
+            <label className={labelClass}>Aspect Ratio</label>
+            <div className="grid grid-cols-2 gap-3">
+              {ASPECT_RATIO_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setAspectRatio(opt.value)}
+                  aria-pressed={aspectRatio === opt.value}
+                  className={`px-4 py-2.5 rounded-xl border text-sm font-semibold text-center transition-all cursor-pointer ${
+                    aspectRatio === opt.value
+                      ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 ring-2 ring-indigo-500/30"
+                      : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-slate-600 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-600"
+                  }`}
+                >
+                  {opt.label}
+                  <span className="block text-xs font-normal opacity-75">{opt.sublabel}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
             <Toggle checked={isDefault} onChange={setIsDefault} label="Mark as default style template" />
             <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">
               Only one style template can be default — marking this one will unset any existing default.
@@ -274,60 +316,22 @@ export const EditStyleTemplateCardPopUp = ({
                   />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <label htmlFor="style-scene-density" className={labelClass}>
-                      Scene Density
-                    </label>
-                    <select
-                      id="style-scene-density"
-                      value={sceneDensity}
-                      onChange={(e) => setSceneDensity(e.target.value as SceneDensity)}
-                      className={inputClass}
-                    >
-                      {SCENE_DENSITIES.map((d) => (
-                        <option key={d} value={d}>
-                          {d.charAt(0).toUpperCase() + d.slice(1)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label htmlFor="style-image-aspect" className={labelClass}>
-                      Image Aspect Ratio
-                    </label>
-                    <select
-                      id="style-image-aspect"
-                      value={imageAspectRatio}
-                      onChange={(e) => setImageAspectRatio(e.target.value)}
-                      className={inputClass}
-                    >
-                      {ASPECT_RATIOS.map((r) => (
-                        <option key={r} value={r}>
-                          {r}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label htmlFor="style-video-aspect" className={labelClass}>
-                      Video Aspect Ratio
-                    </label>
-                    <select
-                      id="style-video-aspect"
-                      value={videoAspectRatio}
-                      onChange={(e) => setVideoAspectRatio(e.target.value)}
-                      className={inputClass}
-                    >
-                      {ASPECT_RATIOS.map((r) => (
-                        <option key={r} value={r}>
-                          {r}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                <div>
+                  <label htmlFor="style-scene-density" className={labelClass}>
+                    Scene Density
+                  </label>
+                  <select
+                    id="style-scene-density"
+                    value={sceneDensity}
+                    onChange={(e) => setSceneDensity(e.target.value as SceneDensity)}
+                    className={inputClass}
+                  >
+                    {SCENE_DENSITIES.map((d) => (
+                      <option key={d} value={d}>
+                        {d.charAt(0).toUpperCase() + d.slice(1)}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>

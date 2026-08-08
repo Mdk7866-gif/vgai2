@@ -31,7 +31,7 @@ export const StyleTemplateCard = ({
               {template.name}
             </h3>
             <span className="mt-1 inline-block px-2 py-0.5 rounded-full text-[11px] font-medium bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/30">
-              Image {template.image_aspect_ratio}
+              {template.image_aspect_ratio === "9:16" ? "9:16 · Reels" : "16:9 · Long Video"}
             </span>
           </div>
         </div>

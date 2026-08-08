@@ -24,27 +24,55 @@ IMAGE_PROMPT_MAX_WORDS = 300
 ANIMATION_PROMPT_MAX_WORDS = 200
 YOUTUBE_PROMPT_MAX_WORDS = 150
 
-STYLE_TEMPLATE_SYSTEM_MESSAGE = (
-    "You are a creative director's assistant for an AI video-production app. Given a "
-    "style template's name and a short description of the desired visual style, write "
-    "a complete style template:\n\n"
-    f"- description: a refined, concise description of the visual style "
-    f"({DESCRIPTION_MAX_WORDS} words max)\n"
-    "- image_prompt: a detailed prompt fragment used to generate every scene's image in "
-    "this style — art style, rendering technique, color treatment, linework, mood "
-    f"({IMAGE_PROMPT_MAX_WORDS} words max)\n"
-    "- animation_prompt: a detailed prompt fragment used to animate each scene's "
-    "already-generated image — motion style, camera movement feel, pacing "
-    f"({ANIMATION_PROMPT_MAX_WORDS} words max)\n"
-    "- youtube_title_description_tags_prompt: a prompt for later generating a YouTube "
-    f"title, description, and tags matching this style and tone ({YOUTUBE_PROMPT_MAX_WORDS} words max)\n"
-    "- youtube_thumbnail_image_prompt: a prompt for later generating a YouTube "
-    f"thumbnail image matching this style ({YOUTUBE_PROMPT_MAX_WORDS} words max)\n\n"
-    "Keep every field consistent with the others and grounded in the given name and "
-    "description. Stay comfortably under each word limit — it will be hard-truncated "
-    "at that word count, so an unfinished sentence at the cutoff looks worse than a "
-    "shorter, complete one."
-)
+# Per-format creative brief injected into the prompt so the LLM writes image/animation/
+# YouTube prompts suited to how the video will actually be watched, not just its pixel
+# dimensions — a 9:16 template is for Shorts/Reels (fast hook, punchy pacing, mobile-first
+# close framing), a 16:9 template is for long-form landscape video (sustained narrative
+# pacing, more room for slower cinematic build-up).
+VIDEO_FORMAT_BRIEFS: dict[str, str] = {
+    "16:9": (
+        "This style template is for a long-form, 16:9 landscape YouTube video. Write prompts "
+        "that support a strong opening hook and then sustain viewer interest through "
+        "narrative-driven, slower-building visual storytelling across many scenes. Image and "
+        "animation prompts can favor more deliberate, cinematic camera movement and "
+        "composition. YouTube title/description/tags and thumbnail prompts should read like "
+        "a long-form video built for sustained watch time."
+    ),
+    "9:16": (
+        "This style template is for a vertical, 9:16 YouTube Shorts/Reels video. Write prompts "
+        "built for a fast, high-energy hook within the first couple of seconds, punchy and "
+        "rapid visual changes, and bold, highly readable close-up compositions since it's "
+        "watched on a small mobile screen. Image and animation prompts should favor tight "
+        "framing, quick cuts/zooms, and eye-catching motion over slow cinematic pans. YouTube "
+        "title/description/tags and thumbnail prompts should read like a Shorts/Reels video "
+        "built to hook a scrolling viewer instantly and maximize replay/completion rate."
+    ),
+}
+
+
+def _build_system_message(aspect_ratio: str) -> str:
+    return (
+        "You are a creative director's assistant for an AI video-production app. Given a "
+        "style template's name, a short description of the desired visual style, and the "
+        "target video format below, write a complete style template:\n\n"
+        f"- description: a refined, concise description of the visual style "
+        f"({DESCRIPTION_MAX_WORDS} words max)\n"
+        "- image_prompt: a detailed prompt fragment used to generate every scene's image in "
+        "this style — art style, rendering technique, color treatment, linework, mood "
+        f"({IMAGE_PROMPT_MAX_WORDS} words max)\n"
+        "- animation_prompt: a detailed prompt fragment used to animate each scene's "
+        "already-generated image — motion style, camera movement feel, pacing "
+        f"({ANIMATION_PROMPT_MAX_WORDS} words max)\n"
+        "- youtube_title_description_tags_prompt: a prompt for later generating a YouTube "
+        f"title, description, and tags matching this style and tone ({YOUTUBE_PROMPT_MAX_WORDS} words max)\n"
+        "- youtube_thumbnail_image_prompt: a prompt for later generating a YouTube "
+        f"thumbnail image matching this style ({YOUTUBE_PROMPT_MAX_WORDS} words max)\n\n"
+        f"Target video format: {VIDEO_FORMAT_BRIEFS[aspect_ratio]}\n\n"
+        "Keep every field consistent with the others and grounded in the given name, "
+        "description, and target video format. Stay comfortably under each word limit — it "
+        "will be hard-truncated at that word count, so an unfinished sentence at the cutoff "
+        "looks worse than a shorter, complete one."
+    )
 
 
 class _StyleTemplateDraft(BaseModel):
@@ -62,13 +90,22 @@ def _truncate_words(text: str, max_words: int) -> str:
     return " ".join(words[:max_words])
 
 
-async def _build_style_template_draft(template_name: str, description: str) -> _StyleTemplateDraft:
+async def _build_style_template_draft(
+    template_name: str, description: str, aspect_ratio: str
+) -> _StyleTemplateDraft:
     llm = ChatOpenAI(model="gpt-4o-mini", api_key=settings.CHATGPT_PAID_API_KEY, temperature=0.7)
     structured_llm = llm.with_structured_output(_StyleTemplateDraft)
 
+    video_format_label = "Long-form video (16:9 landscape)" if aspect_ratio == "16:9" else "Shorts/Reels (9:16 vertical)"
     messages = [
-        SystemMessage(content=STYLE_TEMPLATE_SYSTEM_MESSAGE),
-        HumanMessage(content=f"Style template name: {template_name}\nDescription: {description}"),
+        SystemMessage(content=_build_system_message(aspect_ratio)),
+        HumanMessage(
+            content=(
+                f"Style template name: {template_name}\n"
+                f"Description: {description}\n"
+                f"Video format: {video_format_label}"
+            )
+        ),
     ]
 
     try:
@@ -126,7 +163,7 @@ async def generate_style_template(
             ),
         )
 
-    draft = await _build_style_template_draft(payload.template_name, payload.description)
+    draft = await _build_style_template_draft(payload.template_name, payload.description, payload.aspect_ratio)
 
     new_balance = current_balance - GENERATE_CREDIT_COST
     new_misc_spent = float(user_result.data[0]["miscellaneous_credit_spent"]) + GENERATE_CREDIT_COST

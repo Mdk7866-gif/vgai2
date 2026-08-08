@@ -9,6 +9,11 @@ import CreditCoinIcon from "@/components/CreditCoinIcon";
 
 const GENERATE_CREDIT_COST = 2;
 
+const ASPECT_RATIO_OPTIONS = [
+  { value: "16:9", label: "16:9", sublabel: "Long Video" },
+  { value: "9:16", label: "9:16", sublabel: "Reels" },
+] as const;
+
 interface GenerateResult {
   description: string;
   image_prompt: string;
@@ -38,6 +43,7 @@ export const GenerateStyleTemplatePopUp = ({
 }: GenerateStyleTemplatePopUpProps) => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [aspectRatio, setAspectRatio] = useState<string>("16:9");
 
   const [balance, setBalance] = useState<number | null>(null);
   const [loadingBalance, setLoadingBalance] = useState(true);
@@ -110,7 +116,11 @@ export const GenerateStyleTemplatePopUp = ({
       const res = await authFetch("/styletemplates/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ template_name: name.trim(), description: description.trim() }),
+        body: JSON.stringify({
+          template_name: name.trim(),
+          description: description.trim(),
+          aspect_ratio: aspectRatio,
+        }),
       });
       const data: GenerateResult = await res.json();
       setResult(data);
@@ -140,8 +150,8 @@ export const GenerateStyleTemplatePopUp = ({
         youtube_title_description_tags_prompt: result.youtube_title_description_tags_prompt || null,
         youtube_thumbnail_image_prompt: result.youtube_thumbnail_image_prompt || null,
         scene_density: "small",
-        image_aspect_ratio: "16:9",
-        video_aspect_ratio: "16:9",
+        image_aspect_ratio: aspectRatio,
+        video_aspect_ratio: aspectRatio,
         is_default: false,
       };
       const res = await authFetch("/styletemplates/create", {
@@ -228,9 +238,34 @@ export const GenerateStyleTemplatePopUp = ({
                   className={`${inputClass} resize-none`}
                 />
               </div>
+
+              <div>
+                <label className={labelClass}>Aspect Ratio</label>
+                <div className="grid grid-cols-2 gap-3">
+                  {ASPECT_RATIO_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setAspectRatio(opt.value)}
+                      aria-pressed={aspectRatio === opt.value}
+                      className={`px-4 py-2.5 rounded-xl border text-sm font-semibold text-center transition-all cursor-pointer ${
+                        aspectRatio === opt.value
+                          ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 ring-2 ring-indigo-500/30"
+                          : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-slate-600 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-600"
+                      }`}
+                    >
+                      {opt.label}
+                      <span className="block text-xs font-normal opacity-75">{opt.sublabel}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </form>
           ) : (
             <div className="flex flex-col gap-4">
+              <span className="self-start inline-block px-2.5 py-1 rounded-full text-[11px] font-medium bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/30">
+                {aspectRatio === "9:16" ? "9:16 · Reels" : "16:9 · Long Video"}
+              </span>
               <div>
                 <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Description</h3>
                 <div className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700/60 rounded-xl p-3.5">

@@ -46,6 +46,7 @@ class StyleTemplateUpdate(StyleTemplateCreate):
 class GenerateStyleTemplateRequest(BaseModel):
     template_name: str
     description: str
+    aspect_ratio: Literal["16:9", "9:16"] = "16:9"
 
 
 class GenerateStyleTemplateResponse(BaseModel):
