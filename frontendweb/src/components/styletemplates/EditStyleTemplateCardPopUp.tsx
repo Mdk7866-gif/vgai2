@@ -31,6 +31,16 @@ interface EditStyleTemplateCardPopUpProps {
 const ASPECT_RATIOS = ["16:9", "9:16", "1:1"];
 const SCENE_DENSITIES: SceneDensity[] = ["small", "medium", "high"];
 
+const IMAGE_PROMPT_MAX_WORDS = 300;
+const ANIMATION_PROMPT_MAX_WORDS = 200;
+const DESCRIPTION_MAX_WORDS = 150;
+const YOUTUBE_PROMPT_MAX_WORDS = 150;
+
+const countWords = (text: string) => {
+  const trimmed = text.trim();
+  return trimmed === "" ? 0 : trimmed.split(/\s+/).length;
+};
+
 const inputClass =
   "w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 transition-all";
 
@@ -65,6 +75,25 @@ export const EditStyleTemplateCardPopUp = ({
   const [videoAspectRatio, setVideoAspectRatio] = useState(template?.video_aspect_ratio ?? ASPECT_RATIOS[0]);
   const [error, setError] = useState<string | null>(null);
 
+  const imagePromptWordCount = countWords(imagePrompt);
+  const animationPromptWordCount = countWords(animationPrompt);
+  const descriptionWordCount = countWords(description);
+  const youtubeTitleDescriptionTagsWordCount = countWords(youtubeTitleDescriptionTagsPrompt);
+  const youtubeThumbnailImagePromptWordCount = countWords(youtubeThumbnailImagePrompt);
+
+  const imagePromptOverLimit = imagePromptWordCount > IMAGE_PROMPT_MAX_WORDS;
+  const animationPromptOverLimit = animationPromptWordCount > ANIMATION_PROMPT_MAX_WORDS;
+  const descriptionOverLimit = descriptionWordCount > DESCRIPTION_MAX_WORDS;
+  const youtubeTitleDescriptionTagsOverLimit = youtubeTitleDescriptionTagsWordCount > YOUTUBE_PROMPT_MAX_WORDS;
+  const youtubeThumbnailImagePromptOverLimit = youtubeThumbnailImagePromptWordCount > YOUTUBE_PROMPT_MAX_WORDS;
+
+  const anyFieldOverLimit =
+    imagePromptOverLimit ||
+    animationPromptOverLimit ||
+    descriptionOverLimit ||
+    youtubeTitleDescriptionTagsOverLimit ||
+    youtubeThumbnailImagePromptOverLimit;
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !submitting) onClose();
@@ -77,6 +106,11 @@ export const EditStyleTemplateCardPopUp = ({
     e.preventDefault();
     if (!name.trim() || !imagePrompt.trim() || !animationPrompt.trim()) {
       setError("Name, image prompt, and animation prompt are required.");
+      return;
+    }
+
+    if (anyFieldOverLimit) {
+      setError("One or more fields exceed the word limit.");
       return;
     }
 
@@ -141,30 +175,56 @@ export const EditStyleTemplateCardPopUp = ({
           </div>
 
           <div>
-            <label htmlFor="style-image-prompt" className={labelClass}>
-              Image Prompt
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label htmlFor="style-image-prompt" className={labelClass}>
+                Image Prompt
+              </label>
+              <span
+                className={`text-xs font-medium tabular-nums ${
+                  imagePromptOverLimit ? "text-red-600 dark:text-red-400" : "text-slate-400 dark:text-slate-500"
+                }`}
+              >
+                {imagePromptWordCount}/{IMAGE_PROMPT_MAX_WORDS} words
+              </span>
+            </div>
             <textarea
               id="style-image-prompt"
               value={imagePrompt}
               onChange={(e) => setImagePrompt(e.target.value)}
               placeholder="Prompt used to generate each scene's image"
               rows={4}
-              className={`${inputClass} resize-none`}
+              className={`${inputClass} resize-none ${
+                imagePromptOverLimit
+                  ? "border-red-300 dark:border-red-500/60 focus:ring-red-500/50 focus:border-red-400"
+                  : ""
+              }`}
             />
           </div>
 
           <div>
-            <label htmlFor="style-animation-prompt" className={labelClass}>
-              Animation Prompt
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label htmlFor="style-animation-prompt" className={labelClass}>
+                Animation Prompt
+              </label>
+              <span
+                className={`text-xs font-medium tabular-nums ${
+                  animationPromptOverLimit ? "text-red-600 dark:text-red-400" : "text-slate-400 dark:text-slate-500"
+                }`}
+              >
+                {animationPromptWordCount}/{ANIMATION_PROMPT_MAX_WORDS} words
+              </span>
+            </div>
             <textarea
               id="style-animation-prompt"
               value={animationPrompt}
               onChange={(e) => setAnimationPrompt(e.target.value)}
               placeholder="Prompt used to animate each scene's image"
               rows={4}
-              className={`${inputClass} resize-none`}
+              className={`${inputClass} resize-none ${
+                animationPromptOverLimit
+                  ? "border-red-300 dark:border-red-500/60 focus:ring-red-500/50 focus:border-red-400"
+                  : ""
+              }`}
             />
           </div>
 
@@ -188,16 +248,29 @@ export const EditStyleTemplateCardPopUp = ({
             {showAdvanced && (
               <div className="mt-4 flex flex-col gap-5">
                 <div>
-                  <label htmlFor="style-description" className={labelClass}>
-                    Description
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label htmlFor="style-description" className={labelClass}>
+                      Description
+                    </label>
+                    <span
+                      className={`text-xs font-medium tabular-nums ${
+                        descriptionOverLimit ? "text-red-600 dark:text-red-400" : "text-slate-400 dark:text-slate-500"
+                      }`}
+                    >
+                      {descriptionWordCount}/{DESCRIPTION_MAX_WORDS} words
+                    </span>
+                  </div>
                   <textarea
                     id="style-description"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="What kind of visual style does this template produce?"
                     rows={2}
-                    className={`${inputClass} resize-none`}
+                    className={`${inputClass} resize-none ${
+                      descriptionOverLimit
+                        ? "border-red-300 dark:border-red-500/60 focus:ring-red-500/50 focus:border-red-400"
+                        : ""
+                    }`}
                   />
                 </div>
 
@@ -258,32 +331,58 @@ export const EditStyleTemplateCardPopUp = ({
                 </div>
 
                 <div>
-                  <label htmlFor="style-yt-title-desc" className={labelClass}>
-                    YouTube Title/Description/Tags Prompt
-                    <span className="ml-1.5 font-normal text-slate-400 dark:text-slate-500">(optional)</span>
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label htmlFor="style-yt-title-desc" className={labelClass}>
+                      YouTube Title/Description/Tags Prompt
+                      <span className="ml-1.5 font-normal text-slate-400 dark:text-slate-500">(optional)</span>
+                    </label>
+                    <span
+                      className={`text-xs font-medium tabular-nums ${
+                        youtubeTitleDescriptionTagsOverLimit ? "text-red-600 dark:text-red-400" : "text-slate-400 dark:text-slate-500"
+                      }`}
+                    >
+                      {youtubeTitleDescriptionTagsWordCount}/{YOUTUBE_PROMPT_MAX_WORDS} words
+                    </span>
+                  </div>
                   <textarea
                     id="style-yt-title-desc"
                     value={youtubeTitleDescriptionTagsPrompt}
                     onChange={(e) => setYoutubeTitleDescriptionTagsPrompt(e.target.value)}
                     placeholder="Prompt used to generate YouTube title, description and tags"
                     rows={3}
-                    className={`${inputClass} resize-none`}
+                    className={`${inputClass} resize-none ${
+                      youtubeTitleDescriptionTagsOverLimit
+                        ? "border-red-300 dark:border-red-500/60 focus:ring-red-500/50 focus:border-red-400"
+                        : ""
+                    }`}
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="style-yt-thumbnail" className={labelClass}>
-                    YouTube Thumbnail Prompt
-                    <span className="ml-1.5 font-normal text-slate-400 dark:text-slate-500">(optional)</span>
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label htmlFor="style-yt-thumbnail" className={labelClass}>
+                      YouTube Thumbnail Prompt
+                      <span className="ml-1.5 font-normal text-slate-400 dark:text-slate-500">(optional)</span>
+                    </label>
+                    <span
+                      className={`text-xs font-medium tabular-nums ${
+                        youtubeThumbnailImagePromptOverLimit ? "text-red-600 dark:text-red-400" : "text-slate-400 dark:text-slate-500"
+                      }`}
+                    >
+                      {youtubeThumbnailImagePromptWordCount}/{YOUTUBE_PROMPT_MAX_WORDS} words
+                    </span>
+                  </div>
                   <textarea
                     id="style-yt-thumbnail"
                     value={youtubeThumbnailImagePrompt}
                     onChange={(e) => setYoutubeThumbnailImagePrompt(e.target.value)}
                     placeholder="Prompt used to generate the YouTube thumbnail image"
                     rows={3}
-                    className={`${inputClass} resize-none`}
+                    className={`${inputClass} resize-none ${
+                      youtubeThumbnailImagePromptOverLimit
+                        ? "border-red-300 dark:border-red-500/60 focus:ring-red-500/50 focus:border-red-400"
+                        : ""
+                    }`}
                   />
                 </div>
               </div>
@@ -303,7 +402,7 @@ export const EditStyleTemplateCardPopUp = ({
           </button>
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || anyFieldOverLimit}
             className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg shadow-md shadow-indigo-200 dark:shadow-indigo-900/40 transition-all active:scale-95 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
