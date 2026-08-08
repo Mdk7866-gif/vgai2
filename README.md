@@ -67,8 +67,9 @@ Every user has a `current_credit_balance`. Spend is tracked two ways:
 ### `/style_templates`
 
 - Full CRUD: add, edit, delete style templates.
-- Each style template defines: `image_prompt`, `animation_prompt`, YouTube packaging prompts, a `description`, a `scene_density`, and — importantly — its own **`image_aspect_ratio`** and **`video_aspect_ratio`** (e.g. `16:9`, `9:16`, `1:1`). This is what lets vgAI support both long-form landscape videos and short-form vertical videos: whichever style template a project imports determines the aspect ratio of everything generated in that project.
-- **Generate Style Template** button: user provides a name and description, and **OpenAI** (`ChatOpenAI` via LangChain, structured output) generates a full style template — `description`, `image_prompt`, `animation_prompt`, and both YouTube packaging prompts — for review before it's accepted and added to the library. Each generated field is capped to the same word limit enforced on manual entry (150/300/200/150/150 words respectively) so an accepted draft is always editable afterward without failing validation.
+- The main create/edit form only asks for what a user needs to give every time: `name`, `image_prompt`, `animation_prompt`, a single **aspect ratio** picker — **"16:9 (Long Video)"** or **"9:16 (Reels)"** (both `image_aspect_ratio` and `video_aspect_ratio` are set from this one choice; `1:1` isn't offered) — and the `is_default` toggle. This is what lets vgAI support both long-form landscape videos and short-form vertical videos: whichever style template a project imports determines the aspect ratio of everything generated in that project.
+- Everything else — YouTube Title/Description/Tags Prompt, YouTube Thumbnail Prompt, `description`, and `scene_density` — lives behind an **Advanced Settings** section on the card, pre-filled with sensible generic defaults on create so a user never has to open it unless they want to customize those fields.
+- **Generate Style Template** button: user provides a name, description, and the same aspect-ratio choice, and **OpenAI** (`ChatOpenAI` via LangChain, structured output) generates a full style template — `description`, `image_prompt`, `animation_prompt`, and both YouTube packaging prompts — for review before it's accepted and added to the library. The chosen aspect ratio isn't just save-time metadata: it changes what the AI actually writes, via a distinct creative brief per format (long-form gets a sustained-narrative brief; Reels gets an instant-hook, fast-paced brief), so the same name/description produces different prompts depending on which format is selected. Each generated field is capped to the same word limit enforced on manual entry (150/300/200/150/150 words respectively) so an accepted draft is always editable afterward without failing validation.
 
 ### `/liked_projects`
 
@@ -78,12 +79,12 @@ Every user has a `current_credit_balance`. Spend is tracked two ways:
 
 ### `/generate_script`
 
-1. User fills in a form: `category` (a dropdown of common YouTube content categories — Finance & Investing, News & Current Affairs, Entertainment, Story/Drama, True Crime & Mystery, Motivational & Self-Improvement, History, Technology, Health & Fitness, Educational/How-To, Comedy, Gaming, Travel, Food & Cooking, Science, Horror/Creepy, Business & Entrepreneurship, Relationships & Lifestyle, Sports, Kids & Family — with a free-text "Other" option), `target_country` (a dropdown of all countries — the audience Perplexity should research trends for), `video_type`/`content_type` (long-form video or YouTube Shorts/Reel), `script_word_length` (a dropdown of 100-word bands from `100-200` up to `1400-1500`), `topic_description`, and `script_description` (max 300 words — a free-form "skill file" the creator uses to tell Claude exactly how they want the script written: tone, structure, must-hit points, etc.).
-2. **Get Top 10 Viral Topics** (20 credits) — calls **Perplexity** (via OpenRouter, `perplexity/sonar-pro`) to research the web and return 10 trending/viral topic ideas for the given category, topic description, target country, and video format. Each shows as a card (title + why it's trending) with its own **+ Generate** button — no popup.
-3. Clicking **+ Generate** on a topic card calls **Claude** (via OpenRouter, `anthropic/claude-sonnet-5`) to write a full script matching the `script_description` and chosen word-length band, along with a list of characters involved in the story (name, e.g. "Nick, 30, male", plus profession and a brief physical appearance description). Cost scales with the word-length band: `words_per_credit = 5`, so a script capped at 900 words costs 180 credits. The result renders as its own card (topic, script, word count, character list) — also not a popup, and multiple generated-script cards can stack as the user tries different topics.
+1. User fills in a form: `category` (a dropdown of common YouTube content categories — Finance & Investing, News & Current Affairs, Entertainment, Story/Drama, True Crime & Mystery, Motivational & Self-Improvement, History, Technology, Health & Fitness, Educational/How-To, Comedy, Gaming, Travel, Food & Cooking, Science, Horror/Creepy, Business & Entrepreneurship, Relationships & Lifestyle, Sports, Kids & Family — with a free-text "Other" option), `target_country` (a searchable country combobox — type to filter, click or Enter to pick — the audience Perplexity should research trends for), `video_type`/`content_type` (long-form video or YouTube Shorts/Reel), `script_word_length` (a dropdown of 100-word bands from `100-200` up to `1400-1500`), `topic_description`, and `script_description` (max 300 words — a free-form "skill file" the creator uses to tell Claude exactly how they want the script written: tone, structure, must-hit points, etc.).
+2. **Get Top 10 Viral Topics** (5 credits) — calls **Perplexity** (via OpenRouter, `perplexity/sonar-pro`) to research the web and return 10 trending/viral topic ideas for the given category, topic description, target country, and video format. Each shows as a card (title + why it's trending) with its own **+ Generate** button — no popup. The first research call of a session creates a `script_templates` row behind the scenes (not yet a "saved template" — see step 6); re-researching under the same session **updates that same row's 10 `researched_topics` in place** rather than creating new ones, so a session always has at most 10 researched topics.
+3. Clicking **+ Generate** on a topic card calls **Claude** (via OpenRouter, `anthropic/claude-sonnet-5`) to write a full script matching the `script_description` and chosen word-length band, along with a list of characters involved in the story (name, e.g. "Nick, 30, male", plus profession and a brief physical appearance description) — shown as "None" if the script has no named characters. Cost scales with the word-length band: `words_per_credit = 30` (rounded up to a whole credit), so e.g. a script capped at 900 words costs 30 credits. The result renders as its own numbered card ("Script #1", "Script #2", ... numbered from the earliest generated) showing topic, script, word count, and character list — also not a popup, and every generated-script card **persists in the database** and stays visible (across page reloads and across different research sessions) until the user deletes it. A user can also **edit** a card's topic/script text directly (no AI call, no credit cost) or **delete** it entirely.
 4. **Import** — imports the generated script into a project folder to start working on it. *(Placeholder until `/project_folder/{project_id}` exists — see that section.)*
-5. **Improvise** — opens a feedback popup; the given feedback + the current script are sent back to Claude, which returns a revised script (same card, same word-length-based credit cost). Can be repeated as many times as the user likes.
-6. The form inputs (`category`, `topic_description`, `script_description`, `target_country`, `video_type`, `script_word_length`) can be saved as a reusable **script template** (`script_templates`) for later. A "My Templates" popup lists all of the user's saved templates so they can be imported back into the form (and re-used to research/generate again) without retyping everything.
+5. **Improvise** — opens a feedback popup; the given feedback + the current script are sent back to Claude, which returns a revised script that replaces the same card in place (same word-length-based credit cost). Can be repeated as many times as the user likes.
+6. The form inputs (`category`, `topic_description`, `script_description`, `target_country`, `video_type`, `script_word_length`) can be saved as a reusable **script template** for later — this flips the session's `script_templates` row to `is_saved = true` (or creates one if the user never researched first) rather than creating a duplicate row. A "My Templates" popup lists only the user's explicitly-saved templates (auto-created research-session rows don't clutter this list) so they can be imported back into the form — which also restores that session's researched topics — without retyping everything. Deleting a saved template also deletes its researched topics and generated scripts.
 
 ### `/profile`
 
@@ -172,7 +173,9 @@ The full, current schema lives in [`vgaidatabase.dbml`](./vgaidatabase.dbml). Su
 - **`projects`** — script, `is_liked`, selected model ids, a full snapshot of the style template used, YouTube metadata, and ElevenLabs voice settings.
 - **`style_templates`** — reusable visual styles: image/animation/YouTube prompts, `scene_density`, `image_aspect_ratio`, `video_aspect_ratio`, `is_default`.
 - **`characters`** — reusable character library with `character_sheet_url` and `is_default`.
-- **`script_templates`** — saved script-generation requests: `category`, `topic_description`, `script_description`, `content_type` (`long_videos` / `short_videos`), `target_country`, `script_word_length`.
+- **`script_templates`** — script-generation requests: `category`, `topic_description`, `script_description`, `content_type` (`long_videos` / `short_videos`), `target_country`, `script_word_length`, `is_saved` (false = auto-created behind a research/generate session the user hasn't explicitly saved; true = an explicit "Save as Template").
+- **`researched_topics`** — up to 10 rows per `script_templates` row (`topic_number` 1-10, unique together), holding the current `topic_name`/`brief_description` from the last "Get Top 10 Viral Topics" call; re-researching updates these in place.
+- **`generated_scripts`** — every script a user has generated (`topic_name`, `script_text`, `character_involved`), scoped to a `script_templates` row but *not* foreign-keyed to `researched_topics`, so a script survives even after its originating topic batch is replaced by a later research call.
 - **`project_characters`** — per-project snapshot of imported characters.
 - **`scenes`** — per-project scene breakdown: text, image/animation prompts, generated URLs, and generation status enums.
 - **`scene_characters`** — join table linking scenes to the project characters involved in them.
@@ -344,6 +347,53 @@ Table script_templates {
   target_country varchar(200) [not null]
   script_word_length varchar(20) [not null]
 
+  // false = auto-created behind a "Get Top 10 Viral Topics" / generate call the
+  // user never explicitly saved; true = user clicked "Save as Template". The
+  // "My Templates" list only shows is_saved = true rows.
+  is_saved boolean [not null, default: false]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+}
+
+Table researched_topics {
+  id uuid [pk, default: `gen_random_uuid()`]
+
+  script_template_id uuid [not null]
+  user_id uuid [not null]
+
+  // 1-10, one slot per topic in a "Get Top 10 Viral Topics" batch. Re-researching
+  // the same script_template updates these 10 rows in place rather than creating
+  // new ones, so a template always has at most 10 researched_topics rows.
+  topic_number int [not null]
+
+  topic_name varchar(300) [not null]
+  brief_description text [not null]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  indexes {
+    (script_template_id, topic_number) [unique]
+  }
+}
+
+Table generated_scripts {
+  id uuid [pk, default: `gen_random_uuid()`]
+
+  script_template_id uuid [not null]
+  user_id uuid [not null]
+
+  // Denormalized, not a FK to researched_topics -- a script must survive even
+  // after its originating topic batch gets replaced by a later research call.
+  topic_name varchar(300) [not null]
+  script_text text [not null]
+
+  // Characters involved, serialized as delimited text (characters joined by
+  // "|||", each character's fields joined by "::") and parsed back into
+  // structured objects by the backend on read.
+  character_involved text
+
   created_at timestamp [not null, default: `now()`]
   updated_at timestamp [not null, default: `now()`]
 }
@@ -451,6 +501,11 @@ Ref: style_templates.user_id > users.id
 Ref: script_templates.user_id > users.id
 Ref: credit_topups.user_id > users.id
 Ref: project_expence_tracker.user_id > users.id
+
+Ref: researched_topics.script_template_id > script_templates.id
+Ref: researched_topics.user_id > users.id
+Ref: generated_scripts.script_template_id > script_templates.id
+Ref: generated_scripts.user_id > users.id
 
 Ref: project_characters.project_id > projects.id
 Ref: scenes.project_id > projects.id

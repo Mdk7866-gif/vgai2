@@ -675,10 +675,11 @@ export default function GenerateScriptPage() {
             <div>
               <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Generated Scripts</h2>
               <div className="flex flex-col gap-5">
-                {generatedScripts.map((generated) => (
+                {generatedScripts.map((generated, i) => (
                   <GeneratedScriptCard
                     key={generated.id}
                     generated={generated}
+                    index={generatedScripts.length - i}
                     onImport={handleImport}
                     onImprovise={handleImprovise}
                     onDelete={handleDeleteGeneratedScript}

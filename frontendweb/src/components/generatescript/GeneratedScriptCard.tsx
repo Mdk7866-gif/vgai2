@@ -18,6 +18,8 @@ import type { GeneratedScript } from "@/types/scripttemplate";
 
 interface GeneratedScriptCardProps {
   generated: GeneratedScript;
+  /** 1-based position counting from the earliest-generated script — shown as "Script #N". */
+  index: number;
   onImport: (generated: GeneratedScript) => void;
   onImprovise: (generated: GeneratedScript) => void;
   onDelete: (generated: GeneratedScript) => void;
@@ -34,7 +36,14 @@ const characterLine = (c: GeneratedScript["characters"][number]) => {
 const inputClass =
   "w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 transition-all";
 
-export const GeneratedScriptCard = ({ generated, onImport, onImprovise, onDelete, onUpdate }: GeneratedScriptCardProps) => {
+export const GeneratedScriptCard = ({
+  generated,
+  index,
+  onImport,
+  onImprovise,
+  onDelete,
+  onUpdate,
+}: GeneratedScriptCardProps) => {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editTopic, setEditTopic] = useState(generated.topic);
@@ -67,6 +76,9 @@ export const GeneratedScriptCard = ({ generated, onImport, onImprovise, onDelete
           <div className="w-9 h-9 flex-shrink-0 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
             <FileText className="w-4.5 h-4.5" />
           </div>
+          <span className="flex-shrink-0 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/30 tabular-nums">
+            #{index}
+          </span>
           {editing ? (
             <input
               type="text"
@@ -116,22 +128,26 @@ export const GeneratedScriptCard = ({ generated, onImport, onImprovise, onDelete
           </>
         )}
 
-        {!editing && generated.characters.length > 0 && (
+        {!editing && (
           <div>
             <div className="flex items-center gap-1.5 mb-2 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
               <Users className="w-3.5 h-3.5" />
               Characters Involved
             </div>
-            <div className="flex flex-wrap gap-2">
-              {generated.characters.map((c, i) => (
-                <span
-                  key={`${c.name}-${i}`}
-                  className="px-2.5 py-1 rounded-full text-[12px] font-medium bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-500/30"
-                >
-                  {characterLine(c)}
-                </span>
-              ))}
-            </div>
+            {generated.characters.length === 0 ? (
+              <p className="text-[13px] text-slate-400 dark:text-slate-500">None</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {generated.characters.map((c, i) => (
+                  <span
+                    key={`${c.name}-${i}`}
+                    className="px-2.5 py-1 rounded-full text-[12px] font-medium bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-500/30"
+                  >
+                    {characterLine(c)}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
