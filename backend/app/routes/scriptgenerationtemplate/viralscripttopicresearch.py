@@ -1,4 +1,5 @@
 import json
+import math
 
 from fastapi import APIRouter, Depends, HTTPException
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -26,7 +27,7 @@ router = APIRouter(prefix="/scripttemplates", tags=["scripttemplates"])
 TOPIC_RESEARCH_CREDIT_COST = 5
 
 # Script generation/improvise cost scales with the chosen word-length band:
-# cost = (band's upper bound) / WORDS_PER_CREDIT, e.g. "800-900" words -> 900/5 = 180 credits.
+# cost = ceil((band's upper bound) / WORDS_PER_CREDIT), e.g. "800-900" words -> ceil(900/30) = 30 credits.
 WORDS_PER_CREDIT = 30
 
 
@@ -48,9 +49,9 @@ def _parse_word_range(script_word_length: str) -> tuple[int, int]:
         )
 
 
-def _script_credit_cost(script_word_length: str) -> float:
+def _script_credit_cost(script_word_length: str) -> int:
     _, max_words = _parse_word_range(script_word_length)
-    return max_words / WORDS_PER_CREDIT
+    return math.ceil(max_words / WORDS_PER_CREDIT)
 
 
 async def _check_and_get_balance(user_id: str, credit_cost: float, action_label: str) -> tuple[float, float]:

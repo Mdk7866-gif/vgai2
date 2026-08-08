@@ -40,13 +40,13 @@ export const WORD_LENGTH_OPTIONS: string[] = Array.from({ length: 14 }, (_, i) =
 
 // Keep numerically in sync with WORDS_PER_CREDIT in
 // backend/app/routes/scriptgenerationtemplate/viralscripttopicresearch.py.
-export const WORDS_PER_CREDIT = 5;
+export const WORDS_PER_CREDIT = 30;
 
-export const TOPIC_RESEARCH_CREDIT_COST = 20;
+export const TOPIC_RESEARCH_CREDIT_COST = 5;
 
 export function scriptCreditCost(scriptWordLength: string): number {
   const upper = Number(scriptWordLength.split("-")[1]);
-  return Number.isFinite(upper) ? upper / WORDS_PER_CREDIT : 0;
+  return Number.isFinite(upper) ? Math.ceil(upper / WORDS_PER_CREDIT) : 0;
 }
 
 export const SCRIPT_DESCRIPTION_MAX_WORDS = 300;
