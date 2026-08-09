@@ -45,6 +45,12 @@ class SceneUpdate(BaseModel):
     involved_character_ids: list[str] = []
 
 
+class InsertSceneRequest(BaseModel):
+    project_id: str
+    reference_scene_id: str
+    direction: Literal["above", "below"]
+
+
 class GenerateScenesAutomaticRequest(BaseModel):
     project_id: str
 

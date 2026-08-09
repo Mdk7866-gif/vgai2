@@ -72,6 +72,9 @@ class ProjectUpdate(BaseModel):
     llm_model_id: LlmModelTier | None = None
     image_model_id: ImageModelTier | None = None
     animation_model_id: AnimationModelTier | None = None
+    title_of_video: str | None = None
+    description_of_video: str | None = None
+    tags_of_video: str | None = None
 
 
 class ProjectCharacter(BaseModel):

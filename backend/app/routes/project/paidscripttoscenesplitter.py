@@ -1,4 +1,5 @@
 import math
+from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -180,7 +181,7 @@ async def generate_scenes_automatic(
         # returned, so the (project_id, scene_number) unique constraint can't fail.
         for i, scene_draft in enumerate(draft.scenes, start=1)
     ]
-    inserted_scenes = supabase.table("scenes").insert(scene_rows).execute().data
+    inserted_scenes = cast(list[dict[str, Any]], supabase.table("scenes").insert(scene_rows).execute().data)
 
     scene_characters_rows = []
     for scene_draft, inserted in zip(draft.scenes, inserted_scenes):
@@ -207,7 +208,8 @@ async def generate_scenes_automatic(
     response_scenes = [
         Scene(
             **inserted,
-            involved_characters=[
+   
+         involved_characters=[
                 InvolvedCharacterRef(id=row["project_character_id"], name=id_to_name[row["project_character_id"]])
                 for row in scene_characters_rows
                 if row["scene_id"] == inserted["id"] and row["project_character_id"] in id_to_name

@@ -1,4 +1,5 @@
 import base64
+from typing import Any, cast
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
@@ -128,12 +129,13 @@ async def generate_scene_image(
         supabase.table("scenes").update({"image_status": "failed"}).eq("id", scene["id"]).execute()
         raise
 
-    updated = (
+    updated = cast(
+        dict[str, Any],
         supabase.table("scenes")
         .update({"generated_image_url": image_url, "image_status": "completed"})
         .eq("id", scene["id"])
         .execute()
-        .data[0]
+        .data[0],
     )
 
     new_balance = _deduct_project_credits(

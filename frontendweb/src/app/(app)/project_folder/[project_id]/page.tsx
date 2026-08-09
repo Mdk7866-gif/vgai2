@@ -343,11 +343,12 @@ export default function ProjectFolderPage() {
         <VideoMetaDataCard
           project={project}
           onThumbnailGenerated={(url) => setProject((prev) => (prev ? { ...prev, thumbnail_image_url: url } : prev))}
+          onMetadataSaved={(updated) => setProject(updated)}
         />
       )}
 
       {scenes.length > 0 && (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+        <div className="flex flex-col gap-5">
           {scenes.map((scene) => (
             <SceneCard
               key={scene.id}
@@ -355,6 +356,7 @@ export default function ProjectFolderPage() {
               projectCharacters={projectCharacters}
               onUpdated={(updated) => setScenes((prev) => prev.map((s) => (s.id === updated.id ? updated : s)))}
               onDeleted={(id) => setScenes((prev) => prev.filter((s) => s.id !== id))}
+              onInserted={(updatedScenes) => setScenes(updatedScenes)}
             />
           ))}
         </div>

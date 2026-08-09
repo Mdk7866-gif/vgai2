@@ -4,7 +4,7 @@ from supabase_auth.types import User as SupabaseUser
 from app.auth import get_current_user
 from app.cloudinary import delete_media
 from app.routes.project.projectcrud import _get_owned_project
-from app.schemas.scene import Scene, SceneCreate, SceneUpdate
+from app.schemas.scene import InsertSceneRequest, Scene, SceneCreate, SceneUpdate
 from app.supabase import supabase
 
 router = APIRouter(prefix="/projects/scenes", tags=["scenes"])
@@ -99,6 +99,49 @@ async def create_scene(payload: SceneCreate, current_user: SupabaseUser = Depend
     )
     _sync_involved_characters(inserted["id"], payload.involved_character_ids)
     return _attach_involved_characters([inserted])[0]
+
+
+@router.post("/insert", response_model=list[Scene])
+async def insert_scene(payload: InsertSceneRequest, current_user: SupabaseUser = Depends(get_current_user)):
+    """Adds a blank scene card directly above/below a reference scene. No AI
+    call, no credit cost. Renumbers every scene from the insertion point
+    onward, shifting highest-numbered first so the (project_id, scene_number)
+    unique constraint never collides mid-update."""
+    _get_owned_project(payload.project_id, current_user.id)
+    reference = _get_owned_scene(payload.reference_scene_id, current_user.id)
+    if reference["project_id"] != payload.project_id:
+        raise HTTPException(status_code=404, detail="Scene not found in this project")
+
+    target_number = reference["scene_number"] if payload.direction == "above" else reference["scene_number"] + 1
+
+    to_shift = (
+        supabase.table("scenes")
+        .select("id, scene_number")
+        .eq("project_id", payload.project_id)
+        .gte("scene_number", target_number)
+        .order("scene_number", desc=True)
+        .execute()
+        .data
+    )
+    for row in to_shift:
+        supabase.table("scenes").update({"scene_number": row["scene_number"] + 1}).eq("id", row["id"]).execute()
+
+    supabase.table("scenes").insert(
+        {
+            "project_id": payload.project_id,
+            "scene_number": target_number,
+            "scene_text": "New scene — edit this text.",
+        }
+    ).execute()
+
+    result = (
+        supabase.table("scenes")
+        .select("*")
+        .eq("project_id", payload.project_id)
+        .order("scene_number")
+        .execute()
+    )
+    return _attach_involved_characters(result.data)
 
 
 @router.put("/update/{scene_id}", response_model=Scene)
