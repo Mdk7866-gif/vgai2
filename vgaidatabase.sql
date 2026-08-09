@@ -73,6 +73,9 @@ create table projects (
   snapshot_styletemplate_youtube_title_description_tags_prompt text,
   snapshot_styletemplate_youtube_thumbnail_image_prompt text,
   snapshot_styletemplate_description text,
+  snapshot_styletemplate_image_aspect_ratio text,
+  snapshot_styletemplate_video_aspect_ratio text,
+  snapshot_styletemplate_scene_density scene_density,
 
   thumbnail_prompt text,
   thumbnail_image_url text,
@@ -92,6 +95,13 @@ create table projects (
   created_at timestamp not null default now(),
   updated_at timestamp not null default now()
 );
+
+-- If projects already exists in your Supabase project from before the 3
+-- style-template aspect-ratio/scene-density snapshot columns were added, run
+-- this instead of the create table above (it will fail on an existing table):
+--   alter table projects add column snapshot_styletemplate_image_aspect_ratio text;
+--   alter table projects add column snapshot_styletemplate_video_aspect_ratio text;
+--   alter table projects add column snapshot_styletemplate_scene_density scene_density;
 
 create table style_templates (
   id uuid primary key default gen_random_uuid(),

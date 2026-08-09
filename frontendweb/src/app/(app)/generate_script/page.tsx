@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { FileText, Layers, Loader2, LogIn, Save, Sparkles, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useCreditBalance } from "@/context/CreditBalanceContext";
+import { useProjects } from "@/context/ProjectsContext";
 import { authFetch } from "@/lib/api";
 import { COUNTRIES } from "@/lib/countries";
 import {
@@ -42,6 +44,8 @@ const labelClass = "block text-sm font-medium text-slate-700 dark:text-slate-300
 
 export default function GenerateScriptPage() {
   const { user, requireAuth } = useAuth();
+  const router = useRouter();
+  const { createProject } = useProjects();
 
   const [category, setCategory] = useState(CATEGORY_SELECT_OPTIONS[0]);
   const [customCategory, setCustomCategory] = useState("");
@@ -251,12 +255,17 @@ export default function GenerateScriptPage() {
     }
   };
 
-  const handleImport = (generated: GeneratedScript) => {
-    setAlert({
-      title: "Coming soon",
-      message: `Importing "${generated.topic}" into a project folder isn't available yet — project folders haven't been built.`,
-      type: "info",
-    });
+  const handleImport = async (generated: GeneratedScript) => {
+    if (!requireAuth()) return;
+    try {
+      const created = await createProject(generated.topic, generated.script);
+      router.push(`/project_folder/${created.id}`);
+    } catch (err) {
+      setAlert({
+        title: "Failed to import script",
+        message: err instanceof Error ? err.message : "Something went wrong.",
+      });
+    }
   };
 
   const handleImprovise = (generated: GeneratedScript) => {

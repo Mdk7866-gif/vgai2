@@ -7,6 +7,11 @@ from app.routes.styletemplates import generatetemplate as styletemplates_generat
 from app.routes.scriptgenerationtemplate import crud as scripttemplates_crud
 from app.routes.scriptgenerationtemplate import viralscripttopicresearch as scripttemplates_generate
 from app.routes.payments import crud as payments_crud
+from app.routes.project import projectcrud
+from app.routes.project import paidscripttoscenesplitter
+from app.routes.project import generatedscenecard
+from app.routes.project import imagegeneration
+from app.routes.project import animationgeneration
 
 api_router = APIRouter()
 
@@ -20,3 +25,18 @@ api_router.include_router(scripttemplates_crud.router)
 api_router.include_router(payments_crud.router)
 # app.routes.payments.webhook is a placeholder, not registered yet — see that
 # file's docstring for why and how to activate it.
+
+# projectcrud first — paidscripttoscenesplitter/generatedscenecard/imagegeneration/
+# animationgeneration all import its _get_owned_project/_check_project_balance/
+# _deduct_project_credits helpers. paidscripttoscenesplitter is registered before
+# generatedscenecard even though neither actually has a colliding literal path
+# today, matching the same shadowing-avoidance discipline documented on the
+# scripttemplates routers above.
+api_router.include_router(projectcrud.router)
+api_router.include_router(paidscripttoscenesplitter.router)
+api_router.include_router(generatedscenecard.router)
+api_router.include_router(imagegeneration.router)
+api_router.include_router(animationgeneration.router)
+# app.routes.project.freescripttoscenesplitter (manual scene splitting) and
+# app.routes.project.voiceovertts (voiceover generation) are placeholders, not
+# registered yet — deferred per CLAUDE.md's project-folder scope notes.

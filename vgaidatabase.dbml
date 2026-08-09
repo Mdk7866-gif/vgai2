@@ -86,6 +86,9 @@ Table projects {
   snapshot_styletemplate_youtube_title_description_tags_prompt text
   snapshot_styletemplate_youtube_thumbnail_image_prompt text
   snapshot_styletemplate_description text
+  snapshot_styletemplate_image_aspect_ratio text
+  snapshot_styletemplate_video_aspect_ratio text
+  snapshot_styletemplate_scene_density scene_density
 
   // YouTube Metadata
   thumbnail_prompt text
