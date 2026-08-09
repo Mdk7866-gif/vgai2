@@ -11,7 +11,7 @@ from app.schemas.styletemplate import SceneDensity
 # reasoning as quality="low"/"high" on the character-sheet generation flow.
 LlmModelTier = Literal["base", "pro"]
 ImageModelTier = Literal["base", "pro"]
-AnimationModelTier = Literal["base"]
+AnimationModelTier = Literal["base", "pro"]
 
 
 class Project(BaseModel):

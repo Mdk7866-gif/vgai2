@@ -16,7 +16,7 @@ if settings.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME and settings.CLOUDINARY_API_KEY an
 
 def _upload_bytes(content: bytes, folder: str, public_id_prefix: str, resource_type: str) -> str:
     """Shared upload path for raw bytes (as opposed to an UploadFile) — used for
-    OpenAI's base64 scene/thumbnail images and Veo's raw video bytes, neither of
+    OpenAI's base64 scene/thumbnail images and OpenRouter's raw video bytes, neither of
     which arrive as an UploadFile the way character-sheet uploads do.
     """
     if not settings.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME:
@@ -53,7 +53,7 @@ def upload_image_bytes(content: bytes, folder: str, public_id_prefix: str = "img
 
 
 def upload_video_bytes(content: bytes, folder: str, public_id_prefix: str = "video") -> str:
-    """Uploads raw video bytes (e.g. a Veo-generated clip) as a Cloudinary video asset."""
+    """Uploads raw video bytes (e.g. an OpenRouter-generated animation clip) as a Cloudinary video asset."""
     return _upload_bytes(content, folder, public_id_prefix, resource_type="video")
 
 

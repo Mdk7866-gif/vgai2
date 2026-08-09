@@ -23,8 +23,9 @@ class Settings(BaseSettings):
     # generation/improvise) used by /generate_script (see app/openrouter_client.py)
     OPENROUTER_PAID_API_KEY: str | None = None
 
-    # Gemini — "pro" tier scene splitting (text) and Veo animation generation
-    # (video) for /project_folder (see app/gemini_client.py)
+    # Gemini — "pro" tier scene splitting (text) for /project_folder (see
+    # app/gemini_client.py). Animation generation uses OpenRouter, not Gemini/Veo
+    # directly — see app/openrouter_video.py.
     GEMINI_PAID_API_KEY: str | None = None
 
     # Razorpay — credit top-ups (see app/routes/payments/). RAZORPAY_WEBHOOK_SECRET

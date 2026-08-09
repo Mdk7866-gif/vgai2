@@ -2,7 +2,7 @@ import type { SceneDensity } from "./styletemplate";
 
 export type LlmModelTier = "base" | "pro";
 export type ImageModelTier = "base" | "pro";
-export type AnimationModelTier = "base";
+export type AnimationModelTier = "base" | "pro";
 
 export interface Project {
   id: string;

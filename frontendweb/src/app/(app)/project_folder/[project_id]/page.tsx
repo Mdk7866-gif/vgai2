@@ -399,6 +399,7 @@ export default function ProjectFolderPage() {
         projectId={project.id}
         currentLlmModelId={project.llm_model_id}
         currentImageModelId={project.image_model_id}
+        currentAnimationModelId={project.animation_model_id}
         onSaved={(updated) => setProject(updated)}
       />
 

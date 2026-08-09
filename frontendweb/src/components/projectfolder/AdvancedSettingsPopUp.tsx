@@ -2,9 +2,9 @@
 
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Loader2, Save, Settings, Check, Film } from "lucide-react";
+import { X, Loader2, Save, Settings, Check } from "lucide-react";
 import { authFetch } from "@/lib/api";
-import type { ImageModelTier, LlmModelTier, Project } from "@/types/project";
+import type { AnimationModelTier, ImageModelTier, LlmModelTier, Project } from "@/types/project";
 import CreditCoinIcon from "@/components/CreditCoinIcon";
 
 interface AdvancedSettingsPopUpProps {
@@ -13,6 +13,7 @@ interface AdvancedSettingsPopUpProps {
   projectId: string;
   currentLlmModelId: LlmModelTier;
   currentImageModelId: ImageModelTier;
+  currentAnimationModelId: AnimationModelTier;
   onSaved: (project: Project) => void;
 }
 
@@ -24,6 +25,11 @@ const LLM_OPTIONS: { id: LlmModelTier; label: string; description: string }[] = 
 const IMAGE_OPTIONS: { id: ImageModelTier; label: string; description: string; cost: number }[] = [
   { id: "base", label: "Base", description: "gpt-image-2, low quality.", cost: 4 },
   { id: "pro", label: "Pro", description: "gpt-image-2, high quality.", cost: 20 },
+];
+
+const ANIMATION_OPTIONS: { id: AnimationModelTier; label: string; description: string; cost: number }[] = [
+  { id: "base", label: "Base", description: "Wan 2.6, image-to-video, ~5s clip.", cost: 20 },
+  { id: "pro", label: "Pro", description: "Veo 3.1 Lite, image-to-video, ~6s clip.", cost: 40 },
 ];
 
 function OptionCard({
@@ -67,10 +73,12 @@ export const AdvancedSettingsPopUp = ({
   projectId,
   currentLlmModelId,
   currentImageModelId,
+  currentAnimationModelId,
   onSaved,
 }: AdvancedSettingsPopUpProps) => {
   const [llmModelId, setLlmModelId] = useState<LlmModelTier>(currentLlmModelId);
   const [imageModelId, setImageModelId] = useState<ImageModelTier>(currentImageModelId);
+  const [animationModelId, setAnimationModelId] = useState<AnimationModelTier>(currentAnimationModelId);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -81,7 +89,11 @@ export const AdvancedSettingsPopUp = ({
       const res = await authFetch(`/projects/update/${projectId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ llm_model_id: llmModelId, image_model_id: imageModelId }),
+        body: JSON.stringify({
+          llm_model_id: llmModelId,
+          image_model_id: imageModelId,
+          animation_model_id: animationModelId,
+        }),
       });
       const data: Project = await res.json();
       onSaved(data);
@@ -160,22 +172,22 @@ export const AdvancedSettingsPopUp = ({
             <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2.5">
               Animation Model — scene animation
             </h3>
-            <div className="flex items-start justify-between gap-3 p-4 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-900/30">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-9 h-9 flex-shrink-0 rounded-xl bg-violet-50 dark:bg-violet-500/10 border border-violet-100 dark:border-violet-500/30 text-violet-600 dark:text-violet-400 flex items-center justify-center">
-                  <Film className="w-4.5 h-4.5" />
-                </div>
-                <div className="min-w-0">
-                  <p className="font-semibold text-[14px] text-slate-900 dark:text-slate-100">Veo 3 Fast</p>
-                  <p className="text-[13px] text-slate-500 dark:text-slate-400">
-                    The only animation model available for now — image-to-video, ~5-6s clips.
-                  </p>
-                </div>
-              </div>
-              <span className="flex-shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-100 dark:border-amber-500/30">
-                <CreditCoinIcon className="w-3 h-3" />
-                40
-              </span>
+            <div className="flex flex-col gap-2.5">
+              {ANIMATION_OPTIONS.map((opt) => (
+                <OptionCard
+                  key={opt.id}
+                  selected={animationModelId === opt.id}
+                  onClick={() => setAnimationModelId(opt.id)}
+                  title={opt.label}
+                  description={opt.description}
+                  badge={
+                    <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-100 dark:border-amber-500/30">
+                      <CreditCoinIcon className="w-3 h-3" />
+                      {opt.cost}
+                    </span>
+                  }
+                />
+              ))}
             </div>
           </div>
         </div>
