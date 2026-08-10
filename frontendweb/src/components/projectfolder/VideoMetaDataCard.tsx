@@ -2,9 +2,11 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
-import { Check, Copy, FileText, ImageIcon, Loader2, Save, Sparkles } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Copy, Download, FileText, ImageIcon, Loader2, Save, Sparkles } from "lucide-react";
 import { authFetch } from "@/lib/api";
+import { AssetUnavailableError, downloadAsset, getFileExtension } from "@/lib/download";
 import { useCreditBalance } from "@/context/CreditBalanceContext";
+import ImageZoomPopUp from "@/components/ImageZoomPopUp";
 import type { Project } from "@/types/project";
 
 interface VideoMetaDataCardProps {
@@ -40,6 +42,14 @@ export const VideoMetaDataCard = ({ project, onThumbnailGenerated, onMetadataSav
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState<Field | null>(null);
+  const [thumbnailZoomOpen, setThumbnailZoomOpen] = useState(false);
+  const [thumbnailDownload, setThumbnailDownload] = useState<"idle" | "loading" | "done">("idle");
+
+  const [promptOpen, setPromptOpen] = useState(false);
+  const [promptSyncedFrom, setPromptSyncedFrom] = useState(project.thumbnail_prompt ?? "");
+  const [thumbnailPrompt, setThumbnailPrompt] = useState(promptSyncedFrom);
+  const [promptDirty, setPromptDirty] = useState(false);
+  const [promptSaving, setPromptSaving] = useState(false);
 
   const latest = {
     title: project.title_of_video ?? "",
@@ -56,7 +66,39 @@ export const VideoMetaDataCard = ({ project, onThumbnailGenerated, onMetadataSav
     setTags(latest.tags);
   }
 
+  const latestPrompt = project.thumbnail_prompt ?? "";
+  if (!promptDirty && latestPrompt !== promptSyncedFrom) {
+    setPromptSyncedFrom(latestPrompt);
+    setThumbnailPrompt(latestPrompt);
+  }
+
+  const persistThumbnailPrompt = async (value: string) => {
+    if (value.trim() === (project.thumbnail_prompt ?? "").trim()) {
+      setPromptDirty(false);
+      return;
+    }
+    setPromptSaving(true);
+    setError(null);
+    try {
+      const res = await authFetch(`/projects/update/${project.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ thumbnail_prompt: value.trim() || null }),
+      });
+      const data: Project = await res.json();
+      onMetadataSaved(data);
+      setPromptDirty(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save thumbnail prompt.");
+    } finally {
+      setPromptSaving(false);
+    }
+  };
+
   const handleGenerateThumbnail = async () => {
+    if (promptDirty) {
+      await persistThumbnailPrompt(thumbnailPrompt);
+    }
     setGenerating(true);
     setError(null);
     try {
@@ -72,6 +114,26 @@ export const VideoMetaDataCard = ({ project, onThumbnailGenerated, onMetadataSav
       setError(err instanceof Error ? err.message : "Failed to generate thumbnail.");
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const handleDownloadThumbnail = async () => {
+    if (!project.thumbnail_image_url) return;
+    setThumbnailDownload("loading");
+    setError(null);
+    try {
+      await downloadAsset(
+        project.thumbnail_image_url,
+        `${project.name}_thumbnail.${getFileExtension(project.thumbnail_image_url, "png")}`
+      );
+      setThumbnailDownload("done");
+    } catch (err) {
+      setThumbnailDownload("idle");
+      setError(
+        err instanceof AssetUnavailableError
+          ? `Couldn't download — the media host refused the file (HTTP ${err.status}).`
+          : "Couldn't download — the file couldn't be reached."
+      );
     }
   };
 
@@ -164,7 +226,7 @@ export const VideoMetaDataCard = ({ project, onThumbnailGenerated, onMetadataSav
                 setDescription(e.target.value);
                 setDirty(true);
               }}
-              rows={4}
+              rows={3}
               className={`${fieldClass} text-[13px] leading-relaxed`}
             />
           </div>
@@ -190,24 +252,72 @@ export const VideoMetaDataCard = ({ project, onThumbnailGenerated, onMetadataSav
           </div>
 
           {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
-
-          <button
-            onClick={handleSaveMetadata}
-            disabled={saving || !dirty}
-            className="self-end flex items-center gap-2 px-4 py-2 text-[13px] font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg shadow-md shadow-indigo-200 dark:shadow-indigo-900/40 transition-all active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-            Save Metadata
-          </button>
         </div>
 
-        <div className="md:w-64 flex-shrink-0 flex flex-col gap-2">
-          <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
-            Thumbnail
-          </label>
-          <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700/60 flex items-center justify-center">
+        <div className="md:w-[360px] flex-shrink-0 flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+              Thumbnail
+            </label>
+            <button
+              onClick={() => setPromptOpen((v) => !v)}
+              className="flex items-center gap-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline decoration-blue-300 dark:decoration-blue-700 underline-offset-2 transition-colors cursor-pointer"
+            >
+              {promptOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              Prompt
+            </button>
+          </div>
+
+          {promptOpen && (
+            <div className="flex flex-col gap-1">
+              <textarea
+                value={thumbnailPrompt}
+                onChange={(e) => {
+                  setThumbnailPrompt(e.target.value);
+                  setPromptDirty(true);
+                }}
+                onBlur={() => persistThumbnailPrompt(thumbnailPrompt)}
+                placeholder="Describe the thumbnail image…"
+                rows={3}
+                className={`${fieldClass} text-[12.5px]`}
+              />
+              <span className="flex items-center gap-1 self-end text-[10.5px] text-slate-400 dark:text-slate-500">
+                {promptSaving && <Loader2 className="w-3 h-3 animate-spin" />}
+                {promptSaving ? "Saving…" : "Auto-saved"}
+              </span>
+            </div>
+          )}
+
+          <div
+            onClick={() => project.thumbnail_image_url && setThumbnailZoomOpen(true)}
+            className={`relative w-full aspect-video rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700/60 flex items-center justify-center ${
+              project.thumbnail_image_url ? "cursor-zoom-in" : ""
+            }`}
+          >
             {project.thumbnail_image_url ? (
-              <Image src={project.thumbnail_image_url} alt="Video thumbnail" fill unoptimized className="object-cover" />
+              <>
+                <Image src={project.thumbnail_image_url} alt="Video thumbnail" fill unoptimized className="object-cover" />
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDownloadThumbnail();
+                  }}
+                  aria-label="Download thumbnail"
+                  title="Download thumbnail"
+                  className={`absolute top-1.5 right-1.5 p-1.5 rounded-lg text-white transition-colors cursor-pointer ${
+                    thumbnailDownload === "done" ? "bg-emerald-600/90 hover:bg-emerald-600" : "bg-black/50 hover:bg-black/70"
+                  }`}
+                >
+                  {thumbnailDownload === "loading" ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : thumbnailDownload === "done" ? (
+                    <Check className="w-3.5 h-3.5" />
+                  ) : (
+                    <Download className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              </>
             ) : (
               <ImageIcon className="w-6 h-6 text-slate-300 dark:text-slate-600" />
             )}
@@ -220,8 +330,25 @@ export const VideoMetaDataCard = ({ project, onThumbnailGenerated, onMetadataSav
             {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
             {project.thumbnail_image_url ? "Regenerate Thumbnail" : "Generate Thumbnail"}
           </button>
+          <button
+            onClick={handleSaveMetadata}
+            disabled={saving || !dirty}
+            className="flex items-center justify-center gap-2 px-3 py-2 text-[13px] font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg shadow-md shadow-indigo-200 dark:shadow-indigo-900/40 transition-all active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+            Save Metadata
+          </button>
         </div>
       </div>
+
+      {project.thumbnail_image_url && (
+        <ImageZoomPopUp
+          isOpen={thumbnailZoomOpen}
+          onClose={() => setThumbnailZoomOpen(false)}
+          imageUrl={project.thumbnail_image_url}
+          alt="Video thumbnail"
+        />
+      )}
     </div>
   );
 };

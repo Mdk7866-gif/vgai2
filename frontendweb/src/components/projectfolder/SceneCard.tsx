@@ -18,7 +18,10 @@ import {
   XCircle,
 } from "lucide-react";
 import { authFetch } from "@/lib/api";
+import { AssetUnavailableError, downloadAsset, getFileExtension } from "@/lib/download";
 import { useCreditBalance } from "@/context/CreditBalanceContext";
+import ImageZoomPopUp from "@/components/ImageZoomPopUp";
+import VideoPlayingCardPopUp from "@/components/VideoPlayingCardPopUp";
 import type { Scene } from "@/types/scene";
 import type { ProjectCharacter } from "@/types/project";
 
@@ -69,6 +72,12 @@ export const SceneCard = ({
   const [charPopoverOpen, setCharPopoverOpen] = useState(false);
   const charButtonRef = useRef<HTMLButtonElement | null>(null);
   const [charPopoverPos, setCharPopoverPos] = useState({ top: 0, left: 0 });
+
+  const [imageZoomOpen, setImageZoomOpen] = useState(false);
+  const [videoPopupOpen, setVideoPopupOpen] = useState(false);
+  // "done" is sticky for the rest of the session (a page reload clears it) so the
+  // user keeps a visible record of what they've already saved locally.
+  const [downloadStatus, setDownloadStatus] = useState<Record<string, "loading" | "done">>({});
 
   const persist = async (overrides: {
     scene_text?: string;
@@ -123,28 +132,39 @@ export const SceneCard = ({
     setCharPopoverOpen((v) => !v);
   };
 
-  const getExtension = (url: string, fallback: string) => {
-    const match = url.split("?")[0].match(/\.([a-zA-Z0-9]+)$/);
-    return match ? match[1] : fallback;
-  };
-
-  const downloadAsset = async (url: string, filename: string) => {
+  const handleDownload = async (key: string, url: string, filename: string) => {
+    setDownloadStatus((s) => ({ ...s, [key]: "loading" }));
+    setError(null);
     try {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("Download failed");
-      const blob = await res.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = blobUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(blobUrl);
-    } catch {
-      setError("Couldn't download the file — the hosting link may be unavailable.");
+      await downloadAsset(url, filename);
+      setDownloadStatus((s) => ({ ...s, [key]: "done" }));
+    } catch (err) {
+      setDownloadStatus((s) => {
+        const next = { ...s };
+        delete next[key];
+        return next;
+      });
+      setError(
+        err instanceof AssetUnavailableError
+          ? `Couldn't download — the media host refused the file (HTTP ${err.status}).`
+          : "Couldn't download — the file couldn't be reached."
+      );
     }
   };
+
+  const downloadButtonIcon = (key: string) =>
+    downloadStatus[key] === "loading" ? (
+      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+    ) : downloadStatus[key] === "done" ? (
+      <Check className="w-3.5 h-3.5" />
+    ) : (
+      <Download className="w-3.5 h-3.5" />
+    );
+
+  const downloadButtonClass = (key: string) =>
+    `absolute top-1.5 right-1.5 p-1.5 rounded-lg text-white transition-colors cursor-pointer ${
+      downloadStatus[key] === "done" ? "bg-emerald-600/90 hover:bg-emerald-600" : "bg-black/50 hover:bg-black/70"
+    }`;
 
   const copyToClipboard = async (key: string, value: string) => {
     if (!value.trim()) return;
@@ -453,7 +473,10 @@ export const SceneCard = ({
                 </div>
               </div>
               <div
-                className={`relative w-full ${previewMaxWidthClass} mx-auto ${previewAspectClass} rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700/60 flex items-center justify-center`}
+                onClick={() => scene.generated_image_url && setImageZoomOpen(true)}
+                className={`relative w-full ${previewMaxWidthClass} mx-auto ${previewAspectClass} rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700/60 flex items-center justify-center ${
+                  scene.generated_image_url ? "cursor-zoom-in" : ""
+                }`}
               >
                 {scene.generated_image_url ? (
                   <>
@@ -466,17 +489,19 @@ export const SceneCard = ({
                     />
                     <button
                       type="button"
-                      onClick={() =>
-                        downloadAsset(
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownload(
+                          "image",
                           scene.generated_image_url!,
-                          `scene_${scene.scene_number}_image.${getExtension(scene.generated_image_url!, "png")}`
-                        )
-                      }
+                          `scene_${scene.scene_number}.${getFileExtension(scene.generated_image_url!, "png")}`
+                        );
+                      }}
                       aria-label="Download image"
                       title="Download image"
-                      className="absolute top-1.5 right-1.5 p-1.5 rounded-lg bg-black/50 hover:bg-black/70 text-white transition-colors cursor-pointer"
+                      className={downloadButtonClass("image")}
                     >
-                      <Download className="w-3.5 h-3.5" />
+                      {downloadButtonIcon("image")}
                     </button>
                   </>
                 ) : (
@@ -513,24 +538,35 @@ export const SceneCard = ({
                 </div>
               </div>
               <div
-                className={`relative w-full ${previewMaxWidthClass} mx-auto ${previewAspectClass} rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700/60 flex items-center justify-center`}
+                onClick={() => scene.generated_animation_url && setVideoPopupOpen(true)}
+                className={`relative w-full ${previewMaxWidthClass} mx-auto ${previewAspectClass} rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700/60 flex items-center justify-center ${
+                  scene.generated_animation_url ? "cursor-pointer" : ""
+                }`}
               >
                 {scene.generated_animation_url ? (
                   <>
-                    <video src={scene.generated_animation_url} controls className="w-full h-full object-cover" />
+                    <video
+                      src={scene.generated_animation_url}
+                      muted
+                      playsInline
+                      preload="metadata"
+                      className="w-full h-full object-cover pointer-events-none"
+                    />
                     <button
                       type="button"
-                      onClick={() =>
-                        downloadAsset(
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownload(
+                          "animation",
                           scene.generated_animation_url!,
-                          `scene_${scene.scene_number}_animation.${getExtension(scene.generated_animation_url!, "mp4")}`
-                        )
-                      }
+                          `scene_${scene.scene_number}.${getFileExtension(scene.generated_animation_url!, "mp4")}`
+                        );
+                      }}
                       aria-label="Download animation"
                       title="Download animation"
-                      className="absolute top-1.5 right-1.5 p-1.5 rounded-lg bg-black/50 hover:bg-black/70 text-white transition-colors cursor-pointer"
+                      className={downloadButtonClass("animation")}
                     >
-                      <Download className="w-3.5 h-3.5" />
+                      {downloadButtonIcon("animation")}
                     </button>
                   </>
                 ) : (
@@ -543,6 +579,24 @@ export const SceneCard = ({
 
         {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
       </div>
+
+      {scene.generated_image_url && (
+        <ImageZoomPopUp
+          isOpen={imageZoomOpen}
+          onClose={() => setImageZoomOpen(false)}
+          imageUrl={scene.generated_image_url}
+          alt={`Scene ${scene.scene_number}`}
+        />
+      )}
+
+      {scene.generated_animation_url && (
+        <VideoPlayingCardPopUp
+          isOpen={videoPopupOpen}
+          onClose={() => setVideoPopupOpen(false)}
+          videoUrl={scene.generated_animation_url}
+          filename={`scene_${scene.scene_number}.${getFileExtension(scene.generated_animation_url, "mp4")}`}
+        />
+      )}
 
       {charPopoverOpen &&
         createPortal(

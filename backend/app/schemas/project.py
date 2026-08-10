@@ -75,6 +75,7 @@ class ProjectUpdate(BaseModel):
     title_of_video: str | None = None
     description_of_video: str | None = None
     tags_of_video: str | None = None
+    thumbnail_prompt: str | None = None
 
 
 class ProjectCharacter(BaseModel):
