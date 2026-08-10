@@ -354,6 +354,7 @@ export default function ProjectFolderPage() {
               key={scene.id}
               scene={scene}
               projectCharacters={projectCharacters}
+              videoAspectRatio={project.snapshot_styletemplate_video_aspect_ratio}
               onUpdated={(updated) => setScenes((prev) => prev.map((s) => (s.id === updated.id ? updated : s)))}
               onDeleted={(id) => setScenes((prev) => prev.filter((s) => s.id !== id))}
               onInserted={(updatedScenes) => setScenes(updatedScenes)}
