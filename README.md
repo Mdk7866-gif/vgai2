@@ -26,8 +26,17 @@ To keep pricing simple for users, all AI usage (LLM, image, animation, voiceover
 
 Every user has a `current_credit_balance`. Spend is tracked two ways:
 
-- **Per-project spend** — recorded in `project_expence_tracker`, broken down into `llm_credit_spent`, `image_credit_spent`, `animation_credit_spent`, and `voiceover_credit_spent`. This table stores a **snapshot** of the project id/name (no foreign key) specifically so spend history survives even if the user later deletes the project.
+- **Per-project spend** — recorded in `project_expence_tracker`, broken down into `llm_credit_spent`, `image_credit_spent`, `animation_credit_spent`, and `voiceover_credit_spent`. This table stores a **snapshot** of the project id/name (no foreign key) specifically so spend history survives even if the user later deletes the project. There is exactly one running-total row per project, not one row per spend event.
 - **Miscellaneous spend** — actions not tied to a project (script generation, character-sheet generation, style-template generation) are tracked on the user directly via `miscellaneous_credit_spent`.
+
+### Credits are charged when a generation *starts*
+
+Credits are **reserved before the AI provider is called**, not deducted after it succeeds. Every provider (OpenAI, OpenRouter, ElevenLabs) bills vgAI the moment the work begins, so charging only on success meant absorbing the cost of anything a user started and then abandoned. Concretely:
+
+- **Starting a generation deducts immediately.** The balance in the navbar drops on click, not on completion.
+- **Cancelling does not refund.** The provider has already been paid. What cancelling *does* guarantee is that the abandoned result is thrown away rather than saved — see "Cancelling a generation" under `/project_folder/{project_id}` below.
+- **Credits come back only when the provider produced nothing** — it errored out, or the request was rejected before reaching it. That refund is automatic.
+- **Concurrent generations each cost their full price.** Firing image generation on eight scene cards at once charges for eight. The balance is deducted through an atomic database function (`spend_credits`), so simultaneous requests can't read the same starting balance and each overwrite the others' deduction.
 
 ---
 
@@ -62,7 +71,7 @@ Every user has a `current_credit_balance`. Spend is tracked two ways:
 ### `/characters`
 
 - Full CRUD: add, update, delete characters.
-- **Generate Character Sheet** button: user enters a character name, a brief description, and optionally a reference image. The backend uses **OpenAI** end-to-end — `ChatOpenAI` (LangChain) writes a detailed character-sheet image prompt (front/3-4/back/left-profile/right-profile views plus happy/sad/angry/confused/thinking/surprised expression close-ups, laid out as a labeled two-row grid), then `gpt-image-2` renders it. A "Generate with Pro" toggle switches the render from `quality="low"` (4 credits) to `quality="high"` (8 credits). The user reviews the generated sheet and accepts or rejects it before it's added to their character library, with the generated image prompt itself stored as the character's `description`.
+- **Generate Character Sheet** button: user enters a character name, a brief description, and optionally a reference image. The backend uses **OpenAI** end-to-end — `ChatOpenAI` (LangChain) writes a detailed character-sheet image prompt (front/3-4/back/left-profile/right-profile views plus happy/sad/angry/confused/thinking/surprised expression close-ups, laid out as a labeled two-row grid on a **plain pure-white backdrop** — sheets get composited over other backgrounds later, so the prompt-writing step is explicitly instructed to demand flat white with no scenery, gradient, texture, or cast shadows), then `gpt-image-2` renders it. A "Generate with Pro" toggle switches the render from `quality="low"` (4 credits) to `quality="high"` (8 credits). The user reviews the generated sheet and accepts or rejects it before it's added to their character library, with the generated image prompt itself stored as the character's `description`.
 
 ### `/style_templates`
 
@@ -112,6 +121,14 @@ Clicking **Generate Scenes (Automatic)** sends the script + the imported style t
 - Edit scene text/prompts, add, delete, or reorder cards.
 - Track async status per asset via `image_status` / `animation_status` (`pending → generating → completed/failed`).
 
+#### Cancelling a generation
+
+Every scene card's **Cancel** button (image or animation) discards that generation's result. It does **not** refund the credits — those were reserved when the user clicked Generate, and the provider bills vgAI whether or not anyone waits for the answer (see §2).
+
+What Cancel guarantees is that the abandoned asset never shows up. Each generation stamps a `*_generation_token` on the row, and the write-back at the end only lands if that token is still current; cancelling clears it, and so does starting a new generation. This matters for the normal reason people cancel — they started by mistake, tweak the prompt, and generate again. Without the token, the first (slow) request would finish afterwards and overwrite the newer, wanted result. Instead it finds its token gone, deletes the image/video it just uploaded, and returns without touching the scene.
+
+Animation additionally stops polling the moment the user disconnects, so vgAI isn't waiting on a clip nobody wants — but the job was already submitted and billed, which is exactly why cancelling isn't a refund.
+
 #### Manual scene generation
 
 Clicking **Generate Scenes (Manual)** opens a popup with a ready-to-copy prompt (script + scene-splitting instructions + involved characters). The user pastes this into gemini.com themselves, copies back the structured JSON response, pastes it into the popup, and clicks **Generate**. This populates the exact same scene fields as the automatic flow — everything downstream (image/animation generation, cards, etc.) works identically either way.
@@ -155,21 +172,25 @@ Google sign-in only, via **Supabase Auth**.
 - **Orchestration:** LangChain
 - **Database & Auth:** Supabase (Postgres + Row Level Security for multi-tenant isolation, Google OAuth)
 - **AI Integrations:**
-  - **Gemini API** — automatic scene/script splitting (not yet built — see `CLAUDE.md`'s "Current state").
-  - **OpenAI API** — character sheet generation end-to-end (prompt via `ChatOpenAI`, image via `gpt-image-2`), style template generation (`ChatOpenAI`, structured output), and scene image generation.
-  - **OpenRouter** — gateway for **Perplexity** (viral topic research) and **Claude** (script generation & "improvise" regeneration).
-  - **ElevenLabs API** — chunked text-to-speech voiceover generation, kept independent of OpenRouter for dedicated TTS quality control.
-  - **FFmpeg** — stitching voiceover chunks into a single audio file.
+  - **OpenAI API** — character sheet generation end-to-end (prompt via `ChatOpenAI`, image via `gpt-image-2`), style template generation (`ChatOpenAI`, structured output), automatic scene splitting on the `"base"` tier (`gpt-4o`), and scene image + thumbnail generation (`gpt-image-2`).
+  - **Gemini API** — automatic scene splitting on the `"pro"` tier only (`gemini-3-pro-preview`, structured output).
+  - **OpenRouter** — gateway for **Perplexity** (viral topic research), **Claude** (script generation & "improvise" regeneration), and image-to-video **animation** (`alibaba/wan-2.6` on `"base"`, `google/veo-3.1-lite` on `"pro"`, via its long-running video-job API).
+  - **ElevenLabs API** — chunked text-to-speech voiceover generation, kept independent of OpenRouter for dedicated TTS quality control. *(Voice settings are saved; generation itself is not built yet.)*
+  - **FFmpeg** — stitching voiceover chunks into a single audio file. *(Not built yet.)*
 - **Payments:** Razorpay — credit top-ups via Checkout (order creation + signature verification), INR-only for now.
+
+> **Note:** §5's `/project_folder` description above still says automatic scene splitting goes to Gemini in all cases — in the built code that's the `"pro"` tier only, with `"base"` on `gpt-4o`. See `CLAUDE.md` for what's actually implemented.
 
 ---
 
 ## 7. Database Schema (DBML)
 
-The full, current schema lives in [`vgaidatabase.dbml`](./vgaidatabase.dbml). Summary of tables:
+The full, current schema lives in [`vgaidatabase.dbml`](./vgaidatabase.dbml), with runnable DDL in [`vgaidatabase.sql`](./vgaidatabase.sql) — which also defines the `spend_credits` / `refund_credits` / `add_project_expense` functions the credit system depends on. An existing database is brought up to date with [`vgaidatabase_migration_credits.sql`](./vgaidatabase_migration_credits.sql); until that's applied, every credit-spending endpoint fails.
+
+Summary of tables:
 
 - **`users`** — profile, `current_credit_balance`, `miscellaneous_credit_spent`.
-- **`project_expence_tracker`** — historical per-project credit spend (`llm_credit_spent`, `image_credit_spent`, `animation_credit_spent`, `voiceover_credit_spent`), snapshotted by `project_id`/`project_name` so it survives project deletion.
+- **`project_expence_tracker`** — historical per-project credit spend (`llm_credit_spent`, `image_credit_spent`, `animation_credit_spent`, `voiceover_credit_spent`), snapshotted by `project_id`/`project_name` so it survives project deletion. One row per project, uniquely indexed on `project_id`.
 - **`projects`** — script, `is_liked`, selected model ids, a full snapshot of the style template used, YouTube metadata, and ElevenLabs voice settings.
 - **`style_templates`** — reusable visual styles: image/animation/YouTube prompts, `scene_density`, `image_aspect_ratio`, `video_aspect_ratio`, `is_default`.
 - **`characters`** — reusable character library with `character_sheet_url` and `is_default`.
@@ -177,7 +198,7 @@ The full, current schema lives in [`vgaidatabase.dbml`](./vgaidatabase.dbml). Su
 - **`researched_topics`** — up to 10 rows per `script_templates` row (`topic_number` 1-10, unique together), holding the current `topic_name`/`brief_description` from the last "Get Top 10 Viral Topics" call; re-researching updates these in place.
 - **`generated_scripts`** — every script a user has generated (`topic_name`, `script_text`, `character_involved`), scoped to a `script_templates` row but *not* foreign-keyed to `researched_topics`, so a script survives even after its originating topic batch is replaced by a later research call.
 - **`project_characters`** — per-project snapshot of imported characters.
-- **`scenes`** — per-project scene breakdown: text, image/animation prompts, generated URLs, and generation status enums.
+- **`scenes`** — per-project scene breakdown: text, image/animation prompts, generated URLs, generation status enums, and the `*_generation_token` columns that let a cancelled generation's result be discarded instead of saved.
 - **`scene_characters`** — join table linking scenes to the project characters involved in them.
 - **`project_voiceovers`** — per-project voiceover chunks (pre-stitching).
 - **`credit_topups`** — Razorpay-backed credit purchase history with `payment_status`.
@@ -276,6 +297,9 @@ Table projects {
   // YouTube Metadata
   thumbnail_prompt text
   thumbnail_image_url text
+
+  // See scenes.image_generation_token.
+  thumbnail_generation_token uuid
 
   title_of_video text
   description_of_video text
@@ -430,6 +454,13 @@ Table scenes {
 
   image_status generation_status [not null, default: 'pending']
   animation_status generation_status [not null, default: 'pending']
+
+  // Stamped with a fresh uuid when a generation starts. The write-back at the end
+  // is guarded on the token still matching, so a generation the user cancelled --
+  // or one superseded by a later click after editing the prompt -- can never land
+  // its stale image/animation on top of the newer one.
+  image_generation_token uuid
+  animation_generation_token uuid
 
   created_at timestamp [not null, default: `now()`]
   updated_at timestamp [not null, default: `now()`]
