@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from supabase_auth.types import User as SupabaseUser
 
 from app.auth import get_current_user
-from app.cloudinary import delete_media
+from app.cloudinary import delete_project_media
 from app.schemas.project import (
     CharacterImportRequest,
     Project,
@@ -140,22 +140,14 @@ async def update_project(
 
 @router.delete("/delete/{project_id}")
 async def delete_project(project_id: str, current_user: SupabaseUser = Depends(get_current_user)):
-    existing = _get_owned_project(project_id, current_user.id)
+    _get_owned_project(project_id, current_user.id)
 
-    # Best-effort cleanup of genuinely-uploaded assets. project_characters'
-    # snapshot_character_sheet_url is deliberately NOT cleaned up here — it's a
-    # copied URL pointing at the still-live character-library asset, not a
-    # separate upload, so deleting it would break the original character.
-    scenes = (
-        supabase.table("scenes")
-        .select("generated_image_url, generated_animation_url")
-        .eq("project_id", project_id)
-        .execute()
-    )
-    for scene in scenes.data:
-        await delete_media(scene.get("generated_image_url"), resource_type="image")
-        await delete_media(scene.get("generated_animation_url"), resource_type="video")
-    await delete_media(existing.get("thumbnail_image_url"), resource_type="image")
+    # Best-effort cleanup of every asset (and now-empty folder) this project owns
+    # in Cloudinary. project_characters' snapshot_character_sheet_url is
+    # deliberately untouched — it's a copied URL pointing at the still-live
+    # character-library asset under a different folder prefix, not a separate
+    # per-project upload, so deleting it would break the original character.
+    delete_project_media(current_user.id, project_id)
 
     supabase.table("projects").delete().eq("id", project_id).execute()
     return {"success": True}

@@ -131,6 +131,7 @@ async def generate_scene_image(
         involved = [InvolvedCharacterRef(id=c["id"], name=c["snapshot_name"]) for c in characters]
 
     size = _image_size_for(project.get("snapshot_styletemplate_image_aspect_ratio"))
+    previous_image_url = scene.get("generated_image_url")
 
     new_balance = reserve_project_credits(
         current_user.id, project["id"], project["name"], "image", cost, "generating a scene image"
@@ -166,6 +167,9 @@ async def generate_scene_image(
         await delete_media(image_url, resource_type="image")
         raise HTTPException(status_code=CANCELLED_STATUS, detail="Image generation cancelled.")
 
+    if previous_image_url and previous_image_url != image_url:
+        await delete_media(previous_image_url, resource_type="image")
+
     return GenerateSceneImageResponse(
         scene=Scene(**cast(dict[str, Any], updated), involved_characters=involved),
         credits_spent=cost,
@@ -197,6 +201,7 @@ async def generate_thumbnail(
     )
     reference_urls = [c["snapshot_character_sheet_url"] for c in characters]
     size = _image_size_for(project.get("snapshot_styletemplate_image_aspect_ratio"))
+    previous_thumbnail_url = project.get("thumbnail_image_url")
 
     new_balance = reserve_project_credits(
         current_user.id, project["id"], project["name"], "image", cost, "generating a thumbnail"
@@ -229,6 +234,9 @@ async def generate_thumbnail(
     if not saved.data:
         await delete_media(image_url, resource_type="image")
         raise HTTPException(status_code=CANCELLED_STATUS, detail="Thumbnail generation cancelled.")
+
+    if previous_thumbnail_url and previous_thumbnail_url != image_url:
+        await delete_media(previous_thumbnail_url, resource_type="image")
 
     return GenerateThumbnailResponse(
         thumbnail_image_url=image_url, credits_spent=cost, credits_remaining=new_balance

@@ -77,6 +77,49 @@ def _public_id_from_url(secure_url: str) -> str | None:
     return public_id or path_with_ext or None
 
 
+def delete_project_media(user_id: str, project_id: str) -> None:
+    """Best-effort teardown of everything Cloudinary holds for one project --
+    scene images/animations, the thumbnail, and any orphaned upload from a
+    cancelled/superseded generation that was never referenced by a DB row --
+    then removes the now-empty project folder(s) themselves so nothing lingers
+    once the project row is gone.
+
+    Deletes by prefix rather than replaying tracked scene/thumbnail URLs, so it
+    also catches anything not currently on a row. Scoped to
+    <root>/<user_id>/<project_id>/, which never overlaps with
+    <root>/<user_id>/characters/ -- project_characters.snapshot_character_sheet_url
+    points at the still-live character-library asset, not a per-project copy, so
+    this prefix can never reach it.
+    """
+    if not settings.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME:
+        return
+
+    root = settings.CLOUDINARY_FOLDER_NAME or "vgAI"
+    folder = f"{root}/{user_id}/{project_id}"
+
+    for resource_type in ("image", "video"):
+        try:
+            cloudinary.api.delete_resources_by_prefix(folder, resource_type=resource_type)
+        except Exception:
+            pass
+
+    # delete_folder only removes an empty folder, so subfolders (scene_images/
+    # scene_animation/thumbnail_image) have to go before the project folder itself.
+    try:
+        for sub in cloudinary.api.subfolders(folder).get("folders", []):
+            try:
+                cloudinary.api.delete_folder(sub["path"])
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    try:
+        cloudinary.api.delete_folder(folder)
+    except Exception:
+        pass
+
+
 async def delete_media(secure_url: str | None, resource_type: str = "image") -> None:
     """Best-effort delete of an image/video/audio asset from Cloudinary given its
     secure_url. resource_type is "image", "video" (also covers audio/voiceovers),

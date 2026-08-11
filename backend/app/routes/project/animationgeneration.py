@@ -62,6 +62,7 @@ async def generate_scene_animation(
 
     model, duration, cost = _model_duration_and_cost(project["animation_model_id"])
     aspect_ratio = project.get("snapshot_styletemplate_video_aspect_ratio") or DEFAULT_VIDEO_ASPECT_RATIO
+    previous_animation_url = scene.get("generated_animation_url")
 
     new_balance = reserve_project_credits(
         current_user.id, project["id"], project["name"], "animation", cost, "generating a scene animation"
@@ -101,6 +102,9 @@ async def generate_scene_animation(
         # whatever the user generated in the meantime.
         await delete_media(video_url, resource_type="video")
         raise HTTPException(status_code=CANCELLED_STATUS, detail="Animation generation cancelled.")
+
+    if previous_animation_url and previous_animation_url != video_url:
+        await delete_media(previous_animation_url, resource_type="video")
 
     scene_with_characters = _attach_involved_characters([updated])[0]
 
