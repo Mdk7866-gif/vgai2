@@ -9,6 +9,7 @@ from supabase_auth.types import User as SupabaseUser
 
 from app.auth import get_current_user
 from app.config import settings
+from app.credits import refund_misc_credits, reserve_misc_credits
 from app.openrouter_client import CLAUDE_SCRIPT_MODEL, PERPLEXITY_RESEARCH_MODEL, get_openrouter_chat_model
 from app.routes.scriptgenerationtemplate.crud import _get_owned_script_template
 from app.schemas.scripttemplate import (
@@ -106,32 +107,10 @@ def _script_credit_cost(script_word_length: str) -> int:
     return math.ceil(max_words / WORDS_PER_CREDIT)
 
 
-async def _check_and_get_balance(user_id: str, credit_cost: float, action_label: str) -> tuple[float, float]:
-    """Returns (current_balance, current_misc_spent), raising 402 if balance is insufficient."""
-    user_result = (
-        supabase.table("users")
-        .select("current_credit_balance, miscellaneous_credit_spent")
-        .eq("id", user_id)
-        .execute()
-    )
-    if not user_result.data:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    current_balance = float(user_result.data[0]["current_credit_balance"])
-    if current_balance < credit_cost:
-        raise HTTPException(
-            status_code=402,
-            detail=f"Not enough credits — {action_label} costs {credit_cost:g} credits, you have {current_balance:g}.",
-        )
-    return current_balance, float(user_result.data[0]["miscellaneous_credit_spent"])
-
-
-def _deduct_credits(user_id: str, current_balance: float, current_misc_spent: float, credit_cost: float) -> float:
-    new_balance = current_balance - credit_cost
-    supabase.table("users").update(
-        {"current_credit_balance": new_balance, "miscellaneous_credit_spent": current_misc_spent + credit_cost}
-    ).eq("id", user_id).execute()
-    return new_balance
+# Credit handling lives in app/credits.py — reserve before the provider call,
+# refund only if that call never delivered. The local _check_and_get_balance /
+# _deduct_credits pair this replaced deducted after success, and did so with a
+# non-atomic read-then-write.
 
 
 # ---- /generatetopics — Perplexity market research ----
@@ -216,10 +195,6 @@ async def generate_topics(
     if not settings.OPENROUTER_PAID_API_KEY:
         raise HTTPException(status_code=500, detail="OpenRouter is not configured on the backend.")
 
-    current_balance, current_misc_spent = await _check_and_get_balance(
-        current_user.id, TOPIC_RESEARCH_CREDIT_COST, "researching viral topics"
-    )
-
     template_fields = {
         "category": payload.category,
         "topic_description": payload.topic_description,
@@ -243,7 +218,14 @@ async def generate_topics(
         )
         script_template_id = inserted.data[0]["id"]
 
-    topics = await _research_viral_topics(payload)
+    new_balance = reserve_misc_credits(
+        current_user.id, TOPIC_RESEARCH_CREDIT_COST, "researching viral topics"
+    )
+    try:
+        topics = await _research_viral_topics(payload)
+    except HTTPException:
+        new_balance = refund_misc_credits(current_user.id, TOPIC_RESEARCH_CREDIT_COST)
+        raise
 
     now = datetime.now(timezone.utc).isoformat()
     topic_rows = [
@@ -260,8 +242,6 @@ async def generate_topics(
     supabase.table("researched_topics").upsert(
         topic_rows, on_conflict="script_template_id,topic_number"
     ).execute()
-
-    new_balance = _deduct_credits(current_user.id, current_balance, current_misc_spent, TOPIC_RESEARCH_CREDIT_COST)
 
     return TopicResearchResponse(
         script_template_id=script_template_id,
@@ -431,12 +411,14 @@ async def generate_script(
     template = _get_owned_script_template(payload.script_template_id, current_user.id)
 
     credit_cost = _script_credit_cost(template["script_word_length"])
-    current_balance, current_misc_spent = await _check_and_get_balance(
+    new_balance = reserve_misc_credits(
         current_user.id, credit_cost, f"generating a {template['script_word_length']}-word script"
     )
-
-    draft = await _build_script_draft(template, payload.topic)
-    new_balance = _deduct_credits(current_user.id, current_balance, current_misc_spent, credit_cost)
+    try:
+        draft = await _build_script_draft(template, payload.topic)
+    except HTTPException:
+        new_balance = refund_misc_credits(current_user.id, credit_cost)
+        raise
 
     inserted = (
         supabase.table("generated_scripts")
@@ -477,14 +459,14 @@ async def improvise_script(
     template = _get_owned_script_template(generated["script_template_id"], current_user.id)
 
     credit_cost = _script_credit_cost(template["script_word_length"])
-    current_balance, current_misc_spent = await _check_and_get_balance(
-        current_user.id, credit_cost, "improvising this script"
-    )
-
-    draft = await _build_improvised_script(
-        generated["topic_name"], generated["script_text"], payload.feedback, template["script_word_length"]
-    )
-    new_balance = _deduct_credits(current_user.id, current_balance, current_misc_spent, credit_cost)
+    new_balance = reserve_misc_credits(current_user.id, credit_cost, "improvising this script")
+    try:
+        draft = await _build_improvised_script(
+            generated["topic_name"], generated["script_text"], payload.feedback, template["script_word_length"]
+        )
+    except HTTPException:
+        new_balance = refund_misc_credits(current_user.id, credit_cost)
+        raise
 
     supabase.table("generated_scripts").update(
         {

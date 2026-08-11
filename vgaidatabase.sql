@@ -80,6 +80,9 @@ create table projects (
   thumbnail_prompt text,
   thumbnail_image_url text,
 
+  -- See scenes.image_generation_token below.
+  thumbnail_generation_token uuid,
+
   title_of_video text,
   description_of_video text,
   tags_of_video text,
@@ -247,6 +250,13 @@ create table scenes (
   image_status generation_status not null default 'pending',
   animation_status generation_status not null default 'pending',
 
+  -- Stamped with a fresh uuid when a generation starts. The write-back at the end
+  -- of generation is guarded on the token still matching, so a generation the user
+  -- cancelled -- or one superseded by a later click after they edited the prompt --
+  -- can never land its stale image/animation on top of the newer one.
+  image_generation_token uuid,
+  animation_generation_token uuid,
+
   created_at timestamp not null default now(),
   updated_at timestamp not null default now(),
 
@@ -299,6 +309,148 @@ create table credit_topups (
   created_at timestamp not null default now(),
   updated_at timestamp not null default now()
 );
+
+-- ==========================
+-- Credit accounting (atomic)
+-- ==========================
+-- Credits are reserved BEFORE a provider call starts, not after it succeeds: the
+-- provider bills us the moment the work begins, so a user who starts a generation
+-- and then cancels must still pay for it. Credits come back only when the call
+-- never produced anything we were billed for. See backend/app/credits.py.
+--
+-- These are database functions rather than a SELECT-then-UPDATE pair in Python
+-- because a user can fire many generations at once (one per scene card). Separate
+-- round trips all read the same starting balance and the last write wins, so N
+-- concurrent generations get charged once. A single guarded UPDATE takes a row
+-- lock, so concurrent callers serialize and each one sees the previous deduction.
+
+-- Deducts p_amount, refusing to go negative. Raises INSUFFICIENT_CREDITS when the
+-- balance guard fails (or the user doesn't exist); the caller maps that to a 402.
+create or replace function spend_credits(
+  p_user_id uuid,
+  p_amount numeric,
+  p_track_miscellaneous boolean default false
+)
+returns numeric
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_new_balance numeric;
+begin
+  update users
+     set current_credit_balance = current_credit_balance - p_amount,
+         miscellaneous_credit_spent =
+           miscellaneous_credit_spent + case when p_track_miscellaneous then p_amount else 0 end,
+         updated_at = now()
+   where id = p_user_id
+     and current_credit_balance >= p_amount
+  returning current_credit_balance into v_new_balance;
+
+  if not found then
+    raise exception 'INSUFFICIENT_CREDITS';
+  end if;
+
+  return v_new_balance;
+end;
+$$;
+
+-- Reverses spend_credits for a generation that never happened. No balance guard --
+-- putting credits back can't overdraw.
+create or replace function refund_credits(
+  p_user_id uuid,
+  p_amount numeric,
+  p_track_miscellaneous boolean default false
+)
+returns numeric
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_new_balance numeric;
+begin
+  update users
+     set current_credit_balance = current_credit_balance + p_amount,
+         miscellaneous_credit_spent =
+           miscellaneous_credit_spent - case when p_track_miscellaneous then p_amount else 0 end,
+         updated_at = now()
+   where id = p_user_id
+  returning current_credit_balance into v_new_balance;
+
+  return v_new_balance;
+end;
+$$;
+
+-- One running-total row per project (not one row per spend event), so this is a
+-- fetch-or-create-then-increment -- which has the same lost-update race as the
+-- balance did. Done as a single upsert so concurrent generations can't clobber
+-- each other's increments. Pass a negative p_amount to reverse a reservation.
+create unique index if not exists idx_project_expense_project
+  on project_expence_tracker (project_id);
+
+create or replace function add_project_expense(
+  p_user_id uuid,
+  p_project_id uuid,
+  p_project_name varchar,
+  p_kind text,
+  p_amount numeric
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_kind not in ('llm', 'image', 'animation', 'voiceover') then
+    raise exception 'UNKNOWN_EXPENSE_KIND: %', p_kind;
+  end if;
+
+  insert into project_expence_tracker as t (
+    user_id, project_id, project_name,
+    llm_credit_spent, image_credit_spent, animation_credit_spent, voiceover_credit_spent
+  )
+  values (
+    p_user_id, p_project_id, p_project_name,
+    case when p_kind = 'llm'       then p_amount else 0 end,
+    case when p_kind = 'image'     then p_amount else 0 end,
+    case when p_kind = 'animation' then p_amount else 0 end,
+    case when p_kind = 'voiceover' then p_amount else 0 end
+  )
+  on conflict (project_id) do update
+     set llm_credit_spent       = t.llm_credit_spent       + excluded.llm_credit_spent,
+         image_credit_spent     = t.image_credit_spent     + excluded.image_credit_spent,
+         animation_credit_spent = t.animation_credit_spent + excluded.animation_credit_spent,
+         voiceover_credit_spent = t.voiceover_credit_spent + excluded.voiceover_credit_spent,
+         project_name           = excluded.project_name,
+         updated_at             = now();
+end;
+$$;
+
+-- If your Supabase project predates the generation-token columns above, run this
+-- once (the create table statements will fail on existing tables):
+--   alter table scenes add column image_generation_token uuid;
+--   alter table scenes add column animation_generation_token uuid;
+--   alter table projects add column thumbnail_generation_token uuid;
+-- The unique index and the three functions above are safe to re-run as-is. If the
+-- index errors, you have duplicate project_expence_tracker rows for one project
+-- from before it existed -- collapse them first:
+--   with merged as (
+--     select project_id,
+--            min(id) as keep_id,
+--            sum(llm_credit_spent) as llm,
+--            sum(image_credit_spent) as image,
+--            sum(animation_credit_spent) as animation,
+--            sum(voiceover_credit_spent) as voiceover
+--       from project_expence_tracker group by project_id having count(*) > 1
+--   )
+--   update project_expence_tracker t
+--      set llm_credit_spent = m.llm, image_credit_spent = m.image,
+--          animation_credit_spent = m.animation, voiceover_credit_spent = m.voiceover
+--     from merged m where t.id = m.keep_id;
+--   delete from project_expence_tracker t using merged m
+--    where t.project_id = m.project_id and t.id <> m.keep_id;
 
 -- ==========================
 -- Row Level Security

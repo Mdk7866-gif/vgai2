@@ -10,8 +10,9 @@ from supabase_auth.types import User as SupabaseUser
 from app.auth import get_current_user
 from app.cloudinary import delete_media
 from app.config import settings
+from app.credits import refund_project_credits, reserve_project_credits
 from app.gemini_client import GEMINI_PRO_TEXT_MODEL, get_gemini_chat_model
-from app.routes.project.projectcrud import _check_project_balance, _deduct_project_credits, _get_owned_project
+from app.routes.project.projectcrud import _get_owned_project
 from app.schemas.scene import GenerateScenesAutomaticRequest, GenerateScenesAutomaticResponse, InvolvedCharacterRef, Scene
 from app.supabase import supabase
 
@@ -139,7 +140,6 @@ async def generate_scenes_automatic(
 
     word_count = len(script.split())
     cost = math.ceil(word_count / WORDS_PER_CREDIT_AUTO)
-    current_balance = await _check_project_balance(current_user.id, cost, "splitting the script into scenes")
 
     characters = (
         supabase.table("project_characters")
@@ -148,7 +148,15 @@ async def generate_scenes_automatic(
         .execute()
     ).data
 
-    draft = await _build_scene_split_draft(project, characters, script)
+    # Reserved before the LLM call, not after it succeeds — see app/credits.py.
+    new_balance = reserve_project_credits(
+        current_user.id, project["id"], project["name"], "llm", cost, "splitting the script into scenes"
+    )
+    try:
+        draft = await _build_scene_split_draft(project, characters, script)
+    except HTTPException:
+        new_balance = refund_project_credits(current_user.id, project["id"], project["name"], "llm", cost)
+        raise
 
     # Regenerating replaces the previous batch outright — clean up its Cloudinary
     # assets first so re-splitting doesn't leave orphaned scene images/animations.
@@ -201,15 +209,10 @@ async def generate_scenes_automatic(
         }
     ).eq("id", project["id"]).execute()
 
-    new_balance = _deduct_project_credits(
-        current_user.id, project["id"], project["name"], "llm_credit_spent", current_balance, cost
-    )
-
     response_scenes = [
         Scene(
             **inserted,
-   
-         involved_characters=[
+            involved_characters=[
                 InvolvedCharacterRef(id=row["project_character_id"], name=id_to_name[row["project_character_id"]])
                 for row in scene_characters_rows
                 if row["scene_id"] == inserted["id"] and row["project_character_id"] in id_to_name

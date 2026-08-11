@@ -47,53 +47,9 @@ def _get_owned_project(project_id: str, user_id: str) -> dict:
     return result.data[0]
 
 
-async def _check_project_balance(user_id: str, cost: float, label: str) -> float:
-    """Returns the user's current_credit_balance, raising 402 if insufficient."""
-    user_result = supabase.table("users").select("current_credit_balance").eq("id", user_id).execute()
-    if not user_result.data:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    current_balance = float(user_result.data[0]["current_credit_balance"])
-    if current_balance < cost:
-        raise HTTPException(
-            status_code=402,
-            detail=f"Not enough credits — {label} costs {cost:g} credits, you have {current_balance:g}.",
-        )
-    return current_balance
-
-
-def _add_project_expense(user_id: str, project_id: str, project_name: str, field: str, amount: float) -> None:
-    """Increments one project_expence_tracker field for this project, creating the
-    row (one per project, matching README §2's per-project spend model) if this is
-    its first spend."""
-    existing = (
-        supabase.table("project_expence_tracker")
-        .select(f"id, {field}")
-        .eq("project_id", project_id)
-        .eq("user_id", user_id)
-        .execute()
-    )
-    if existing.data:
-        row = existing.data[0]
-        supabase.table("project_expence_tracker").update(
-            {field: float(row[field]) + amount, "project_name": project_name}
-        ).eq("id", row["id"]).execute()
-    else:
-        supabase.table("project_expence_tracker").insert(
-            {"user_id": user_id, "project_id": project_id, "project_name": project_name, field: amount}
-        ).execute()
-
-
-def _deduct_project_credits(
-    user_id: str, project_id: str, project_name: str, field: str, current_balance: float, cost: float
-) -> float:
-    """Deducts cost from the user's balance and tracks it against the project's
-    expense row. Call only after the AI/generation call has already succeeded —
-    same check-then-generate-then-deduct ordering as the other AI-generation flows."""
-    new_balance = current_balance - cost
-    supabase.table("users").update({"current_credit_balance": new_balance}).eq("id", user_id).execute()
-    _add_project_expense(user_id, project_id, project_name, field, cost)
-    return new_balance
+# Credit reservation/refund used to live here as _check_project_balance /
+# _deduct_project_credits. It now lives in app/credits.py, shared with the
+# miscellaneous-spend flows and backed by atomic SQL functions.
 
 
 @router.get("/", response_model=list[Project])

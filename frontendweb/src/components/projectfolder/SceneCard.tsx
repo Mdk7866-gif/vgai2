@@ -18,6 +18,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { authFetch } from "@/lib/api";
+import { animationCreditCost, imageCreditCost } from "@/lib/credits";
 import { AssetUnavailableError, downloadAsset, getFileExtension } from "@/lib/download";
 import { useCreditBalance } from "@/context/CreditBalanceContext";
 import ImageZoomPopUp from "@/components/ImageZoomPopUp";
@@ -29,6 +30,10 @@ interface SceneCardProps {
   scene: Scene;
   projectCharacters: ProjectCharacter[];
   videoAspectRatio?: string | null;
+  /** The project's model tiers, used only to know what a generation costs so the
+   * shared balance can drop as soon as it starts. */
+  imageModelId?: string | null;
+  animationModelId?: string | null;
   onUpdated: (scene: Scene) => void;
   onDeleted: (sceneId: string) => void;
   onInserted: (scenes: Scene[]) => void;
@@ -43,11 +48,13 @@ export const SceneCard = ({
   scene,
   projectCharacters,
   videoAspectRatio,
+  imageModelId,
+  animationModelId,
   onUpdated,
   onDeleted,
   onInserted,
 }: SceneCardProps) => {
-  const { setBalance } = useCreditBalance();
+  const { setBalance, reserveBalance, refreshBalance } = useCreditBalance();
 
   const is916 = videoAspectRatio === "9:16";
   const previewAspectClass = is916 ? "aspect-[9/16]" : "aspect-video";
@@ -206,6 +213,27 @@ export const SceneCard = ({
     }
   };
 
+  /** Tells the backend to drop this scene's in-flight generation. Credits are not
+   * returned — they were reserved before the provider was called and the provider
+   * bills us either way — but clearing the generation token means the abandoned
+   * result gets discarded instead of landing on top of whatever the user does
+   * next, which is normally editing the prompt and generating again. */
+  const cancelGeneration = async (kind: "image" | "animation") => {
+    try {
+      const res = await authFetch("/projects/scenes/cancel_generation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scene_id: scene.id, kind }),
+      });
+      onUpdated(await res.json());
+    } catch {
+      // Best-effort: the local abort already stopped the UI waiting. A failed
+      // cancel only risks the stale result still being saved.
+    }
+    // The reservation stands, so re-read rather than adding the cost back.
+    void refreshBalance();
+  };
+
   const handleGenerateImage = async () => {
     if (imagePrompt.trim() !== (scene.scene_image_prompt ?? "")) {
       await persist({ scene_image_prompt: imagePrompt });
@@ -214,6 +242,9 @@ export const SceneCard = ({
     imageAbortRef.current = controller;
     setGeneratingImage(true);
     setError(null);
+    // Mirror the backend reserving the cost up front, so the balance reflects
+    // money already committed rather than only updating if this call succeeds.
+    reserveBalance(imageCreditCost(imageModelId));
     try {
       const res = await authFetch("/projects/image/generate_and_save", {
         method: "POST",
@@ -227,11 +258,19 @@ export const SceneCard = ({
     } catch (err) {
       if (!controller.signal.aborted) {
         setError(err instanceof Error ? err.message : "Failed to generate image.");
+        // Could be a refunded failure or a rejection before anything was
+        // reserved — only the backend knows which.
+        void refreshBalance();
       }
     } finally {
       setGeneratingImage(false);
       imageAbortRef.current = null;
     }
+  };
+
+  const handleCancelImage = () => {
+    imageAbortRef.current?.abort();
+    void cancelGeneration("image");
   };
 
   const handleGenerateAnimation = async () => {
@@ -242,6 +281,7 @@ export const SceneCard = ({
     animationAbortRef.current = controller;
     setGeneratingAnimation(true);
     setError(null);
+    reserveBalance(animationCreditCost(animationModelId));
     try {
       const res = await authFetch("/projects/animation/generate_and_save", {
         method: "POST",
@@ -255,11 +295,17 @@ export const SceneCard = ({
     } catch (err) {
       if (!controller.signal.aborted) {
         setError(err instanceof Error ? err.message : "Failed to generate animation.");
+        void refreshBalance();
       }
     } finally {
       setGeneratingAnimation(false);
       animationAbortRef.current = null;
     }
+  };
+
+  const handleCancelAnimation = () => {
+    animationAbortRef.current?.abort();
+    void cancelGeneration("animation");
   };
 
   const activePromptValue = activeTab === "image" ? imagePrompt : animationPrompt;
@@ -454,7 +500,8 @@ export const SceneCard = ({
                 <div className="flex items-center gap-0.5">
                   {generatingImage ? (
                     <button
-                      onClick={() => imageAbortRef.current?.abort()}
+                      onClick={handleCancelImage}
+                      title="Discard this image. Credits for it have already been charged."
                       className="flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 rounded-lg transition-all cursor-pointer"
                     >
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -518,7 +565,8 @@ export const SceneCard = ({
                 <div className="flex items-center gap-0.5">
                   {generatingAnimation ? (
                     <button
-                      onClick={() => animationAbortRef.current?.abort()}
+                      onClick={handleCancelAnimation}
+                      title="Discard this animation. Credits for it have already been charged."
                       className="flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 rounded-lg transition-all cursor-pointer"
                     >
                       <XCircle className="w-3.5 h-3.5" />

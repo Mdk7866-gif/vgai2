@@ -51,6 +51,14 @@ class InsertSceneRequest(BaseModel):
     direction: Literal["above", "below"]
 
 
+GenerationKind = Literal["image", "animation"]
+
+
+class CancelGenerationRequest(BaseModel):
+    scene_id: str
+    kind: GenerationKind
+
+
 class GenerateScenesAutomaticRequest(BaseModel):
     project_id: str
 

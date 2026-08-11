@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Image from "next/image";
 import { Check, ChevronDown, ChevronUp, Copy, Download, FileText, ImageIcon, Loader2, Save, Sparkles } from "lucide-react";
 import { authFetch } from "@/lib/api";
+import { imageCreditCost } from "@/lib/credits";
 import { AssetUnavailableError, downloadAsset, getFileExtension } from "@/lib/download";
 import { useCreditBalance } from "@/context/CreditBalanceContext";
 import ImageZoomPopUp from "@/components/ImageZoomPopUp";
@@ -21,7 +22,7 @@ const fieldClass =
   "w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 transition-all resize-none";
 
 export const VideoMetaDataCard = ({ project, onThumbnailGenerated, onMetadataSaved }: VideoMetaDataCardProps) => {
-  const { setBalance } = useCreditBalance();
+  const { setBalance, reserveBalance, refreshBalance } = useCreditBalance();
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -101,6 +102,8 @@ export const VideoMetaDataCard = ({ project, onThumbnailGenerated, onMetadataSav
     }
     setGenerating(true);
     setError(null);
+    // The backend reserves the cost before calling OpenAI, so drop the balance now.
+    reserveBalance(imageCreditCost(project.image_model_id));
     try {
       const res = await authFetch("/projects/image/generate_thumbnail_and_save", {
         method: "POST",
@@ -112,6 +115,8 @@ export const VideoMetaDataCard = ({ project, onThumbnailGenerated, onMetadataSav
       setBalance(data.credits_remaining);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to generate thumbnail.");
+      // Refunded, or rejected before anything was reserved — only the backend knows.
+      void refreshBalance();
     } finally {
       setGenerating(false);
     }

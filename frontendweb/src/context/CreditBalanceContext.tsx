@@ -10,6 +10,13 @@ interface CreditBalanceContextType {
    * response so every consumer (e.g. the Navbar pill) updates instantly
    * without waiting on a network round-trip. */
   setBalance: (balance: number | null) => void;
+  /** Subtract a cost the backend has just reserved, so the pill drops the moment
+   * a generation starts rather than when it finishes. Applied as a functional
+   * update because several generations can start at once (one per scene card) —
+   * a `setBalance(balance - cost)` built from a captured `balance` would lose all
+   * but the last, which is the same lost-update bug the backend's atomic
+   * spend_credits() exists to prevent. */
+  reserveBalance: (cost: number) => void;
   /** Re-fetches from the backend and updates the shared balance. */
   refreshBalance: () => Promise<number | null>;
 }
@@ -53,8 +60,13 @@ export const CreditBalanceProvider = ({ children }: { children: React.ReactNode 
 
   const setBalance = useCallback((value: number | null) => setBalanceState(value), []);
 
+  const reserveBalance = useCallback(
+    (cost: number) => setBalanceState((prev) => (prev === null ? prev : prev - cost)),
+    []
+  );
+
   return (
-    <CreditBalanceContext.Provider value={{ balance, setBalance, refreshBalance }}>
+    <CreditBalanceContext.Provider value={{ balance, setBalance, reserveBalance, refreshBalance }}>
       {children}
     </CreditBalanceContext.Provider>
   );

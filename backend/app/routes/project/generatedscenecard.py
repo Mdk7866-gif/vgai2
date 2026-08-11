@@ -1,10 +1,19 @@
+from uuid import uuid4
+
 from fastapi import APIRouter, Depends, HTTPException
 from supabase_auth.types import User as SupabaseUser
 
 from app.auth import get_current_user
 from app.cloudinary import delete_media
 from app.routes.project.projectcrud import _get_owned_project
-from app.schemas.scene import InsertSceneRequest, Scene, SceneCreate, SceneUpdate
+from app.schemas.scene import (
+    CancelGenerationRequest,
+    GenerationKind,
+    InsertSceneRequest,
+    Scene,
+    SceneCreate,
+    SceneUpdate,
+)
 from app.supabase import supabase
 
 router = APIRouter(prefix="/projects/scenes", tags=["scenes"])
@@ -19,6 +28,33 @@ def _get_owned_scene(scene_id: str, user_id: str) -> dict:
     scene = result.data[0]
     _get_owned_project(scene["project_id"], user_id)
     return scene
+
+
+def _start_generation(scene_id: str, kind: GenerationKind) -> str:
+    """Marks a scene's image/animation as generating and stamps a fresh token
+    identifying this attempt. Every write-back is guarded on that token, so a
+    generation the user cancelled — or one they superseded by editing the prompt
+    and clicking Generate again — can't land its stale result on the scene."""
+    token = str(uuid4())
+    supabase.table("scenes").update(
+        {f"{kind}_status": "generating", f"{kind}_generation_token": token}
+    ).eq("id", scene_id).execute()
+    return token
+
+
+def _finish_generation(scene_id: str, kind: GenerationKind, token: str, fields: dict) -> dict | None:
+    """Applies fields to the scene only if `token` is still the current generation
+    for this kind, clearing the token either way. Returns the updated row, or None
+    when this attempt was cancelled or superseded — in which case the caller must
+    throw its result away rather than saving it."""
+    result = (
+        supabase.table("scenes")
+        .update({**fields, f"{kind}_generation_token": None})
+        .eq("id", scene_id)
+        .eq(f"{kind}_generation_token", token)
+        .execute()
+    )
+    return result.data[0] if result.data else None
 
 
 def _attach_involved_characters(scenes: list[dict]) -> list[dict]:
@@ -167,6 +203,37 @@ async def update_scene(
         .data[0]
     )
     _sync_involved_characters(scene_id, payload.involved_character_ids)
+    return _attach_involved_characters([updated])[0]
+
+
+@router.post("/cancel_generation", response_model=Scene)
+async def cancel_generation(
+    payload: CancelGenerationRequest,
+    current_user: SupabaseUser = Depends(get_current_user),
+):
+    """Abandons an in-flight image/animation generation for a scene.
+
+    Credits are NOT refunded — they were reserved before the provider call started
+    and the provider bills us whether or not we wait for the result. What this does
+    buy the user is that the abandoned result is discarded: clearing the generation
+    token makes the in-flight request's guarded write-back match zero rows, so it
+    can't overwrite whatever the user does next (typically: edit the prompt and
+    regenerate). Cancelling something already finished is a no-op.
+    """
+    scene = _get_owned_scene(payload.scene_id, current_user.id)
+    kind = payload.kind
+
+    if scene[f"{kind}_status"] == "generating":
+        updated = (
+            supabase.table("scenes")
+            .update({f"{kind}_status": "pending", f"{kind}_generation_token": None})
+            .eq("id", scene["id"])
+            .execute()
+            .data[0]
+        )
+    else:
+        updated = scene
+
     return _attach_involved_characters([updated])[0]
 
 

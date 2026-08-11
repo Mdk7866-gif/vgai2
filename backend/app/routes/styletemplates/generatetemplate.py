@@ -6,8 +6,8 @@ from supabase_auth.types import User as SupabaseUser
 
 from app.auth import get_current_user
 from app.config import settings
+from app.credits import refund_misc_credits, reserve_misc_credits
 from app.schemas.styletemplate import GenerateStyleTemplateRequest, GenerateStyleTemplateResponse
-from app.supabase import supabase
 
 router = APIRouter(prefix="/styletemplates", tags=["styletemplates"])
 
@@ -144,32 +144,16 @@ async def generate_style_template(
     if not settings.CHATGPT_PAID_API_KEY:
         raise HTTPException(status_code=500, detail="OpenAI is not configured on the backend.")
 
-    user_result = (
-        supabase.table("users")
-        .select("current_credit_balance, miscellaneous_credit_spent")
-        .eq("id", current_user.id)
-        .execute()
-    )
-    if not user_result.data:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    current_balance = float(user_result.data[0]["current_credit_balance"])
-    if current_balance < GENERATE_CREDIT_COST:
-        raise HTTPException(
-            status_code=402,
-            detail=(
-                f"Not enough credits — generating a style template costs "
-                f"{GENERATE_CREDIT_COST} credits, you have {current_balance:g}."
-            ),
+    # Reserved before the OpenAI call, refunded only if that call fails — see
+    # app/credits.py for why spend happens up front rather than on success.
+    new_balance = reserve_misc_credits(current_user.id, GENERATE_CREDIT_COST, "generating a style template")
+    try:
+        draft = await _build_style_template_draft(
+            payload.template_name, payload.description, payload.aspect_ratio
         )
-
-    draft = await _build_style_template_draft(payload.template_name, payload.description, payload.aspect_ratio)
-
-    new_balance = current_balance - GENERATE_CREDIT_COST
-    new_misc_spent = float(user_result.data[0]["miscellaneous_credit_spent"]) + GENERATE_CREDIT_COST
-    supabase.table("users").update(
-        {"current_credit_balance": new_balance, "miscellaneous_credit_spent": new_misc_spent}
-    ).eq("id", current_user.id).execute()
+    except HTTPException:
+        new_balance = refund_misc_credits(current_user.id, GENERATE_CREDIT_COST)
+        raise
 
     return GenerateStyleTemplateResponse(
         description=draft.description,

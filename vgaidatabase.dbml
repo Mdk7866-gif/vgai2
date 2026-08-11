@@ -94,6 +94,9 @@ Table projects {
   thumbnail_prompt text
   thumbnail_image_url text
 
+  // See scenes.image_generation_token.
+  thumbnail_generation_token uuid
+
   title_of_video text
   description_of_video text
   tags_of_video text
@@ -247,6 +250,13 @@ Table scenes {
 
   image_status generation_status [not null, default: 'pending']
   animation_status generation_status [not null, default: 'pending']
+
+  // Stamped with a fresh uuid when a generation starts. The write-back at the end
+  // is guarded on the token still matching, so a generation the user cancelled --
+  // or one superseded by a later click after editing the prompt -- can never land
+  // its stale image/animation on top of the newer one.
+  image_generation_token uuid
+  animation_generation_token uuid
 
   created_at timestamp [not null, default: `now()`]
   updated_at timestamp [not null, default: `now()`]

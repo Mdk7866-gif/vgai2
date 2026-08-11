@@ -7,9 +7,9 @@ from supabase_auth.types import User as SupabaseUser
 
 from app.auth import get_current_user
 from app.config import settings
+from app.credits import refund_misc_credits, reserve_misc_credits
 from app.openai_client import openai_client
 from app.schemas.character import GenerateCharacterSheetResponse
-from app.supabase import supabase
 
 router = APIRouter(prefix="/characters", tags=["characters"])
 
@@ -131,47 +131,31 @@ async def generate_character_sheet(
 
     credit_cost = GENERATE_PRO_CREDIT_COST if pro else GENERATE_CREDIT_COST
 
-    user_result = (
-        supabase.table("users")
-        .select("current_credit_balance, miscellaneous_credit_spent")
-        .eq("id", current_user.id)
-        .execute()
-    )
-    if not user_result.data:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    current_balance = float(user_result.data[0]["current_credit_balance"])
-    if current_balance < credit_cost:
-        raise HTTPException(
-            status_code=402,
-            detail=(
-                f"Not enough credits — generating a{' pro' if pro else ''} character sheet costs "
-                f"{credit_cost} credits, you have {current_balance:g}."
-            ),
-        )
-
     reference_bytes: bytes | None = None
     reference_mime: str | None = None
     if reference_image is not None and reference_image.filename:
         reference_bytes = await reference_image.read()
         reference_mime = reference_image.content_type
 
-    character_prompt = await _build_character_prompt(
-        character_name, description, reference_bytes, reference_mime
+    # Reserved before either OpenAI call, refunded if either fails — see
+    # app/credits.py for why spend happens up front rather than on success.
+    new_balance = reserve_misc_credits(
+        current_user.id, credit_cost, f"generating a{' pro' if pro else ''} character sheet"
     )
-    image_b64 = await _generate_sheet_image(
-        character_prompt,
-        reference_bytes,
-        reference_image.filename if reference_image else None,
-        reference_mime,
-        "high" if pro else "low",
-    )
-
-    new_balance = current_balance - credit_cost
-    new_misc_spent = float(user_result.data[0]["miscellaneous_credit_spent"]) + credit_cost
-    supabase.table("users").update(
-        {"current_credit_balance": new_balance, "miscellaneous_credit_spent": new_misc_spent}
-    ).eq("id", current_user.id).execute()
+    try:
+        character_prompt = await _build_character_prompt(
+            character_name, description, reference_bytes, reference_mime
+        )
+        image_b64 = await _generate_sheet_image(
+            character_prompt,
+            reference_bytes,
+            reference_image.filename if reference_image else None,
+            reference_mime,
+            "high" if pro else "low",
+        )
+    except HTTPException:
+        new_balance = refund_misc_credits(current_user.id, credit_cost)
+        raise
 
     return GenerateCharacterSheetResponse(
         character_prompt=character_prompt,

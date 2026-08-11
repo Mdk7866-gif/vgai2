@@ -27,11 +27,12 @@ api_router.include_router(payments_crud.router)
 # file's docstring for why and how to activate it.
 
 # projectcrud first — paidscripttoscenesplitter/generatedscenecard/imagegeneration/
-# animationgeneration all import its _get_owned_project/_check_project_balance/
-# _deduct_project_credits helpers. paidscripttoscenesplitter is registered before
-# generatedscenecard even though neither actually has a colliding literal path
-# today, matching the same shadowing-avoidance discipline documented on the
-# scripttemplates routers above.
+# animationgeneration all import its _get_owned_project helper (credit
+# reservation lives in app/credits.py). generatedscenecard's literal
+# /projects/scenes/cancel_generation must not be shadowed, and
+# paidscripttoscenesplitter is registered before it even though neither actually
+# has a colliding literal path today, matching the same shadowing-avoidance
+# discipline documented on the scripttemplates routers above.
 api_router.include_router(projectcrud.router)
 api_router.include_router(paidscripttoscenesplitter.router)
 api_router.include_router(generatedscenecard.router)

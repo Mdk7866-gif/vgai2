@@ -39,7 +39,7 @@ export default function ProjectFolderPage() {
   const projectId = params.project_id;
 
   const { requireAuth } = useAuth();
-  const { balance, setBalance, refreshBalance } = useCreditBalance();
+  const { balance, setBalance, reserveBalance, refreshBalance } = useCreditBalance();
   const { renameProject } = useProjects();
 
   const [project, setProject] = useState<Project | null>(null);
@@ -158,6 +158,8 @@ export default function ProjectFolderPage() {
     }
 
     setGeneratingScenes(true);
+    // The backend reserves the cost before calling the LLM, so drop the balance now.
+    reserveBalance(automaticCost);
     try {
       const res = await authFetch("/projects/scenes/generate_automatic", {
         method: "POST",
@@ -180,6 +182,8 @@ export default function ProjectFolderPage() {
       setBalance(data.credits_remaining);
     } catch (err) {
       setAlert({ title: "Failed to generate scenes", message: err instanceof Error ? err.message : "Something went wrong." });
+      // Refunded, or rejected before anything was reserved — only the backend knows.
+      void refreshBalance();
     } finally {
       setGeneratingScenes(false);
     }
@@ -355,6 +359,8 @@ export default function ProjectFolderPage() {
               scene={scene}
               projectCharacters={projectCharacters}
               videoAspectRatio={project.snapshot_styletemplate_video_aspect_ratio}
+              imageModelId={project.image_model_id}
+              animationModelId={project.animation_model_id}
               onUpdated={(updated) => setScenes((prev) => prev.map((s) => (s.id === updated.id ? updated : s)))}
               onDeleted={(id) => setScenes((prev) => prev.filter((s) => s.id !== id))}
               onInserted={(updatedScenes) => setScenes(updatedScenes)}
