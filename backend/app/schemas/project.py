@@ -69,6 +69,7 @@ class ProjectUpdate(BaseModel):
 
     name: str | None = None
     script: str | None = None
+    is_liked: bool | None = None
     llm_model_id: LlmModelTier | None = None
     image_model_id: ImageModelTier | None = None
     animation_model_id: AnimationModelTier | None = None

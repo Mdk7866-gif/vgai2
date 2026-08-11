@@ -1,14 +1,22 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Users, LayoutTemplate, Sparkles, Heart, FolderKanban, LogIn, X, Plus, Pencil, Trash2, Check, Loader2 } from "lucide-react";
+import { Users, LayoutTemplate, Sparkles, Heart, FolderKanban, Folder, LogIn, X, Plus, Trash2, Check, Loader2 } from "lucide-react";
 import Logo from "./Logo";
 import { useAuth } from "@/context/AuthContext";
-import { useProjects } from "@/context/ProjectsContext";
+import { useProjects, type ProjectListItem } from "@/context/ProjectsContext";
 import ConformationMessagePopUp from "./ConformationMessagePopUp";
 import AlertMessagePopUp from "./AlertMessagePopUp";
+
+const formatCreatedDate = (iso: string) =>
+    new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+
+// Double-click-to-rename overloads the single click that normally navigates --
+// a double click fires two click events, so navigation is delayed briefly and
+// cancelled if a second click lands in time instead of firing immediately.
+const NAVIGATE_DELAY_MS = 220;
 
 interface SidebarProps {
     onClose?: () => void;
@@ -25,7 +33,7 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
     const pathname = usePathname();
     const router = useRouter();
     const { user, openLoginModal, requireAuth } = useAuth();
-    const { projects, loading, createProject, renameProject, removeProject } = useProjects();
+    const { projects, loading, createProject, renameProject, removeProject, toggleLike } = useProjects();
 
     const [newProjectName, setNewProjectName] = useState("");
     const [creating, setCreating] = useState(false);
@@ -37,7 +45,11 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
     const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
     const [deleting, setDeleting] = useState(false);
 
+    const [likingId, setLikingId] = useState<string | null>(null);
+
     const [alert, setAlert] = useState<{ title: string; message: string } | null>(null);
+
+    const navigateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const handleCreate = async () => {
         if (!requireAuth()) return;
@@ -75,6 +87,35 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
             setAlert({ title: "Failed to rename project", message: err instanceof Error ? err.message : "Something went wrong." });
         } finally {
             setRenaming(false);
+        }
+    };
+
+    const handleNameClick = (project: ProjectListItem) => {
+        if (navigateTimer.current) return;
+        navigateTimer.current = setTimeout(() => {
+            router.push(`/project_folder/${project.id}`);
+            onClose?.();
+            navigateTimer.current = null;
+        }, NAVIGATE_DELAY_MS);
+    };
+
+    const handleNameDoubleClick = (project: ProjectListItem) => {
+        if (navigateTimer.current) {
+            clearTimeout(navigateTimer.current);
+            navigateTimer.current = null;
+        }
+        startEditing(project);
+    };
+
+    const handleToggleLike = async (project: ProjectListItem) => {
+        if (!requireAuth()) return;
+        setLikingId(project.id);
+        try {
+            await toggleLike(project.id, !project.is_liked);
+        } catch (err) {
+            setAlert({ title: "Failed to update like", message: err instanceof Error ? err.message : "Something went wrong." });
+        } finally {
+            setLikingId(null);
         }
     };
 
@@ -172,6 +213,7 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
                                         return (
                                             <div
                                                 key={project.id}
+                                                title={`Created ${formatCreatedDate(project.created_at)}`}
                                                 className={`group flex items-center gap-1 px-2 py-1.5 rounded-xl transition-all ${active
                                                     ? "bg-indigo-50 dark:bg-indigo-500/15 ring-1 ring-indigo-100 dark:ring-indigo-500/30"
                                                     : "hover:bg-slate-50 dark:hover:bg-slate-800/70"
@@ -202,27 +244,36 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
                                                     </>
                                                 ) : (
                                                     <>
-                                                        <Link
-                                                            href={`/project_folder/${project.id}`}
-                                                            onClick={onClose}
-                                                            className={`flex-1 min-w-0 px-1 py-1 text-[13.5px] truncate ${active
+                                                        <Folder className="w-3.5 h-3.5 flex-shrink-0 text-amber-500 fill-amber-400/70" />
+                                                        <span
+                                                            onClick={() => handleNameClick(project)}
+                                                            onDoubleClick={() => handleNameDoubleClick(project)}
+                                                            className={`flex-1 min-w-0 px-1 py-1 text-[13.5px] truncate cursor-pointer select-none ${active
                                                                 ? "text-indigo-700 dark:text-indigo-300 font-medium"
                                                                 : "text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-100"
                                                                 }`}
                                                         >
                                                             {project.name}
-                                                        </Link>
+                                                        </span>
                                                         <button
-                                                            onClick={() => startEditing(project)}
-                                                            aria-label={`Rename ${project.name}`}
-                                                            className="p-1.5 opacity-0 group-hover:opacity-100 text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-all cursor-pointer"
+                                                            onClick={() => handleToggleLike(project)}
+                                                            disabled={likingId === project.id}
+                                                            aria-label={project.is_liked ? `Unlike ${project.name}` : `Like ${project.name}`}
+                                                            className={`p-1.5 rounded-lg transition-all cursor-pointer disabled:opacity-60 ${project.is_liked
+                                                                ? "text-red-500 hover:text-red-600"
+                                                                : "text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-white dark:hover:bg-slate-800"
+                                                                }`}
                                                         >
-                                                            <Pencil className="w-3.5 h-3.5" />
+                                                            {likingId === project.id ? (
+                                                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                            ) : (
+                                                                <Heart className={`w-3.5 h-3.5 ${project.is_liked ? "fill-current" : ""}`} />
+                                                            )}
                                                         </button>
                                                         <button
                                                             onClick={() => setDeleteTarget(project)}
                                                             aria-label={`Delete ${project.name}`}
-                                                            className="p-1.5 opacity-0 group-hover:opacity-100 text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-all cursor-pointer"
+                                                            className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-all cursor-pointer"
                                                         >
                                                             <Trash2 className="w-3.5 h-3.5" />
                                                         </button>

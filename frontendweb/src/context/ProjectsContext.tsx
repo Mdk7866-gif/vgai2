@@ -7,6 +7,9 @@ import { useAuth } from "@/context/AuthContext";
 export interface ProjectListItem {
   id: string;
   name: string;
+  is_liked: boolean;
+  thumbnail_image_url: string | null;
+  created_at: string;
 }
 
 interface ProjectsContextType {
@@ -16,7 +19,24 @@ interface ProjectsContextType {
   createProject: (name: string, script?: string) => Promise<ProjectListItem>;
   renameProject: (id: string, name: string) => Promise<void>;
   removeProject: (id: string) => Promise<void>;
+  toggleLike: (id: string, liked: boolean) => Promise<void>;
 }
+
+interface ProjectRow {
+  id: string;
+  name: string;
+  is_liked: boolean;
+  thumbnail_image_url: string | null;
+  created_at: string;
+}
+
+const toListItem = (p: ProjectRow): ProjectListItem => ({
+  id: p.id,
+  name: p.name,
+  is_liked: p.is_liked,
+  thumbnail_image_url: p.thumbnail_image_url,
+  created_at: p.created_at,
+});
 
 const ProjectsContext = createContext<ProjectsContextType | undefined>(undefined);
 
@@ -29,7 +49,7 @@ export const ProjectsProvider = ({ children }: { children: React.ReactNode }) =>
     try {
       const res = await authFetch("/projects/");
       const data = await res.json();
-      setProjects(data.map((p: { id: string; name: string }) => ({ id: p.id, name: p.name })));
+      setProjects(data.map(toListItem));
     } catch {
       // Non-fatal: sidebar just shows whatever it last had.
     } finally {
@@ -50,7 +70,7 @@ export const ProjectsProvider = ({ children }: { children: React.ReactNode }) =>
     authFetch("/projects/")
       .then((res) => res.json())
       .then((data) => {
-        if (!cancelled) setProjects(data.map((p: { id: string; name: string }) => ({ id: p.id, name: p.name })));
+        if (!cancelled) setProjects(data.map(toListItem));
       })
       .catch(() => {
         // Non-fatal: sidebar just shows whatever it last had.
@@ -69,8 +89,8 @@ export const ProjectsProvider = ({ children }: { children: React.ReactNode }) =>
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, script }),
     });
-    const created = await res.json();
-    const item: ProjectListItem = { id: created.id, name: created.name };
+    const created: ProjectRow = await res.json();
+    const item = toListItem(created);
     setProjects((prev) => [item, ...prev]);
     return item;
   }, []);
@@ -89,8 +109,27 @@ export const ProjectsProvider = ({ children }: { children: React.ReactNode }) =>
     setProjects((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
+  // Single source of truth for is_liked -- the sidebar and /liked_projects both
+  // read from this same context, so an optimistic update here is what keeps them
+  // in sync with no lag rather than each page holding its own copy.
+  const toggleLike = useCallback(async (id: string, liked: boolean) => {
+    setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, is_liked: liked } : p)));
+    try {
+      await authFetch(`/projects/update/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_liked: liked }),
+      });
+    } catch (err) {
+      setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, is_liked: !liked } : p)));
+      throw err;
+    }
+  }, []);
+
   return (
-    <ProjectsContext.Provider value={{ projects, loading, refresh, createProject, renameProject, removeProject }}>
+    <ProjectsContext.Provider
+      value={{ projects, loading, refresh, createProject, renameProject, removeProject, toggleLike }}
+    >
       {children}
     </ProjectsContext.Provider>
   );

@@ -82,9 +82,11 @@ Credits are **reserved before the AI provider is called**, not deducted after it
 
 ### `/liked_projects`
 
-- Shows all project folders the user has liked (liked via the heart/like control in the sidebar or project view).
-- User can unlike a project or click through to open it.
-- Like state (`projects.is_liked`) is a single source of truth read by both the sidebar and this page, so liking/unliking anywhere stays in sync everywhere instantly.
+- Shows all project folders the user has liked (liked via the heart control on each project row in the sidebar's Project Folders list — always visible, not a hover-to-reveal control, alongside an always-visible delete button).
+- Each project row in the sidebar also shows a yellow folder icon (so the section visually reads as "these are your project folders"), and a hover tooltip with the project's created date. Renaming is double-click-the-name rather than a separate pencil button.
+- Shown here as a card grid (`LikedProjectsCard.tsx`) — project name, created date, a thumbnail if the project has generated one (otherwise a folder placeholder), and an unlike button.
+- User can unlike a project (from either the sidebar or this page) or click through to open it.
+- Like state (`projects.is_liked`) is a single source of truth read by both the sidebar and this page (the shared `ProjectsContext`), so liking/unliking anywhere stays in sync everywhere instantly — no separate fetch, no lag.
 
 ### `/generate_script`
 
