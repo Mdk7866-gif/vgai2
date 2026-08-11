@@ -283,8 +283,10 @@ export default function StyleTemplatesPage() {
         </div>
       )}
 
+      {/* Both remount counters start at 0, so the keys are namespaced per popup —
+          two siblings keyed plain `0` collide in React's sibling reconciliation. */}
       <EditStyleTemplateCardPopUp
-        key={popupKey}
+        key={`edit-${popupKey}`}
         isOpen={popupOpen}
         onClose={() => setPopupOpen(false)}
         mode={popupMode}
@@ -294,7 +296,7 @@ export default function StyleTemplatesPage() {
       />
 
       <GenerateStyleTemplatePopUp
-        key={generatePopupKey}
+        key={`generate-${generatePopupKey}`}
         isOpen={generatePopupOpen}
         onClose={() => setGeneratePopupOpen(false)}
         onAccepted={handleGenerated}

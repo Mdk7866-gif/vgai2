@@ -245,8 +245,10 @@ export default function CharactersPage() {
         </div>
       )}
 
+      {/* Both remount counters start at 0, so the keys are namespaced per popup —
+          two siblings keyed plain `0` collide in React's sibling reconciliation. */}
       <EditCharacterCardPopUp
-        key={popupKey}
+        key={`edit-${popupKey}`}
         isOpen={popupOpen}
         onClose={() => setPopupOpen(false)}
         mode={popupMode}
@@ -256,7 +258,7 @@ export default function CharactersPage() {
       />
 
       <GenerateCharacterSheetPopUp
-        key={generatePopupKey}
+        key={`generate-${generatePopupKey}`}
         isOpen={generatePopupOpen}
         onClose={() => setGeneratePopupOpen(false)}
         onAccepted={handleGenerated}

@@ -34,7 +34,12 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
-      <head>
+      <body className="min-h-full flex flex-col bg-background text-foreground transition-colors duration-200">
+        {/* Runs before paint (inline, non-async scripts execute during HTML parse)
+            so the theme class is on <html> before first paint — no flash of the
+            wrong theme. Deliberately NOT wrapped in a manual <head>: the App
+            Router owns <head> via the Metadata API and de-dupes what goes in it,
+            so a hand-written <head> in the root layout is unsupported. */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -57,8 +62,6 @@ export default function RootLayout({
             `,
           }}
         />
-      </head>
-      <body className="min-h-full flex flex-col bg-background text-foreground transition-colors duration-200">
         <ThemeProvider>
           <AuthProvider>
             <CreditBalanceProvider>
