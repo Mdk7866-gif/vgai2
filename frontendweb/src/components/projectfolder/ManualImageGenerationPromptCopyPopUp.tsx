@@ -24,7 +24,9 @@ function buildBatchPrompt(batchScenes: Scene[]): string {
   const header =
     `Generate ${batchScenes.length} separate images from the prompts below, one image per prompt, in order. ` +
     `Keep every character exactly consistent with the reference sheet images attached in this chat. ` +
-    `Label each image with its scene number (e.g. "Scene ${batchScenes[0].scene_number}") so they're easy to tell apart.\n`;
+    `Output every image as a .png file only — never .webp or any other format. ` +
+    `Name each output file exactly as given in its "File name" line below (e.g. scene_${batchScenes[0].scene_number}.png) so they save with the right name. ` +
+    `Do not add any text, watermark, or label onto the images themselves (no scene numbers, no captions) — generate purely what each prompt describes; the file name is the only place the scene number should appear.\n`;
 
   const body = batchScenes
     .map((scene) => {
@@ -33,6 +35,7 @@ function buildBatchPrompt(batchScenes: Scene[]): string {
         names.length > 0 ? names.join(", ") : "None (no characters — object / environment / graphic only)";
       return (
         `--- Scene ${scene.scene_number} ---\n` +
+        `File name: scene_${scene.scene_number}.png\n` +
         `Reference sheet: ${charLine}\n` +
         `Prompt: ${scene.scene_image_prompt || "(no image prompt)"}`
       );

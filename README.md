@@ -118,7 +118,7 @@ The core workspace. Here the user:
 
 Clicking **Generate Scenes (Automatic)** sends the script + the imported style template prompts + character sheets to an LLM, which splits the script into scenes. Cost is `ceil(script_word_count / 10)` credits — a full LLM call, so it's priced per 10 words. Each resulting scene includes `scene_text`, `scene_image_prompt`, `scene_animation_prompt`, and (once generated) `generated_image_url` / `generated_animation_url`. Scenes render as **scene cards** where the user can:
 
-- Generate the scene's image (**OpenAI**, driven by `scene_image_prompt`).
+- Generate the scene's image (**OpenAI**, driven by `scene_image_prompt`) — see **Bulk scene image generation** below to generate every remaining scene's image at once instead of one at a time.
 - Generate the scene's animation (driven by the generated image + `scene_animation_prompt`).
 - Edit scene text/prompts, add, delete, or reorder cards.
 - Track async status per asset via `image_status` / `animation_status` (`pending → generating → completed/failed`).
@@ -155,6 +155,15 @@ Whichever generation path is used, the AI returns a structured response containi
   ```
 
   Each scene's actual image prompt is composed from `STYLE_PREFIX` + the scene-specific detail, keeping per-scene prompts short and cheap. `scene_animation_prompt` is left uncompacted — animation generation is image-to-video (driven by `scene_animation_prompt` + the already-generated scene image), so the style is already carried by the reference image and doesn't need to be re-stated in the prompt text.
+
+#### Bulk scene image generation
+
+Two buttons above the scene grid generate every remaining scene's image at once, instead of clicking **Generate** on each card individually:
+
+- **Generate All Images (Automatic)** — calls the same OpenAI-backed endpoint as an individual scene card's Generate button, but for every scene still missing `generated_image_url`. To avoid tripping OpenAI's rate limits it runs 5 images concurrently at a time, pausing 10 seconds between batches of 5 (60 seconds every 50th image). The button's credit estimate (`remaining scenes × cost per image` for the project's image tier) updates live as scenes complete, and a progress bar during the run is seeded from the project's already-generated count — not from zero — plus the current batch number and a countdown during any pause. **Stop** aborts every image currently generating rather than letting the run finish in the background; credits already reserved for those are not refunded (§2's reserve-first model still applies). Five consecutive failures stops the run automatically and reports every error collected so far.
+- **Generate All Images (Manual)** — the free counterpart, mirroring "Generate Scenes (Manual)" above: no AI provider is called. Clicking the button charges `ceil(scene_count / 5)` credits up front, then opens a popup with click-to-copy character sheet images and batched scene-prompt text (selectable batch size — 5, 10, or 20 scenes) ready to paste into meta.ai. There's no paste-back step here — unlike a manual scene split there's no structured text response to parse, so the generated images are downloaded and used outside vgAI.
+
+Both buttons draw from the same 5-slot concurrency limit as each scene card's own Generate button — a 6th concurrent image generation started anywhere on the page is rejected with a warning instead of silently queued.
 
 #### Voiceover generation
 
