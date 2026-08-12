@@ -21,7 +21,9 @@ export interface Scene {
   updated_at: string;
 }
 
-export interface GenerateScenesAutomaticResponse {
+/** Shared response shape for both /generate_automatic and /generate_manual —
+ * same fields either way, only how the scene split was produced differs. */
+export interface GenerateScenesResponse {
   scenes: Scene[];
   title_of_video: string;
   description_of_video: string;

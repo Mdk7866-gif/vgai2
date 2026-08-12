@@ -1,51 +1,26 @@
 import math
-from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
-from pydantic import BaseModel
 from supabase_auth.types import User as SupabaseUser
 
 from app.auth import get_current_user
-from app.cloudinary import delete_media
 from app.config import settings
 from app.credits import refund_project_credits, reserve_project_credits
 from app.gemini_client import GEMINI_PRO_TEXT_MODEL, get_gemini_chat_model
 from app.routes.project.projectcrud import _get_owned_project
-from app.schemas.scene import GenerateScenesAutomaticRequest, GenerateScenesAutomaticResponse, InvolvedCharacterRef, Scene
+from app.routes.project.scenesplitcommon import (
+    WORDS_PER_CREDIT_AUTO,
+    SceneSplitDraft,
+    format_characters,
+    format_style_brief,
+    persist_scene_split,
+)
+from app.schemas.scene import GenerateScenesAutomaticRequest, GenerateScenesResponse, InvolvedCharacterRef, Scene
 from app.supabase import supabase
 
 router = APIRouter(prefix="/projects/scenes", tags=["scenes"])
-
-# 1 credit per 10 words of script for the automatic (LLM) splitter; the manual
-# splitter (paste-from-gemini.com, not built yet — see freescripttoscenesplitter.py)
-# is 1 credit per 100 words. Defined here now so both constants live together.
-WORDS_PER_CREDIT_AUTO = 10
-WORDS_PER_CREDIT_MANUAL = 100
-
-
-class SceneDraft(BaseModel):
-    scene_number: int
-    scene_text: str
-    scene_image_prompt: str
-    scene_animation_prompt: str
-    involved_character_names: list[str] = []
-
-
-class VideoMetadataDraft(BaseModel):
-    title: str
-    description: str
-    tags: str
-    thumbnail_prompt: str
-
-
-class SceneSplitDraft(BaseModel):
-    scenes: list[SceneDraft]
-    metadata: VideoMetadataDraft
-    compact_image_prompt: str
-    compact_animation_prompt: str
-
 
 SCENE_SPLIT_SYSTEM_MESSAGE = (
     "You are a video-production assistant for an AI faceless-content creator. Given a "
@@ -75,28 +50,6 @@ SCENE_SPLIT_SYSTEM_MESSAGE = (
 )
 
 
-def _format_style_brief(project: dict) -> str:
-    return (
-        f"Style template name: {project.get('snapshot_styletemplate_name')}\n"
-        f"Image style prompt: {project.get('snapshot_styletemplate_image_prompt')}\n"
-        f"Animation style prompt: {project.get('snapshot_styletemplate_animation_prompt')}\n"
-        "YouTube title/description/tags prompt: "
-        f"{project.get('snapshot_styletemplate_youtube_title_description_tags_prompt') or ''}\n"
-        f"YouTube thumbnail prompt: {project.get('snapshot_styletemplate_youtube_thumbnail_image_prompt') or ''}\n"
-        f"Style description: {project.get('snapshot_styletemplate_description')}\n"
-        f"Scene density: {project.get('snapshot_styletemplate_scene_density')} "
-        "(small = ~1-10 words of narration per scene, medium = ~10-15, high = ~15-25)\n"
-        f"Image aspect ratio: {project.get('snapshot_styletemplate_image_aspect_ratio')}\n"
-        f"Video aspect ratio: {project.get('snapshot_styletemplate_video_aspect_ratio')}"
-    )
-
-
-def _format_characters(characters: list[dict]) -> str:
-    if not characters:
-        return "None available."
-    return "\n".join(f"- {c['snapshot_name']}: {c['snapshot_description']}" for c in characters)
-
-
 async def _build_scene_split_draft(project: dict, characters: list[dict], script: str) -> SceneSplitDraft:
     if project["llm_model_id"] == "pro":
         llm = get_gemini_chat_model(GEMINI_PRO_TEXT_MODEL, temperature=0.6)
@@ -106,8 +59,8 @@ async def _build_scene_split_draft(project: dict, characters: list[dict], script
     structured_llm = llm.with_structured_output(SceneSplitDraft)
 
     human = (
-        f"{_format_style_brief(project)}\n\n"
-        f"Characters available:\n{_format_characters(characters)}\n\n"
+        f"{format_style_brief(project)}\n\n"
+        f"Characters available:\n{format_characters(characters)}\n\n"
         f"Full script:\n{script}"
     )
 
@@ -123,7 +76,7 @@ async def _build_scene_split_draft(project: dict, characters: list[dict], script
     return draft
 
 
-@router.post("/generate_automatic", response_model=GenerateScenesAutomaticResponse)
+@router.post("/generate_automatic", response_model=GenerateScenesResponse)
 async def generate_scenes_automatic(
     payload: GenerateScenesAutomaticRequest,
     current_user: SupabaseUser = Depends(get_current_user),
@@ -158,56 +111,8 @@ async def generate_scenes_automatic(
         new_balance = refund_project_credits(current_user.id, project["id"], project["name"], "llm", cost)
         raise
 
-    # Regenerating replaces the previous batch outright — clean up its Cloudinary
-    # assets first so re-splitting doesn't leave orphaned scene images/animations.
-    old_scenes = (
-        supabase.table("scenes")
-        .select("generated_image_url, generated_animation_url")
-        .eq("project_id", project["id"])
-        .execute()
-    ).data
-    for old in old_scenes:
-        await delete_media(old.get("generated_image_url"), resource_type="image")
-        await delete_media(old.get("generated_animation_url"), resource_type="video")
-    supabase.table("scenes").delete().eq("project_id", project["id"]).execute()
-
-    compact_image_prompt = draft.compact_image_prompt.strip()
-    compact_animation_prompt = draft.compact_animation_prompt.strip()
-
-    character_by_name = {c["snapshot_name"].strip().lower(): c["id"] for c in characters}
+    inserted_scenes, scene_characters_rows = await persist_scene_split(project, characters, draft)
     id_to_name = {c["id"]: c["snapshot_name"] for c in characters}
-
-    scene_rows = [
-        {
-            "project_id": project["id"],
-            "scene_number": i,
-            "scene_text": scene_draft.scene_text,
-            "scene_image_prompt": f"{compact_image_prompt}. {scene_draft.scene_image_prompt.strip()}",
-            "scene_animation_prompt": f"{compact_animation_prompt}. {scene_draft.scene_animation_prompt.strip()}",
-        }
-        # Scene numbers are re-sequenced 1..N here regardless of what the LLM
-        # returned, so the (project_id, scene_number) unique constraint can't fail.
-        for i, scene_draft in enumerate(draft.scenes, start=1)
-    ]
-    inserted_scenes = cast(list[dict[str, Any]], supabase.table("scenes").insert(scene_rows).execute().data)
-
-    scene_characters_rows = []
-    for scene_draft, inserted in zip(draft.scenes, inserted_scenes):
-        for name in scene_draft.involved_character_names:
-            character_id = character_by_name.get(name.strip().lower())
-            if character_id:
-                scene_characters_rows.append({"scene_id": inserted["id"], "project_character_id": character_id})
-    if scene_characters_rows:
-        supabase.table("scene_characters").insert(scene_characters_rows).execute()
-
-    supabase.table("projects").update(
-        {
-            "title_of_video": draft.metadata.title,
-            "description_of_video": draft.metadata.description,
-            "tags_of_video": draft.metadata.tags,
-            "thumbnail_prompt": draft.metadata.thumbnail_prompt,
-        }
-    ).eq("id", project["id"]).execute()
 
     response_scenes = [
         Scene(
@@ -221,7 +126,7 @@ async def generate_scenes_automatic(
         for inserted in inserted_scenes
     ]
 
-    return GenerateScenesAutomaticResponse(
+    return GenerateScenesResponse(
         scenes=response_scenes,
         title_of_video=draft.metadata.title,
         description_of_video=draft.metadata.description,

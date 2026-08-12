@@ -63,7 +63,17 @@ class GenerateScenesAutomaticRequest(BaseModel):
     project_id: str
 
 
-class GenerateScenesAutomaticResponse(BaseModel):
+class GenerateScenesManualRequest(BaseModel):
+    project_id: str
+    # The structured JSON the user pasted back after running our prompt through
+    # gemini.com themselves. Parsed defensively — see freescripttoscenesplitter.py.
+    raw_response: str
+
+
+class GenerateScenesResponse(BaseModel):
+    """Shared response shape for both /generate_automatic and /generate_manual —
+    same fields either way, only how the scene split was produced differs."""
+
     scenes: list[Scene]
     title_of_video: str
     description_of_video: str

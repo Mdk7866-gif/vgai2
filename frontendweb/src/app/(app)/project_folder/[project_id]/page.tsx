@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import {
   Clock,
+  ClipboardList,
   Loader2,
   Mic,
   Palette,
@@ -22,10 +23,11 @@ import ChooseCharacterPopUp from "@/components/projectfolder/ChooseCharacterPopU
 import ChooseStyleTemplatePopUp from "@/components/projectfolder/ChooseStyleTemplatePopUp";
 import VoiceOverControllerPopUp from "@/components/projectfolder/VoiceOverControllerPopUp";
 import AdvancedSettingsPopUp from "@/components/projectfolder/AdvancedSettingsPopUp";
+import GenerateScenesManualPopUp from "@/components/projectfolder/GenerateScenesManualPopUp";
 import SceneCard from "@/components/projectfolder/SceneCard";
 import VideoMetaDataCard from "@/components/projectfolder/VideoMetaDataCard";
 import type { Project, ProjectCharacter } from "@/types/project";
-import type { Scene, GenerateScenesAutomaticResponse } from "@/types/scene";
+import type { Scene, GenerateScenesResponse } from "@/types/scene";
 
 const WORDS_PER_CREDIT_AUTO = 10;
 
@@ -58,6 +60,7 @@ export default function ProjectFolderPage() {
   const [styleTemplatePopupOpen, setStyleTemplatePopupOpen] = useState(false);
   const [voiceoverPopupOpen, setVoiceoverPopupOpen] = useState(false);
   const [advancedSettingsPopupOpen, setAdvancedSettingsPopupOpen] = useState(false);
+  const [manualScenesPopupOpen, setManualScenesPopupOpen] = useState(false);
 
   const [generatingScenes, setGeneratingScenes] = useState(false);
   const [alert, setAlert] = useState<{ title: string; message: string } | null>(null);
@@ -166,19 +169,8 @@ export default function ProjectFolderPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ project_id: project.id }),
       });
-      const data: GenerateScenesAutomaticResponse = await res.json();
-      setScenes(data.scenes);
-      setProject((prev) =>
-        prev
-          ? {
-              ...prev,
-              title_of_video: data.title_of_video,
-              description_of_video: data.description_of_video,
-              tags_of_video: data.tags_of_video,
-              thumbnail_prompt: data.thumbnail_prompt,
-            }
-          : prev
-      );
+      const data: GenerateScenesResponse = await res.json();
+      handleScenesGenerated(data);
       setBalance(data.credits_remaining);
     } catch (err) {
       setAlert({ title: "Failed to generate scenes", message: err instanceof Error ? err.message : "Something went wrong." });
@@ -187,6 +179,21 @@ export default function ProjectFolderPage() {
     } finally {
       setGeneratingScenes(false);
     }
+  };
+
+  const handleScenesGenerated = (data: GenerateScenesResponse) => {
+    setScenes(data.scenes);
+    setProject((prev) =>
+      prev
+        ? {
+            ...prev,
+            title_of_video: data.title_of_video,
+            description_of_video: data.description_of_video,
+            tags_of_video: data.tags_of_video,
+            thumbnail_prompt: data.thumbnail_prompt,
+          }
+        : prev
+    );
   };
 
   if (loading) {
@@ -318,11 +325,11 @@ export default function ProjectFolderPage() {
         </button>
 
         <button
-          disabled
-          title="Coming soon"
-          className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800/60 rounded-xl cursor-not-allowed"
+          onClick={() => requireAuth() && setManualScenesPopupOpen(true)}
+          disabled={!canGenerateAutomatic}
+          className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 border border-emerald-100 dark:border-emerald-500/30 rounded-xl transition-all active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <Clock className="w-4 h-4" />
+          <ClipboardList className="w-4 h-4" />
           Generate Scenes (Manual)
         </button>
 
@@ -410,6 +417,14 @@ export default function ProjectFolderPage() {
         currentImageModelId={project.image_model_id}
         currentAnimationModelId={project.animation_model_id}
         onSaved={(updated) => setProject(updated)}
+      />
+
+      <GenerateScenesManualPopUp
+        isOpen={manualScenesPopupOpen}
+        onClose={() => setManualScenesPopupOpen(false)}
+        project={project}
+        projectCharacters={projectCharacters}
+        onGenerated={handleScenesGenerated}
       />
 
       <AlertMessagePopUp
