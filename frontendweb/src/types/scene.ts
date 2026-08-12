@@ -52,3 +52,10 @@ export interface GenerateThumbnailResponse {
   credits_spent: number;
   credits_remaining: number;
 }
+
+/** No scene data changes here — the manual image flow is a credit charge only,
+ * see ManualImageGenerationPromptCopyPopUp.tsx. */
+export interface GenerateImagesManualResponse {
+  credits_spent: number;
+  credits_remaining: number;
+}

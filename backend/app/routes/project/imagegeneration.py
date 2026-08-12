@@ -1,4 +1,5 @@
 import base64
+import math
 from typing import Any, cast
 from uuid import uuid4
 
@@ -13,6 +14,8 @@ from app.openai_client import openai_client
 from app.routes.project.generatedscenecard import _finish_generation, _get_owned_scene, _start_generation
 from app.routes.project.projectcrud import _get_owned_project
 from app.schemas.scene import (
+    GenerateImagesManualRequest,
+    GenerateImagesManualResponse,
     GenerateSceneImageRequest,
     GenerateSceneImageResponse,
     GenerateThumbnailRequest,
@@ -28,6 +31,14 @@ router = APIRouter(prefix="/projects/image", tags=["projects-image"])
 # characters/generatecharacter.py's GENERATE_CREDIT_COST/GENERATE_PRO_CREDIT_COST.
 IMAGE_BASE_CREDIT_COST = 4
 IMAGE_PRO_CREDIT_COST = 20
+
+# Manual image generation (ManualImageGenerationPromptCopyPopUp.tsx) never calls
+# an image provider — the user copies batched prompts + character sheets and
+# generates on meta.ai themselves — so it's priced flat per scene rather than
+# per-tier like IMAGE_BASE/PRO_CREDIT_COST above. Mirrors WORDS_PER_CREDIT_MANUAL's
+# reasoning in scenesplitcommon.py: no provider is billed, but credits are still
+# reserved since this still tracks as real project-scoped usage.
+SCENES_PER_CREDIT_MANUAL = 5
 
 # gpt-image-2 requires both edges to be multiples of 16 — same reasoning as
 # characters/generatecharacter.py's SHEET_IMAGE_SIZE.
@@ -241,3 +252,31 @@ async def generate_thumbnail(
     return GenerateThumbnailResponse(
         thumbnail_image_url=image_url, credits_spent=cost, credits_remaining=new_balance
     )
+
+
+@router.post("/generate_manual", response_model=GenerateImagesManualResponse)
+async def generate_images_manual(
+    payload: GenerateImagesManualRequest,
+    current_user: SupabaseUser = Depends(get_current_user),
+):
+    """Charges for the manual/paste-into-meta.ai image generation flow. No
+    provider call happens here — ManualImageGenerationPromptCopyPopUp.tsx builds
+    the batched prompts and character-sheet copy buttons entirely client-side,
+    the user pastes them into meta.ai themselves, and there's no structured
+    response to parse back (unlike freescripttoscenesplitter.py's manual scene
+    split), so this endpoint's only job is the credit charge. Scene count is
+    read from the DB rather than trusted from the client, same reasoning as the
+    /generate_script flow re-reading its own fields."""
+    project = _get_owned_project(payload.project_id, current_user.id)
+
+    scenes = supabase.table("scenes").select("id").eq("project_id", project["id"]).execute().data
+    if not scenes:
+        raise HTTPException(status_code=400, detail="Generate scenes before using manual image generation.")
+
+    cost = math.ceil(len(scenes) / SCENES_PER_CREDIT_MANUAL)
+
+    new_balance = reserve_project_credits(
+        current_user.id, project["id"], project["name"], "image", cost, "manual image generation (meta.ai)"
+    )
+
+    return GenerateImagesManualResponse(credits_spent=cost, credits_remaining=new_balance)

@@ -115,3 +115,16 @@ class GenerateThumbnailResponse(BaseModel):
     thumbnail_image_url: str
     credits_spent: float
     credits_remaining: float
+
+
+class GenerateImagesManualRequest(BaseModel):
+    project_id: str
+
+
+class GenerateImagesManualResponse(BaseModel):
+    """No scene data changes here — ManualImageGenerationPromptCopyPopUp.tsx builds
+    everything (batched prompts, character-sheet copy buttons) client-side and the
+    user generates on meta.ai themselves, so this is a credit charge only."""
+
+    credits_spent: float
+    credits_remaining: float

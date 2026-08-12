@@ -5,6 +5,8 @@ import { useParams } from "next/navigation";
 import {
   Clock,
   ClipboardList,
+  Download,
+  ImageIcon,
   Loader2,
   Mic,
   Palette,
@@ -24,15 +26,18 @@ import ChooseStyleTemplatePopUp from "@/components/projectfolder/ChooseStyleTemp
 import VoiceOverControllerPopUp from "@/components/projectfolder/VoiceOverControllerPopUp";
 import AdvancedSettingsPopUp from "@/components/projectfolder/AdvancedSettingsPopUp";
 import GenerateScenesManualPopUp from "@/components/projectfolder/GenerateScenesManualPopUp";
+import ManualImageGenerationPromptCopyPopUp from "@/components/projectfolder/ManualImageGenerationPromptCopyPopUp";
 import SceneCard from "@/components/projectfolder/SceneCard";
 import VideoMetaDataCard from "@/components/projectfolder/VideoMetaDataCard";
 import type { Project, ProjectCharacter } from "@/types/project";
-import type { Scene, GenerateScenesResponse } from "@/types/scene";
+import type { Scene, GenerateScenesResponse, GenerateImagesManualResponse } from "@/types/scene";
 
 const WORDS_PER_CREDIT_AUTO = 10;
 // Mirrors app/routes/project/scenesplitcommon.py's WORDS_PER_CREDIT_MANUAL —
 // 10x cheaper per word than automatic since no provider is billed.
 const WORDS_PER_CREDIT_MANUAL = 100;
+// Mirrors app/routes/project/imagegeneration.py's SCENES_PER_CREDIT_MANUAL.
+const SCENES_PER_CREDIT_MANUAL = 5;
 
 const countWords = (text: string) => {
   const trimmed = text.trim();
@@ -64,8 +69,10 @@ export default function ProjectFolderPage() {
   const [voiceoverPopupOpen, setVoiceoverPopupOpen] = useState(false);
   const [advancedSettingsPopupOpen, setAdvancedSettingsPopupOpen] = useState(false);
   const [manualScenesPopupOpen, setManualScenesPopupOpen] = useState(false);
+  const [manualImagesPopupOpen, setManualImagesPopupOpen] = useState(false);
 
   const [generatingScenes, setGeneratingScenes] = useState(false);
+  const [chargingManualImages, setChargingManualImages] = useState(false);
   const [alert, setAlert] = useState<{ title: string; message: string } | null>(null);
 
   useEffect(() => {
@@ -107,6 +114,7 @@ export default function ProjectFolderPage() {
   const wordCount = useMemo(() => countWords(scriptDraft), [scriptDraft]);
   const automaticCost = Math.ceil(wordCount / WORDS_PER_CREDIT_AUTO) || 0;
   const manualCost = Math.ceil(wordCount / WORDS_PER_CREDIT_MANUAL) || 0;
+  const manualImageCost = Math.ceil(scenes.length / SCENES_PER_CREDIT_MANUAL) || 0;
   const hasStyleTemplate = !!project?.snapshot_styletemplate_name;
   const canGenerateAutomatic = wordCount > 0 && hasStyleTemplate && !generatingScenes;
 
@@ -200,6 +208,41 @@ export default function ProjectFolderPage() {
           }
         : prev
     );
+  };
+
+  const handleOpenManualImages = async () => {
+    if (!project || !requireAuth()) return;
+    const liveBalance = await refreshBalance();
+    if (liveBalance !== null && liveBalance < manualImageCost) {
+      setAlert({
+        title: "Not enough credits",
+        message: `Manual image generation costs ${manualImageCost} credits for ${scenes.length} scenes, you have ${liveBalance}.`,
+      });
+      return;
+    }
+
+    setChargingManualImages(true);
+    // The backend reserves the cost before this popup opens — there's no
+    // provider call to await, so the balance drop and the popup open together.
+    reserveBalance(manualImageCost);
+    try {
+      const res = await authFetch("/projects/image/generate_manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ project_id: project.id }),
+      });
+      const data: GenerateImagesManualResponse = await res.json();
+      setBalance(data.credits_remaining);
+      setManualImagesPopupOpen(true);
+    } catch (err) {
+      setAlert({
+        title: "Failed to charge for manual image generation",
+        message: err instanceof Error ? err.message : "Something went wrong.",
+      });
+      void refreshBalance();
+    } finally {
+      setChargingManualImages(false);
+    }
   };
 
   if (loading) {
@@ -371,6 +414,41 @@ export default function ProjectFolderPage() {
       )}
 
       {scenes.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={handleOpenManualImages}
+            disabled={chargingManualImages}
+            className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 border border-emerald-100 dark:border-emerald-500/30 rounded-xl transition-all active:scale-95 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {chargingManualImages ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
+            Generate Images (Manually)
+            <span className="flex items-center gap-1 pl-2 ml-1 border-l border-emerald-200 dark:border-emerald-500/30">
+              <CreditCoinIcon className="w-3.5 h-3.5" />
+              {manualImageCost}
+            </span>
+          </button>
+
+          <button
+            disabled
+            title="Coming soon"
+            className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800/60 rounded-xl cursor-not-allowed"
+          >
+            <Sparkles className="w-4 h-4" />
+            Generate Images (Automatic)
+          </button>
+
+          <button
+            disabled
+            title="Coming soon"
+            className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800/60 rounded-xl cursor-not-allowed"
+          >
+            <Download className="w-4 h-4" />
+            Download All
+          </button>
+        </div>
+      )}
+
+      {scenes.length > 0 && (
         <div className="flex flex-col gap-5">
           {scenes.map((scene) => (
             <SceneCard
@@ -437,6 +515,13 @@ export default function ProjectFolderPage() {
         project={project}
         projectCharacters={projectCharacters}
         onGenerated={handleScenesGenerated}
+      />
+
+      <ManualImageGenerationPromptCopyPopUp
+        isOpen={manualImagesPopupOpen}
+        onClose={() => setManualImagesPopupOpen(false)}
+        scenes={scenes}
+        projectCharacters={projectCharacters}
       />
 
       <AlertMessagePopUp
