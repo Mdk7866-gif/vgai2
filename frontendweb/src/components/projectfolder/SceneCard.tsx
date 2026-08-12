@@ -37,6 +37,13 @@ interface SceneCardProps {
   onUpdated: (scene: Scene) => void;
   onDeleted: (sceneId: string) => void;
   onInserted: (scenes: Scene[]) => void;
+  /** Shared image-generation concurrency cap (page-owned, see project_folder's
+   * page.tsx) — "Generate All Images (Automatic)" and every SceneCard's own
+   * Generate button draw from the same pool of slots, so the two can't together
+   * exceed the limit and trip an image-provider rate limit. */
+  onAcquireImageSlot: () => boolean;
+  onReleaseImageSlot: () => void;
+  onImageConcurrencyLimitReached: () => void;
 }
 
 type PromptTab = "image" | "animation";
@@ -53,6 +60,9 @@ export const SceneCard = ({
   onUpdated,
   onDeleted,
   onInserted,
+  onAcquireImageSlot,
+  onReleaseImageSlot,
+  onImageConcurrencyLimitReached,
 }: SceneCardProps) => {
   const { setBalance, reserveBalance, refreshBalance } = useCreditBalance();
 
@@ -235,6 +245,10 @@ export const SceneCard = ({
   };
 
   const handleGenerateImage = async () => {
+    if (!onAcquireImageSlot()) {
+      onImageConcurrencyLimitReached();
+      return;
+    }
     if (imagePrompt.trim() !== (scene.scene_image_prompt ?? "")) {
       await persist({ scene_image_prompt: imagePrompt });
     }
@@ -265,6 +279,7 @@ export const SceneCard = ({
     } finally {
       setGeneratingImage(false);
       imageAbortRef.current = null;
+      onReleaseImageSlot();
     }
   };
 

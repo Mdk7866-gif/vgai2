@@ -104,7 +104,7 @@ const AlertMessagePopUp = ({
           </div>
           <div className="flex-1 min-w-0 pr-6">
             <h3 className="text-base sm:text-xl font-semibold text-slate-900 dark:text-white leading-snug">{title}</h3>
-            <p className="mt-2 text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed">{message}</p>
+            <p className="mt-2 text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">{message}</p>
           </div>
           <button
             onClick={onClose}

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import {
   Clock,
@@ -19,6 +19,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useCreditBalance } from "@/context/CreditBalanceContext";
 import { useProjects } from "@/context/ProjectsContext";
 import { authFetch } from "@/lib/api";
+import { imageCreditCost } from "@/lib/credits";
 import CreditCoinIcon from "@/components/CreditCoinIcon";
 import AlertMessagePopUp from "@/components/AlertMessagePopUp";
 import ChooseCharacterPopUp from "@/components/projectfolder/ChooseCharacterPopUp";
@@ -39,10 +40,31 @@ const WORDS_PER_CREDIT_MANUAL = 100;
 // Mirrors app/routes/project/imagegeneration.py's SCENES_PER_CREDIT_MANUAL.
 const SCENES_PER_CREDIT_MANUAL = 5;
 
+// "Generate All Images (Automatic)" pacing — no backend endpoint governs this,
+// it's purely a client-side throttle so a big project doesn't fire 40+ OpenAI
+// image calls at once and trip a provider rate limit. Also shared with each
+// SceneCard's own Generate button via onAcquireImageSlot/onReleaseImageSlot, so
+// the two can't together exceed the cap either.
+const MAX_CONCURRENT_IMAGE_GENERATIONS = 5;
+const BULK_IMAGE_BATCH_SIZE = 5;
+const BULK_IMAGE_BATCH_BREAK_MS = 10_000;
+const BULK_IMAGE_MEGA_BREAK_EVERY = 50;
+const BULK_IMAGE_MEGA_BREAK_MS = 60_000;
+const BULK_IMAGE_MAX_CONSECUTIVE_FAILURES = 5;
+
 const countWords = (text: string) => {
   const trimmed = text.trim();
   return trimmed === "" ? 0 : trimmed.split(/\s+/).length;
 };
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+interface BulkImageProgress {
+  total: number;
+  completed: number;
+  failed: number;
+  pausingUntil: number | null;
+}
 
 export default function ProjectFolderPage() {
   const params = useParams<{ project_id: string }>();
@@ -73,7 +95,50 @@ export default function ProjectFolderPage() {
 
   const [generatingScenes, setGeneratingScenes] = useState(false);
   const [chargingManualImages, setChargingManualImages] = useState(false);
-  const [alert, setAlert] = useState<{ title: string; message: string } | null>(null);
+  const [alert, setAlert] = useState<{
+    title: string;
+    message: string;
+    type?: "success" | "error" | "warning" | "info";
+  } | null>(null);
+
+  // Shared image-generation concurrency pool — see MAX_CONCURRENT_IMAGE_GENERATIONS.
+  const activeImageGenerationsRef = useRef(0);
+  const [bulkImageProgress, setBulkImageProgress] = useState<BulkImageProgress | null>(null);
+  const bulkImageStopRef = useRef(false);
+  const [nowTick, setNowTick] = useState(() => Date.now());
+
+  useEffect(() => {
+    return () => {
+      // Stop firing new requests if the user navigates away mid-run — in-flight
+      // ones still settle (and still cost credits either way, same as any other
+      // cancelled generation in this app), but no new ones should start.
+      bulkImageStopRef.current = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!bulkImageProgress?.pausingUntil) return;
+    const id = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [bulkImageProgress?.pausingUntil]);
+
+  const tryAcquireImageSlot = useCallback(() => {
+    if (activeImageGenerationsRef.current >= MAX_CONCURRENT_IMAGE_GENERATIONS) return false;
+    activeImageGenerationsRef.current += 1;
+    return true;
+  }, []);
+
+  const releaseImageSlot = useCallback(() => {
+    activeImageGenerationsRef.current = Math.max(0, activeImageGenerationsRef.current - 1);
+  }, []);
+
+  const handleImageConcurrencyLimitReached = useCallback(() => {
+    setAlert({
+      type: "warning",
+      title: "Too many images generating",
+      message: `You can only generate up to ${MAX_CONCURRENT_IMAGE_GENERATIONS} images at once — wait for one to finish before starting another.`,
+    });
+  }, []);
 
   useEffect(() => {
     if (!projectId) return;
@@ -117,6 +182,15 @@ export default function ProjectFolderPage() {
   const manualImageCost = Math.ceil(scenes.length / SCENES_PER_CREDIT_MANUAL) || 0;
   const hasStyleTemplate = !!project?.snapshot_styletemplate_name;
   const canGenerateAutomatic = wordCount > 0 && hasStyleTemplate && !generatingScenes;
+
+  // Scenes "Generate All Images (Automatic)" will actually touch — already-
+  // generated scenes are skipped, and so are scenes with no image prompt (that
+  // request would just 400 server-side, not a real generation attempt).
+  const pendingImageScenes = useMemo(
+    () => scenes.filter((s) => !s.generated_image_url && (s.scene_image_prompt ?? "").trim()),
+    [scenes]
+  );
+  const bulkImageCost = pendingImageScenes.length * imageCreditCost(project?.image_model_id);
 
   const handleScriptBlur = async () => {
     if (!project || scriptDraft === (project.script ?? "")) return;
@@ -242,6 +316,125 @@ export default function ProjectFolderPage() {
       void refreshBalance();
     } finally {
       setChargingManualImages(false);
+    }
+  };
+
+  const generateOneSceneImage = async (scene: Scene): Promise<{ ok: true } | { ok: false; message: string }> => {
+    if (!project) return { ok: false, message: "Project not loaded." };
+    // Mirror the backend reserving the cost up front — same as SceneCard's own
+    // individual Generate button.
+    reserveBalance(imageCreditCost(project.image_model_id));
+    try {
+      const res = await authFetch("/projects/image/generate_and_save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scene_id: scene.id }),
+      });
+      const data = await res.json();
+      setScenes((prev) => prev.map((s) => (s.id === data.scene.id ? data.scene : s)));
+      setBalance(data.credits_remaining);
+      return { ok: true };
+    } catch (err) {
+      // Could be a refunded failure or a rejection before anything was
+      // reserved — only the backend knows which.
+      void refreshBalance();
+      return { ok: false, message: err instanceof Error ? err.message : "Failed to generate image." };
+    }
+  };
+
+  const handleGenerateAllImagesAutomatic = async () => {
+    if (!project || !requireAuth() || bulkImageProgress) return;
+    const targets = pendingImageScenes;
+    if (targets.length === 0) return;
+
+    const liveBalance = await refreshBalance();
+    if (liveBalance !== null && liveBalance < bulkImageCost) {
+      setAlert({
+        title: "Not enough credits",
+        message: `Generating all ${targets.length} remaining scene images costs ${bulkImageCost} credits, you have ${liveBalance}.`,
+      });
+      return;
+    }
+
+    bulkImageStopRef.current = false;
+    let consecutiveFailures = 0;
+    let completed = 0;
+    let failed = 0;
+    const errors: { sceneNumber: number; message: string }[] = [];
+
+    setBulkImageProgress({ total: targets.length, completed: 0, failed: 0, pausingUntil: null });
+
+    for (let i = 0; i < targets.length && !bulkImageStopRef.current; i += BULK_IMAGE_BATCH_SIZE) {
+      const chunk = targets.slice(i, i + BULK_IMAGE_BATCH_SIZE);
+
+      // Each member of the chunk waits for its own slot rather than assuming
+      // all 5 are free — a SceneCard's own Generate button can be holding one
+      // or more of them at the same time.
+      const results = await Promise.all(
+        chunk.map(async (scene) => {
+          while (!tryAcquireImageSlot()) {
+            if (bulkImageStopRef.current) return null;
+            await sleep(300);
+          }
+          try {
+            return await generateOneSceneImage(scene);
+          } finally {
+            releaseImageSlot();
+          }
+        })
+      );
+
+      results.forEach((result, idx) => {
+        if (result === null) return; // stopped while waiting for a slot
+        if (result.ok) {
+          completed += 1;
+          consecutiveFailures = 0;
+        } else {
+          failed += 1;
+          consecutiveFailures += 1;
+          errors.push({ sceneNumber: chunk[idx].scene_number, message: result.message });
+        }
+      });
+
+      setBulkImageProgress({ total: targets.length, completed, failed, pausingUntil: null });
+
+      // 5 failures in a row is a strong signal something is systemically wrong
+      // (bad API key, exhausted quota, policy block) rather than one-off image
+      // failures — stop spending credits on a run that's unlikely to recover.
+      if (consecutiveFailures >= BULK_IMAGE_MAX_CONSECUTIVE_FAILURES) {
+        bulkImageStopRef.current = true;
+        break;
+      }
+
+      const isLastChunk = i + BULK_IMAGE_BATCH_SIZE >= targets.length;
+      if (!isLastChunk && !bulkImageStopRef.current) {
+        const doneSoFar = completed + failed;
+        const breakMs =
+          doneSoFar > 0 && doneSoFar % BULK_IMAGE_MEGA_BREAK_EVERY === 0
+            ? BULK_IMAGE_MEGA_BREAK_MS
+            : BULK_IMAGE_BATCH_BREAK_MS;
+        setBulkImageProgress((prev) => (prev ? { ...prev, pausingUntil: Date.now() + breakMs } : prev));
+        await sleep(breakMs);
+      }
+    }
+
+    setBulkImageProgress(null);
+
+    if (errors.length > 0) {
+      setAlert({
+        type: "warning",
+        title:
+          consecutiveFailures >= BULK_IMAGE_MAX_CONSECUTIVE_FAILURES
+            ? `Stopped after ${BULK_IMAGE_MAX_CONSECUTIVE_FAILURES} images failed in a row`
+            : "Some images failed to generate",
+        message: errors.map((e) => `Scene ${e.sceneNumber}: ${e.message}`).join("\n"),
+      });
+    } else if (completed > 0) {
+      setAlert({
+        type: "success",
+        title: "All images generated",
+        message: `Generated ${completed} image${completed !== 1 ? "s" : ""} successfully.`,
+      });
     }
   };
 
@@ -416,12 +609,28 @@ export default function ProjectFolderPage() {
       {scenes.length > 0 && (
         <div className="flex flex-wrap items-center gap-3">
           <button
+            onClick={handleGenerateAllImagesAutomatic}
+            disabled={!!bulkImageProgress || pendingImageScenes.length === 0}
+            title={pendingImageScenes.length === 0 ? "All scene images are already generated" : undefined}
+            className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl shadow-md shadow-indigo-200 dark:shadow-indigo-900/40 transition-all active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {bulkImageProgress ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+            Generate All Images (Automatic)
+            {pendingImageScenes.length > 0 && (
+              <span className="flex items-center gap-1 pl-2 ml-1 border-l border-white/30 text-white/90">
+                <CreditCoinIcon className="w-3.5 h-3.5" />
+                {bulkImageCost}
+              </span>
+            )}
+          </button>
+
+          <button
             onClick={handleOpenManualImages}
             disabled={chargingManualImages}
             className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 border border-emerald-100 dark:border-emerald-500/30 rounded-xl transition-all active:scale-95 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {chargingManualImages ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
-            Generate Images (Manually)
+            Generate All Images (Manual)
             <span className="flex items-center gap-1 pl-2 ml-1 border-l border-emerald-200 dark:border-emerald-500/30">
               <CreditCoinIcon className="w-3.5 h-3.5" />
               {manualImageCost}
@@ -433,18 +642,44 @@ export default function ProjectFolderPage() {
             title="Coming soon"
             className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800/60 rounded-xl cursor-not-allowed"
           >
-            <Sparkles className="w-4 h-4" />
-            Generate Images (Automatic)
-          </button>
-
-          <button
-            disabled
-            title="Coming soon"
-            className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800/60 rounded-xl cursor-not-allowed"
-          >
             <Download className="w-4 h-4" />
             Download All
           </button>
+        </div>
+      )}
+
+      {bulkImageProgress && (
+        <div className="rounded-xl border border-indigo-100 dark:border-indigo-500/30 bg-indigo-50/70 dark:bg-indigo-500/10 px-4 py-3 flex flex-col gap-2">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <span className="flex items-center gap-2 text-[13px] font-medium text-indigo-700 dark:text-indigo-300">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              {bulkImageProgress.pausingUntil
+                ? `Pausing ${Math.max(0, Math.ceil((bulkImageProgress.pausingUntil - nowTick) / 1000))}s to avoid rate limits…`
+                : `Generating images… ${bulkImageProgress.completed + bulkImageProgress.failed}/${bulkImageProgress.total} done`}
+              {bulkImageProgress.failed > 0 && (
+                <span className="text-red-600 dark:text-red-400">· {bulkImageProgress.failed} failed</span>
+              )}
+            </span>
+            <button
+              onClick={() => {
+                bulkImageStopRef.current = true;
+              }}
+              className="text-[12px] font-semibold text-red-600 dark:text-red-400 hover:underline cursor-pointer"
+            >
+              Stop
+            </button>
+          </div>
+          <div className="h-1.5 rounded-full bg-indigo-100 dark:bg-indigo-950/50 overflow-hidden">
+            <div
+              className="h-full bg-indigo-600 transition-all duration-300"
+              style={{
+                width: `${Math.min(
+                  100,
+                  ((bulkImageProgress.completed + bulkImageProgress.failed) / bulkImageProgress.total) * 100
+                )}%`,
+              }}
+            />
+          </div>
         </div>
       )}
 
@@ -461,6 +696,9 @@ export default function ProjectFolderPage() {
               onUpdated={(updated) => setScenes((prev) => prev.map((s) => (s.id === updated.id ? updated : s)))}
               onDeleted={(id) => setScenes((prev) => prev.filter((s) => s.id !== id))}
               onInserted={(updatedScenes) => setScenes(updatedScenes)}
+              onAcquireImageSlot={tryAcquireImageSlot}
+              onReleaseImageSlot={releaseImageSlot}
+              onImageConcurrencyLimitReached={handleImageConcurrencyLimitReached}
             />
           ))}
         </div>
@@ -529,7 +767,7 @@ export default function ProjectFolderPage() {
         onClose={() => setAlert(null)}
         title={alert?.title ?? ""}
         message={alert?.message ?? ""}
-        type="error"
+        type={alert?.type ?? "error"}
       />
     </div>
   );
