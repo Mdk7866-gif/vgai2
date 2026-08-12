@@ -60,10 +60,17 @@ const countWords = (text: string) => {
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 interface BulkImageProgress {
-  total: number;
-  completed: number;
+  totalScenes: number; // every scene in the project at run start, e.g. 120
+  startAlready: number; // scenes that already had a generated image before this run, e.g. 25
+  targetCount: number; // scenes this run will actually attempt, e.g. 95
+  completed: number; // newly generated so far *this run* — headline count is startAlready + completed
   failed: number;
+  cancelled: number;
+  batchIndex: number; // 1-based index of the batch currently in flight
+  batchCount: number; // total number of batches this run will process
+  batchSize: number; // size of the batch currently in flight
   pausingUntil: number | null;
+  stopping: boolean;
 }
 
 export default function ProjectFolderPage() {
@@ -105,16 +112,42 @@ export default function ProjectFolderPage() {
   const activeImageGenerationsRef = useRef(0);
   const [bulkImageProgress, setBulkImageProgress] = useState<BulkImageProgress | null>(null);
   const bulkImageStopRef = useRef(false);
+  // Scene id -> the AbortController for that scene's currently in-flight
+  // /generate_and_save call, so Stop can abort exactly what's running right now
+  // instead of only preventing new requests from starting.
+  const bulkImageInFlightRef = useRef<Map<string, AbortController>>(new Map());
   const [nowTick, setNowTick] = useState(() => Date.now());
+
+  const cancelSceneImageGeneration = useCallback(async (sceneId: string) => {
+    try {
+      await authFetch("/projects/scenes/cancel_generation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scene_id: sceneId, kind: "image" }),
+      });
+    } catch {
+      // Best-effort, same as SceneCard's own cancelGeneration — a failed cancel
+      // only risks the abandoned result still being saved server-side.
+    }
+  }, []);
 
   useEffect(() => {
     return () => {
-      // Stop firing new requests if the user navigates away mid-run — in-flight
-      // ones still settle (and still cost credits either way, same as any other
-      // cancelled generation in this app), but no new ones should start.
+      // Stop firing new requests if the user navigates away mid-run, and abort
+      // whatever's currently in flight rather than letting it run to completion
+      // in the background — credits already reserved for those still aren't
+      // refunded (see app/credits.py), but nothing new should start or save.
       bulkImageStopRef.current = true;
+      // bulkImageInFlightRef is a plain mutable Map we own, not a DOM ref —
+      // reading .current at cleanup time (not a stale snapshot from mount) is
+      // exactly what's wanted here.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      bulkImageInFlightRef.current.forEach((controller, sceneId) => {
+        controller.abort();
+        void cancelSceneImageGeneration(sceneId);
+      });
     };
-  }, []);
+  }, [cancelSceneImageGeneration]);
 
   useEffect(() => {
     if (!bulkImageProgress?.pausingUntil) return;
@@ -319,8 +352,10 @@ export default function ProjectFolderPage() {
     }
   };
 
-  const generateOneSceneImage = async (scene: Scene): Promise<{ ok: true } | { ok: false; message: string }> => {
-    if (!project) return { ok: false, message: "Project not loaded." };
+  type SceneImageResult = { status: "success" } | { status: "failed"; message: string } | { status: "aborted" };
+
+  const generateOneSceneImage = async (scene: Scene, signal: AbortSignal): Promise<SceneImageResult> => {
+    if (!project) return { status: "failed", message: "Project not loaded." };
     // Mirror the backend reserving the cost up front — same as SceneCard's own
     // individual Generate button.
     reserveBalance(imageCreditCost(project.image_model_id));
@@ -329,17 +364,45 @@ export default function ProjectFolderPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ scene_id: scene.id }),
+        signal,
       });
       const data = await res.json();
       setScenes((prev) => prev.map((s) => (s.id === data.scene.id ? data.scene : s)));
       setBalance(data.credits_remaining);
-      return { ok: true };
+      return { status: "success" };
     } catch (err) {
       // Could be a refunded failure or a rejection before anything was
       // reserved — only the backend knows which.
       void refreshBalance();
-      return { ok: false, message: err instanceof Error ? err.message : "Failed to generate image." };
+      if (signal.aborted) return { status: "aborted" };
+      return { status: "failed", message: err instanceof Error ? err.message : "Failed to generate image." };
     }
+  };
+
+  // Poll-based interruptible wait for the between-chunk cooldowns — a plain
+  // sleep(breakMs) would leave Stop unresponsive for up to a full 60s if
+  // clicked mid-break.
+  const interruptibleSleep = async (ms: number) => {
+    const stepMs = 250;
+    let waited = 0;
+    while (waited < ms && !bulkImageStopRef.current) {
+      const step = Math.min(stepMs, ms - waited);
+      await sleep(step);
+      waited += step;
+    }
+  };
+
+  const handleStopBulkImages = () => {
+    bulkImageStopRef.current = true;
+    setBulkImageProgress((prev) => (prev ? { ...prev, stopping: true } : prev));
+    // Abort exactly what's running right now — the whole point of Stop is that
+    // scenes still mid-generation get cut off (and stay charged, since the
+    // backend already reserved their credits) rather than finishing in the
+    // background. Mirrors SceneCard's own per-scene Cancel button.
+    bulkImageInFlightRef.current.forEach((controller, sceneId) => {
+      controller.abort();
+      void cancelSceneImageGeneration(sceneId);
+    });
   };
 
   const handleGenerateAllImagesAutomatic = async () => {
@@ -356,16 +419,41 @@ export default function ProjectFolderPage() {
       return;
     }
 
+    // Headline progress is against the whole project (e.g. 25/120), not just
+    // what this run will attempt — scenes already generated before this run
+    // started count toward the numerator from the first render.
+    const totalScenes = scenes.length;
+    const startAlready = scenes.filter((s) => !!s.generated_image_url).length;
+    const batchCount = Math.ceil(targets.length / BULK_IMAGE_BATCH_SIZE);
+
     bulkImageStopRef.current = false;
     let consecutiveFailures = 0;
     let completed = 0;
     let failed = 0;
+    let cancelled = 0;
     const errors: { sceneNumber: number; message: string }[] = [];
 
-    setBulkImageProgress({ total: targets.length, completed: 0, failed: 0, pausingUntil: null });
+    setBulkImageProgress({
+      totalScenes,
+      startAlready,
+      targetCount: targets.length,
+      completed: 0,
+      failed: 0,
+      cancelled: 0,
+      batchIndex: 1,
+      batchCount,
+      batchSize: Math.min(BULK_IMAGE_BATCH_SIZE, targets.length),
+      pausingUntil: null,
+      stopping: false,
+    });
 
     for (let i = 0; i < targets.length && !bulkImageStopRef.current; i += BULK_IMAGE_BATCH_SIZE) {
       const chunk = targets.slice(i, i + BULK_IMAGE_BATCH_SIZE);
+      const batchIndex = Math.floor(i / BULK_IMAGE_BATCH_SIZE) + 1;
+
+      setBulkImageProgress((prev) =>
+        prev ? { ...prev, batchIndex, batchSize: chunk.length, pausingUntil: null } : prev
+      );
 
       // Each member of the chunk waits for its own slot rather than assuming
       // all 5 are free — a SceneCard's own Generate button can be holding one
@@ -376,19 +464,28 @@ export default function ProjectFolderPage() {
             if (bulkImageStopRef.current) return null;
             await sleep(300);
           }
+          if (bulkImageStopRef.current) {
+            releaseImageSlot();
+            return null;
+          }
+          const controller = new AbortController();
+          bulkImageInFlightRef.current.set(scene.id, controller);
           try {
-            return await generateOneSceneImage(scene);
+            return await generateOneSceneImage(scene, controller.signal);
           } finally {
+            bulkImageInFlightRef.current.delete(scene.id);
             releaseImageSlot();
           }
         })
       );
 
       results.forEach((result, idx) => {
-        if (result === null) return; // stopped while waiting for a slot
-        if (result.ok) {
+        if (result === null) return; // never started — stop was requested while queued
+        if (result.status === "success") {
           completed += 1;
           consecutiveFailures = 0;
+        } else if (result.status === "aborted") {
+          cancelled += 1;
         } else {
           failed += 1;
           consecutiveFailures += 1;
@@ -396,7 +493,9 @@ export default function ProjectFolderPage() {
         }
       });
 
-      setBulkImageProgress({ total: targets.length, completed, failed, pausingUntil: null });
+      setBulkImageProgress((prev) =>
+        prev ? { ...prev, completed, failed, cancelled, pausingUntil: null, stopping: bulkImageStopRef.current } : prev
+      );
 
       // 5 failures in a row is a strong signal something is systemically wrong
       // (bad API key, exhausted quota, policy block) rather than one-off image
@@ -414,20 +513,28 @@ export default function ProjectFolderPage() {
             ? BULK_IMAGE_MEGA_BREAK_MS
             : BULK_IMAGE_BATCH_BREAK_MS;
         setBulkImageProgress((prev) => (prev ? { ...prev, pausingUntil: Date.now() + breakMs } : prev));
-        await sleep(breakMs);
+        await interruptibleSleep(breakMs);
       }
     }
 
     setBulkImageProgress(null);
 
-    if (errors.length > 0) {
+    const summaryParts: string[] = [];
+    if (completed > 0) summaryParts.push(`${completed} generated`);
+    if (cancelled > 0) summaryParts.push(`${cancelled} cancelled (already charged since generation had started)`);
+    if (failed > 0) summaryParts.push(`${failed} failed`);
+
+    if (cancelled > 0 || failed > 0) {
       setAlert({
-        type: "warning",
-        title:
-          consecutiveFailures >= BULK_IMAGE_MAX_CONSECUTIVE_FAILURES
-            ? `Stopped after ${BULK_IMAGE_MAX_CONSECUTIVE_FAILURES} images failed in a row`
-            : "Some images failed to generate",
-        message: errors.map((e) => `Scene ${e.sceneNumber}: ${e.message}`).join("\n"),
+        type: cancelled > 0 && failed === 0 ? "info" : "warning",
+        title: cancelled > 0
+          ? "Generation stopped"
+          : consecutiveFailures >= BULK_IMAGE_MAX_CONSECUTIVE_FAILURES
+          ? `Stopped after ${BULK_IMAGE_MAX_CONSECUTIVE_FAILURES} images failed in a row`
+          : "Some images failed to generate",
+        message: [summaryParts.join(", "), errors.length > 0 ? errors.map((e) => `Scene ${e.sceneNumber}: ${e.message}`).join("\n") : null]
+          .filter(Boolean)
+          .join("\n\n"),
       });
     } else if (completed > 0) {
       setAlert({
@@ -651,22 +758,32 @@ export default function ProjectFolderPage() {
       {bulkImageProgress && (
         <div className="rounded-xl border border-indigo-100 dark:border-indigo-500/30 bg-indigo-50/70 dark:bg-indigo-500/10 px-4 py-3 flex flex-col gap-2">
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <span className="flex items-center gap-2 text-[13px] font-medium text-indigo-700 dark:text-indigo-300">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              {bulkImageProgress.pausingUntil
-                ? `Pausing ${Math.max(0, Math.ceil((bulkImageProgress.pausingUntil - nowTick) / 1000))}s to avoid rate limits…`
-                : `Generating images… ${bulkImageProgress.completed + bulkImageProgress.failed}/${bulkImageProgress.total} done`}
-              {bulkImageProgress.failed > 0 && (
-                <span className="text-red-600 dark:text-red-400">· {bulkImageProgress.failed} failed</span>
-              )}
-            </span>
+            <div className="flex flex-col gap-0.5">
+              <span className="flex items-center gap-2 text-[13px] font-medium text-indigo-700 dark:text-indigo-300">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                {bulkImageProgress.startAlready + bulkImageProgress.completed}/{bulkImageProgress.totalScenes} images
+                generated
+                {bulkImageProgress.failed > 0 && (
+                  <span className="text-red-600 dark:text-red-400">· {bulkImageProgress.failed} failed</span>
+                )}
+                {bulkImageProgress.cancelled > 0 && (
+                  <span className="text-slate-500 dark:text-slate-400">· {bulkImageProgress.cancelled} cancelled</span>
+                )}
+              </span>
+              <span className="text-[12px] text-indigo-600/80 dark:text-indigo-400/80 pl-6">
+                {bulkImageProgress.stopping
+                  ? "Stopping — cancelling images in progress…"
+                  : bulkImageProgress.pausingUntil
+                  ? `Pausing ${Math.max(0, Math.ceil((bulkImageProgress.pausingUntil - nowTick) / 1000))}s to avoid rate limits…`
+                  : `Generating batch ${bulkImageProgress.batchIndex}/${bulkImageProgress.batchCount} (${bulkImageProgress.batchSize} image${bulkImageProgress.batchSize !== 1 ? "s" : ""})…`}
+              </span>
+            </div>
             <button
-              onClick={() => {
-                bulkImageStopRef.current = true;
-              }}
-              className="text-[12px] font-semibold text-red-600 dark:text-red-400 hover:underline cursor-pointer"
+              onClick={handleStopBulkImages}
+              disabled={bulkImageProgress.stopping}
+              className="text-[12px] font-semibold text-red-600 dark:text-red-400 hover:underline cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline"
             >
-              Stop
+              {bulkImageProgress.stopping ? "Stopping…" : "Stop"}
             </button>
           </div>
           <div className="h-1.5 rounded-full bg-indigo-100 dark:bg-indigo-950/50 overflow-hidden">
@@ -675,7 +792,7 @@ export default function ProjectFolderPage() {
               style={{
                 width: `${Math.min(
                   100,
-                  ((bulkImageProgress.completed + bulkImageProgress.failed) / bulkImageProgress.total) * 100
+                  ((bulkImageProgress.startAlready + bulkImageProgress.completed) / bulkImageProgress.totalScenes) * 100
                 )}%`,
               }}
             />
