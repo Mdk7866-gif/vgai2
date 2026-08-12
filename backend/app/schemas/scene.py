@@ -79,6 +79,10 @@ class GenerateScenesResponse(BaseModel):
     description_of_video: str
     tags_of_video: str
     thumbnail_prompt: str
+    # Always None — re-splitting discards the previous batch's thumbnail (see
+    # scenesplitcommon.py's persist_scene_split), returned explicitly so the
+    # frontend can clear its stale thumbnail without a separate re-fetch.
+    thumbnail_image_url: str | None
     credits_spent: float
     credits_remaining: float
 

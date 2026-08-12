@@ -29,6 +29,8 @@ export interface GenerateScenesResponse {
   description_of_video: string;
   tags_of_video: string;
   thumbnail_prompt: string;
+  /** Always null — re-splitting discards the previous batch's thumbnail. */
+  thumbnail_image_url: string | null;
   credits_spent: number;
   credits_remaining: number;
 }

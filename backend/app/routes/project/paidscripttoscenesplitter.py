@@ -132,6 +132,7 @@ async def generate_scenes_automatic(
         description_of_video=draft.metadata.description,
         tags_of_video=draft.metadata.tags,
         thumbnail_prompt=draft.metadata.thumbnail_prompt,
+        thumbnail_image_url=None,
         credits_spent=cost,
         credits_remaining=new_balance,
     )

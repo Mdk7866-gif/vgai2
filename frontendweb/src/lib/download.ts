@@ -27,3 +27,50 @@ export const downloadAsset = async (url: string, filename: string) => {
   link.remove();
   URL.revokeObjectURL(blobUrl);
 };
+
+// The Clipboard API's image write only reliably accepts "image/png" across
+// browsers — Cloudinary can serve a character sheet as jpg/webp depending on
+// the asset, so every fetched image is normalized through a canvas first.
+const toPngBlob = (blob: Blob): Promise<Blob> =>
+  new Promise((resolve, reject) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(blob);
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      URL.revokeObjectURL(objectUrl);
+      if (!ctx) {
+        reject(new Error("Canvas not supported"));
+        return;
+      }
+      ctx.drawImage(img, 0, 0);
+      canvas.toBlob((pngBlob) => {
+        if (pngBlob) resolve(pngBlob);
+        else reject(new Error("Failed to convert image"));
+      }, "image/png");
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Failed to load image"));
+    };
+    img.src = objectUrl;
+  });
+
+const fetchImageAsPng = async (url: string): Promise<Blob> => {
+  const res = await fetch(url);
+  if (!res.ok) throw new AssetUnavailableError(res.status);
+  return toPngBlob(await res.blob());
+};
+
+/** Copies one or more hosted images to the clipboard as image/png, so they can
+ * be pasted directly into gemini.com alongside the manual-scene-split prompt.
+ * Each ClipboardItem is built from a Promise (not an already-resolved Blob) so
+ * the fetch/convert work can happen after `navigator.clipboard.write` is called
+ * — that call itself must stay synchronous within the click handler's call
+ * stack, or Safari/Firefox reject it for having lost user-gesture activation. */
+export const copyImagesToClipboard = (urls: string[]): Promise<void> => {
+  const items = urls.map((url) => new ClipboardItem({ "image/png": fetchImageAsPng(url) }));
+  return navigator.clipboard.write(items);
+};

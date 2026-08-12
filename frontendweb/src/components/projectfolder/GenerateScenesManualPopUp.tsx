@@ -2,8 +2,10 @@
 
 import React, { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, ClipboardList, Copy, Loader2, Sparkles, Users, X } from "lucide-react";
+import Image from "next/image";
+import { Check, ClipboardList, Copy, ImageIcon, Loader2, Sparkles, Users, X } from "lucide-react";
 import { authFetch } from "@/lib/api";
+import { copyImagesToClipboard } from "@/lib/download";
 import { useCreditBalance } from "@/context/CreditBalanceContext";
 import CreditCoinIcon from "@/components/CreditCoinIcon";
 import type { Project, ProjectCharacter } from "@/types/project";
@@ -99,6 +101,8 @@ export const GenerateScenesManualPopUp = ({
   const [rawResponse, setRawResponse] = useState("");
   const [generating, setGenerating] = useState(false);
   const [promptCopied, setPromptCopied] = useState(false);
+  const [copiedImageId, setCopiedImageId] = useState<string | null>(null);
+  const [copyingImageId, setCopyingImageId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const prompt = useMemo(() => buildManualPrompt(project, projectCharacters), [project, projectCharacters]);
@@ -111,6 +115,20 @@ export const GenerateScenesManualPopUp = ({
       setTimeout(() => setPromptCopied(false), 1500);
     } catch {
       setError("Couldn't copy — your browser blocked clipboard access.");
+    }
+  };
+
+  const handleCopyImage = async (character: ProjectCharacter) => {
+    setError(null);
+    setCopyingImageId(character.id);
+    try {
+      await copyImagesToClipboard([character.snapshot_character_sheet_url]);
+      setCopiedImageId(character.id);
+      setTimeout(() => setCopiedImageId(null), 1500);
+    } catch {
+      setError(`Couldn't copy ${character.snapshot_name}'s image — your browser may not support copying images.`);
+    } finally {
+      setCopyingImageId(null);
     }
   };
 
@@ -217,18 +235,63 @@ export const GenerateScenesManualPopUp = ({
 
           {projectCharacters.length > 0 && (
             <div>
-              <h3 className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">
+              <h3 className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">
                 <Users className="w-3.5 h-3.5" />
                 Characters included in this prompt
               </h3>
-              <div className="flex flex-wrap gap-1.5">
+              <p className="text-[12px] text-slate-400 dark:text-slate-500 mb-2.5">
+                Copy the prompt above, paste it into gemini.com, then copy each character&apos;s sheet image below and
+                paste it in too so Gemini keeps their look consistent.
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {projectCharacters.map((c) => (
-                  <span
+                  <div
                     key={c.id}
-                    className="px-2.5 py-1 rounded-full text-[12px] font-medium bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-500/30"
+                    className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700"
                   >
-                    {c.snapshot_name}
-                  </span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyImage(c)}
+                      disabled={copyingImageId === c.id}
+                      aria-label={`Copy ${c.snapshot_name}'s sheet image to your clipboard`}
+                      className="relative block w-full aspect-video bg-slate-100 dark:bg-slate-900 cursor-pointer disabled:cursor-wait"
+                    >
+                      <Image
+                        src={c.snapshot_character_sheet_url}
+                        alt={c.snapshot_name}
+                        fill
+                        unoptimized
+                        className="object-cover"
+                      />
+                      <span
+                        className={`absolute inset-x-0 bottom-0 flex items-center justify-center gap-1.5 px-2 py-1.5 text-[11px] font-semibold text-white transition-colors ${
+                          copiedImageId === c.id ? "bg-emerald-600/90" : "bg-black/60 hover:bg-black/75"
+                        }`}
+                      >
+                        {copyingImageId === c.id ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            Copying…
+                          </>
+                        ) : copiedImageId === c.id ? (
+                          <>
+                            <Check className="w-3.5 h-3.5" />
+                            Copied!
+                          </>
+                        ) : (
+                          <>
+                            <ImageIcon className="w-3.5 h-3.5" />
+                            Click to copy image
+                          </>
+                        )}
+                      </span>
+                    </button>
+                    <div className="px-2.5 py-2 bg-white dark:bg-slate-800/70">
+                      <p className="text-[13px] font-medium text-slate-900 dark:text-slate-100 truncate">
+                        {c.snapshot_name}
+                      </p>
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>

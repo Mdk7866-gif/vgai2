@@ -30,6 +30,9 @@ import type { Project, ProjectCharacter } from "@/types/project";
 import type { Scene, GenerateScenesResponse } from "@/types/scene";
 
 const WORDS_PER_CREDIT_AUTO = 10;
+// Mirrors app/routes/project/scenesplitcommon.py's WORDS_PER_CREDIT_MANUAL —
+// 10x cheaper per word than automatic since no provider is billed.
+const WORDS_PER_CREDIT_MANUAL = 100;
 
 const countWords = (text: string) => {
   const trimmed = text.trim();
@@ -103,6 +106,7 @@ export default function ProjectFolderPage() {
 
   const wordCount = useMemo(() => countWords(scriptDraft), [scriptDraft]);
   const automaticCost = Math.ceil(wordCount / WORDS_PER_CREDIT_AUTO) || 0;
+  const manualCost = Math.ceil(wordCount / WORDS_PER_CREDIT_MANUAL) || 0;
   const hasStyleTemplate = !!project?.snapshot_styletemplate_name;
   const canGenerateAutomatic = wordCount > 0 && hasStyleTemplate && !generatingScenes;
 
@@ -191,6 +195,8 @@ export default function ProjectFolderPage() {
             description_of_video: data.description_of_video,
             tags_of_video: data.tags_of_video,
             thumbnail_prompt: data.thumbnail_prompt,
+            // Re-splitting discards the previous batch's thumbnail server-side too.
+            thumbnail_image_url: data.thumbnail_image_url,
           }
         : prev
     );
@@ -331,6 +337,12 @@ export default function ProjectFolderPage() {
         >
           <ClipboardList className="w-4 h-4" />
           Generate Scenes (Manual)
+          {wordCount > 0 && (
+            <span className="flex items-center gap-1 pl-2 ml-1 border-l border-emerald-200 dark:border-emerald-500/30">
+              <CreditCoinIcon className="w-3.5 h-3.5" />
+              {manualCost}
+            </span>
+          )}
         </button>
 
         <button

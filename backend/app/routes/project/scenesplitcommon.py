@@ -73,6 +73,10 @@ async def persist_scene_split(
 
     # Regenerating replaces the previous batch outright — clean up its Cloudinary
     # assets first so re-splitting doesn't leave orphaned scene images/animations.
+    # A re-split can come from an edited script or just a different roll of the
+    # dice from the same script, so every existing scene image/animation is now
+    # stale — there's no reliable way to match old scenes to new ones and decide
+    # which assets are still "the same", so all of them go.
     old_scenes = (
         supabase.table("scenes")
         .select("generated_image_url, generated_animation_url")
@@ -83,6 +87,15 @@ async def persist_scene_split(
         await delete_media(old.get("generated_image_url"), resource_type="image")
         await delete_media(old.get("generated_animation_url"), resource_type="video")
     supabase.table("scenes").delete().eq("project_id", project["id"]).execute()
+
+    # The thumbnail was generated from the previous batch's thumbnail_prompt (see
+    # projects.thumbnail_prompt / imagegeneration.py's generate_thumbnail), which
+    # this call is about to overwrite — the image itself is now just as stale as
+    # the scene assets above, so it's discarded the same way rather than left
+    # dangling in Cloudinary and displayed as if it still matched.
+    old_thumbnail_url = project.get("thumbnail_image_url")
+    if old_thumbnail_url:
+        await delete_media(old_thumbnail_url, resource_type="image")
 
     compact_image_prompt = draft.compact_image_prompt.strip()
     compact_animation_prompt = draft.compact_animation_prompt.strip()
@@ -118,6 +131,10 @@ async def persist_scene_split(
             "description_of_video": draft.metadata.description,
             "tags_of_video": draft.metadata.tags,
             "thumbnail_prompt": draft.metadata.thumbnail_prompt,
+            # Cleared alongside the deleted asset above — a stale thumbnail_image_url
+            # would otherwise keep pointing at an image that no longer exists.
+            "thumbnail_image_url": None,
+            "thumbnail_generation_token": None,
         }
     ).eq("id", project["id"]).execute()
 

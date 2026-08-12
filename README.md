@@ -116,12 +116,14 @@ The core workspace. Here the user:
 
 #### Automatic scene generation
 
-Clicking **Generate Scenes (Automatic)** sends the script + the imported style template prompts + character sheets to **Gemini**, which splits the script into scenes. Each resulting scene includes `scene_text`, `scene_image_prompt`, `scene_animation_prompt`, and (once generated) `generated_image_url` / `generated_animation_url`. Scenes render as **scene cards** where the user can:
+Clicking **Generate Scenes (Automatic)** sends the script + the imported style template prompts + character sheets to an LLM, which splits the script into scenes. Cost is `ceil(script_word_count / 10)` credits — a full LLM call, so it's priced per 10 words. Each resulting scene includes `scene_text`, `scene_image_prompt`, `scene_animation_prompt`, and (once generated) `generated_image_url` / `generated_animation_url`. Scenes render as **scene cards** where the user can:
 
 - Generate the scene's image (**OpenAI**, driven by `scene_image_prompt`).
 - Generate the scene's animation (driven by the generated image + `scene_animation_prompt`).
 - Edit scene text/prompts, add, delete, or reorder cards.
 - Track async status per asset via `image_status` / `animation_status` (`pending → generating → completed/failed`).
+
+Re-splitting a project's scenes — via either method below — replaces the previous batch outright: every existing scene's `generated_image_url`/`generated_animation_url` is deleted, and so is the project's YouTube thumbnail (`thumbnail_image_url`), since it was generated for the previous batch's `thumbnail_prompt` and is now just as stale. This applies whether the re-split comes from an edited script or just a different roll of the dice on the same one — there's no reliable way to match old scenes to new ones and decide which assets "still count," so all of them go rather than leaving orphaned media behind.
 
 #### Cancelling a generation
 
@@ -133,7 +135,9 @@ Animation additionally stops polling the moment the user disconnects, so vgAI is
 
 #### Manual scene generation
 
-Clicking **Generate Scenes (Manual)** opens a popup with a ready-to-copy prompt (script + scene-splitting instructions + involved characters). The user pastes this into gemini.com themselves, copies back the structured JSON response, pastes it into the popup, and clicks **Generate**. This populates the exact same scene fields as the automatic flow — everything downstream (image/animation generation, cards, etc.) works identically either way.
+Clicking **Generate Scenes (Manual)** opens a popup with a ready-to-copy prompt (script + scene-splitting instructions + involved characters, phrased so gemini.com's response comes back in the same structured shape the automatic flow produces). The user pastes this into gemini.com themselves, copies back the full JSON response, pastes it into the popup, and clicks **Generate**. The popup also shows each imported character's sheet image with its own "copy image" button — Gemini's scene visuals stay consistent with a project's characters only if it can see them, so the user copies each image individually and pastes it into the same gemini.com chat alongside the prompt (no built-in "copy all" — multi-image clipboard writes aren't reliable across browsers).
+
+No AI provider is billed on this path — the "AI" work happened for free in the user's own gemini.com session — so it's priced at `ceil(script_word_count / 100)` credits, a flat 10x cheaper per word than the automatic flow, even though credits are still reserved (parsing and persisting the pasted response is still real backend work). This populates the exact same scene fields as the automatic flow — everything downstream (image/animation generation, cards, etc.) works identically either way.
 
 #### Structured scene response
 
@@ -176,6 +180,7 @@ Google sign-in only, via **Supabase Auth**.
 - **AI Integrations:**
   - **OpenAI API** — character sheet generation end-to-end (prompt via `ChatOpenAI`, image via `gpt-image-2`), style template generation (`ChatOpenAI`, structured output), automatic scene splitting on the `"base"` tier (`gpt-4o`), and scene image + thumbnail generation (`gpt-image-2`).
   - **Gemini API** — automatic scene splitting on the `"pro"` tier only (`gemini-3-pro-preview`, structured output).
+  - **No provider at all** — manual scene splitting (see §5) doesn't call any AI API; it validates and persists the JSON the user pastes back from their own gemini.com session, which is exactly why it's priced far below the automatic flow.
   - **OpenRouter** — gateway for **Perplexity** (viral topic research), **Claude** (script generation & "improvise" regeneration), and image-to-video **animation** (`alibaba/wan-2.6` on `"base"`, `google/veo-3.1-lite` on `"pro"`, via its long-running video-job API).
   - **ElevenLabs API** — chunked text-to-speech voiceover generation, kept independent of OpenRouter for dedicated TTS quality control. *(Voice settings are saved; generation itself is not built yet.)*
   - **FFmpeg** — stitching voiceover chunks into a single audio file. *(Not built yet.)*
