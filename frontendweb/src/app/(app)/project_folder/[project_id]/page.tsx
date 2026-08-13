@@ -697,12 +697,7 @@ export default function ProjectFolderPage() {
           Generate Voiceover
         </button>
 
-        {balance !== null && (
-          <span className="ml-auto flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
-            <CreditCoinIcon className="w-3.5 h-3.5" />
-            {balance} credits available
-          </span>
-        )}
+     
       </div>
 
       {project.title_of_video && (
