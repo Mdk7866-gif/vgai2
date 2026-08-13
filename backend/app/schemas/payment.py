@@ -38,3 +38,15 @@ class CreditTopup(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class PaymentHistoryResponse(BaseModel):
+    """Top-up history for the /profile page's Payment tab.
+
+    `topups` includes unsuccessful attempts, but the totals count only
+    `success` rows — see the endpoint docstring for why both matter.
+    """
+
+    topups: list[CreditTopup]
+    total_amount_paid: float
+    total_credits_purchased: float

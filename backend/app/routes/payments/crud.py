@@ -5,7 +5,12 @@ from supabase_auth.types import User as SupabaseUser
 from app.auth import get_current_user
 from app.config import settings
 from app.razorpay_client import razorpay_client
-from app.schemas.payment import CreateOrderRequest, CreateOrderResponse, VerifyPaymentRequest
+from app.schemas.payment import (
+    CreateOrderRequest,
+    CreateOrderResponse,
+    PaymentHistoryResponse,
+    VerifyPaymentRequest,
+)
 from app.schemas.user import User
 from app.supabase import supabase
 
@@ -16,6 +21,34 @@ router = APIRouter(prefix="/payments", tags=["payments"])
 # account, so credits are priced in INR using this fixed rate for now.
 USD_TO_INR_RATE = 100
 PAISE_PER_CREDIT = USD_TO_INR_RATE  # 100 credits = $1 = USD_TO_INR_RATE rupees = USD_TO_INR_RATE * 100 paise, so 1 credit = USD_TO_INR_RATE paise
+
+
+@router.get("/history", response_model=PaymentHistoryResponse)
+async def get_payment_history(current_user: SupabaseUser = Depends(get_current_user)):
+    """Every top-up the user has attempted, newest first.
+
+    Unsuccessful attempts are included rather than filtered out: /create-order
+    writes a `pending` row *before* Checkout opens, so dismissing the Razorpay
+    modal without paying leaves one behind. Showing them means an abandoned
+    attempt reads as abandoned instead of looking like a payment that went
+    missing — but only `success` rows count toward the totals, since nothing was
+    actually charged for the rest.
+    """
+    result = (
+        supabase.table("credit_topups")
+        .select("*")
+        .eq("user_id", current_user.id)
+        .order("created_at", desc=True)
+        .execute()
+    )
+    topups = result.data or []
+    successful = [topup for topup in topups if topup["payment_status"] == "success"]
+
+    return PaymentHistoryResponse(
+        topups=topups,
+        total_amount_paid=sum(float(topup["amount_paid"]) for topup in successful),
+        total_credits_purchased=sum(float(topup["credits_added"]) for topup in successful),
+    )
 
 
 def _get_current_balance(user_id: str) -> float:

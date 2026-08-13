@@ -10,6 +10,7 @@ import type { User } from "@/types/user";
 import AddCreditsPopUp from "@/components/profile/AddCreditsPopUp";
 import AlertMessagePopUp from "@/components/AlertMessagePopUp";
 import CreditCoinIcon from "@/components/CreditCoinIcon";
+import PaymentAndUsageHistoryTabCard from "@/components/profile/PaymentAndUsageHistoryTabCard";
 
 export default function ProfilePage() {
   const { user, requireAuth } = useAuth();
@@ -22,16 +23,28 @@ export default function ProfilePage() {
   const [popupOpen, setPopupOpen] = useState(false);
   const [popupKey, setPopupKey] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  // Bumped after a successful top-up to remount the history card, which is how
+  // its per-tab fetch cache gets invalidated so the new payment shows up. The
+  // key is namespaced where it's used: this and popupKey are both siblings in
+  // this component's children array and both start at 0, so the bare counters
+  // would collide into React's "two children with the same key" warning.
+  const [historyKey, setHistoryKey] = useState(0);
   const [alert, setAlert] = useState<{
     title: string;
     message: string;
     type?: "success" | "error";
   } | null>(null);
 
+  // Keyed on the id, not the `user` object: AuthContext hands out a fresh
+  // session (and so a fresh user object) on every token refresh and window
+  // focus, which would otherwise re-run this effect — and flip `loading` — for
+  // a user that never actually changed.
+  const userId = user?.id;
+
   useEffect(() => {
     let cancelled = false;
 
-    if (!user) {
+    if (!userId) {
       const timer = setTimeout(() => {
         setProfile(null);
         setLoading(false);
@@ -63,7 +76,7 @@ export default function ProfilePage() {
       cancelled = true;
       clearTimeout(startTimer);
     };
-  }, [user]);
+  }, [userId]);
 
   const handleAddCreditsClick = () => {
     if (!requireAuth()) return;
@@ -106,6 +119,7 @@ export default function ProfilePage() {
               .then((updatedUser: User) => {
                 setProfile(updatedUser);
                 setNavbarBalance(updatedUser.current_credit_balance);
+                setHistoryKey((k) => k + 1);
                 setPopupOpen(false);
                 setAlert({
                   title: "Credits added",
@@ -143,7 +157,7 @@ export default function ProfilePage() {
           Profile
         </h1>
         <p className="mt-2 text-slate-500 dark:text-slate-400 text-[15px] max-w-xl leading-relaxed">
-          Your account, credit balance, and payment history.
+          Your account, credit balance, and where your credits have gone.
         </p>
       </div>
 
@@ -212,6 +226,12 @@ export default function ProfilePage() {
           </div>
         </div>
       )}
+
+      {/* Gated on `user` alone, deliberately not on this page's `loading`/`profile`:
+          tying it to the profile fetch would unmount the card on every refetch,
+          throwing away both the selected tab and its cached data. It renders its
+          own loading state. */}
+      {user && <PaymentAndUsageHistoryTabCard key={`history-${historyKey}`} />}
 
       <AddCreditsPopUp
         key={popupKey}
