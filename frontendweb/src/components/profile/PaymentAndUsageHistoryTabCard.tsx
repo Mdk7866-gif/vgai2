@@ -9,13 +9,14 @@ import {
   Film,
   Folder,
   Image as ImageIcon,
-  Loader2,
   Mic,
   Receipt,
   Sparkles,
 } from "lucide-react";
 import { authFetch } from "@/lib/api";
 import CreditCoinIcon from "@/components/CreditCoinIcon";
+import Pagination from "@/components/Pagination";
+import { usePagination } from "@/hooks/usePagination";
 import type {
   PaymentHistoryResponse,
   PaymentStatus,
@@ -61,6 +62,17 @@ const STATUS_STYLES: Record<PaymentStatus, string> = {
 
 const CURRENCY_SYMBOLS: Record<string, string> = { INR: "₹", USD: "$" };
 
+/** Rows per page. Both tabs paginate client-side: one fetch already returns the
+ *  whole history, and the totals have to be computed across *all* rows anyway,
+ *  so slicing here avoids a second aggregate query per page turn. It also keeps
+ *  the card a predictable height — see ROW_HEIGHT_PX. */
+const PAGE_SIZE = 10;
+
+/** Height of one rendered row, measured in the browser. The loading skeleton
+ *  draws PAGE_SIZE rows at this height so the card reserves the space a full
+ *  page will actually occupy, instead of snapping open from a bare spinner. */
+const ROW_HEIGHT_PX = 49;
+
 // Popover box is measured rather than guessed only where it matters — its width
 // and a worst-case height, both used to keep it inside the viewport.
 const POPOVER_WIDTH = 268;
@@ -96,6 +108,30 @@ interface PopoverState {
   left: number;
 }
 
+/** Placeholder shaped like a full page of rows, so the card occupies roughly its
+ *  loaded height from the first paint rather than growing once data lands. */
+const HistorySkeleton = () => (
+  <div className="animate-pulse" aria-hidden="true">
+    <div className="flex items-center justify-between gap-4 pb-3">
+      {["w-16", "w-14", "w-24", "w-12"].map((width) => (
+        <div key={width} className={`h-2.5 rounded bg-slate-200/70 dark:bg-slate-700/50 ${width}`} />
+      ))}
+    </div>
+    {Array.from({ length: PAGE_SIZE }).map((_, index) => (
+      <div
+        key={index}
+        style={{ height: ROW_HEIGHT_PX }}
+        className="flex items-center justify-between gap-4 border-t border-slate-100 dark:border-slate-700/50"
+      >
+        <div className="h-3 w-24 rounded bg-slate-100 dark:bg-slate-700/40" />
+        <div className="h-5 w-16 rounded-full bg-slate-100 dark:bg-slate-700/40" />
+        <div className="h-3 w-20 rounded bg-slate-100 dark:bg-slate-700/40" />
+        <div className="h-3 w-12 rounded bg-slate-100 dark:bg-slate-700/40" />
+      </div>
+    ))}
+  </div>
+);
+
 const EmptyState = ({
   Icon,
   title,
@@ -120,6 +156,12 @@ export const PaymentAndUsageHistoryTabCard = () => {
   const [usage, setUsage] = useState<UsageHistoryResponse | null>(null);
   const [errors, setErrors] = useState<Partial<Record<Tab, string>>>({});
   const [popover, setPopover] = useState<PopoverState | null>(null);
+  // Called unconditionally for both tabs regardless of which is active — the
+  // render functions below are plain helpers invoked conditionally on `tab`,
+  // so a hook call couldn't live inside them without violating the rules of
+  // hooks (the call count would differ between renders).
+  const paymentPagination = usePagination(payment?.topups ?? [], PAGE_SIZE);
+  const usagePagination = usePagination(usage?.projects ?? [], PAGE_SIZE);
 
   // Derived rather than stored: a `loading` state would have to be set
   // synchronously inside the effect below for the already-cached case, which is
@@ -198,6 +240,8 @@ export const PaymentAndUsageHistoryTabCard = () => {
     const currency =
       data.topups.find((topup) => topup.payment_status === "success")?.currency ?? "INR";
 
+    const { page, pageCount, pageItems: visible, setPage } = paymentPagination;
+
     return (
       <>
         <div className="overflow-x-auto -mx-5 px-5 sm:-mx-6 sm:px-6">
@@ -211,7 +255,7 @@ export const PaymentAndUsageHistoryTabCard = () => {
               </tr>
             </thead>
             <tbody>
-              {data.topups.map((topup) => (
+              {visible.map((topup) => (
                 <tr key={topup.id}>
                   <td className="py-3 border-t border-slate-100 dark:border-slate-700/50 text-slate-600 dark:text-slate-300 whitespace-nowrap">
                     {formatDate(topup.created_at)}
@@ -240,6 +284,16 @@ export const PaymentAndUsageHistoryTabCard = () => {
           </table>
         </div>
 
+        <Pagination
+          page={page}
+          pageCount={pageCount}
+          totalItems={data.topups.length}
+          pageSize={PAGE_SIZE}
+          itemLabel="payments"
+          onChange={setPage}
+        />
+
+        {/* Totals stay across every top-up, not just the visible page. */}
         <div className="mt-5 pt-5 border-t border-slate-200 dark:border-slate-700/70 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700/60 px-4 py-3">
             <p className="text-xs uppercase tracking-wide text-slate-400 dark:text-slate-500">
@@ -268,8 +322,11 @@ export const PaymentAndUsageHistoryTabCard = () => {
     );
   };
 
-  const renderUsageTab = (data: UsageHistoryResponse) => (
-    <>
+  const renderUsageTab = (data: UsageHistoryResponse) => {
+    const { page, pageCount, pageItems: visible, setPage } = usagePagination;
+
+    return (
+      <>
       <div className="rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700/60 p-5">
         <div className="flex items-start justify-between gap-4 pb-4 border-b border-slate-200/70 dark:border-slate-700/50">
           <div>
@@ -322,7 +379,7 @@ export const PaymentAndUsageHistoryTabCard = () => {
           </div>
 
           <ul className="mt-1">
-            {data.projects.map((record) => (
+            {visible.map((record) => (
               <li
                 key={record.project_id}
                 onMouseEnter={(e) => openPopover(record, e.currentTarget)}
@@ -367,10 +424,20 @@ export const PaymentAndUsageHistoryTabCard = () => {
               </li>
             ))}
           </ul>
+
+          <Pagination
+            page={page}
+            pageCount={pageCount}
+            totalItems={data.projects.length}
+            pageSize={PAGE_SIZE}
+            itemLabel="projects"
+            onChange={setPage}
+          />
         </div>
       )}
-    </>
-  );
+      </>
+    );
+  };
 
   return (
     <>
@@ -398,9 +465,7 @@ export const PaymentAndUsageHistoryTabCard = () => {
 
         <div className="p-5 sm:p-6">
           {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
-            </div>
+            <HistorySkeleton />
           ) : error ? (
             <div className="py-12 flex flex-col items-center gap-3 text-center">
               <p className="text-sm text-red-600 dark:text-red-400">{error}</p>

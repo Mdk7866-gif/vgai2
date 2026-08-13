@@ -17,7 +17,7 @@ interface NavbarProps {
 
 export const Navbar = ({ onMenuClick }: NavbarProps) => {
   const { theme, toggleTheme } = useTheme();
-  const { user, signOut, openLoginModal } = useAuth();
+  const { user, signOut, openLoginModal, loading: authLoading } = useAuth();
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [avatarFailed, setAvatarFailed] = useState(false);
@@ -42,8 +42,9 @@ export const Navbar = ({ onMenuClick }: NavbarProps) => {
   return (
     <nav className="h-16 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md flex items-center justify-between px-4 md:px-6 sticky top-0 z-30 shadow-sm shadow-slate-100/50 dark:shadow-slate-950/20">
       <div className="flex items-center gap-3 md:hidden">
-        <button 
+        <button
           onClick={onMenuClick}
+          aria-label="Open menu"
           className="p-2 -ml-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
         >
           <Menu className="w-5 h-5" />
@@ -70,7 +71,18 @@ export const Navbar = ({ onMenuClick }: NavbarProps) => {
           )}
         </button>
 
-        {!user ? (
+        {authLoading ? (
+          /* AuthContext's initial getSession() hasn't resolved yet — `user`
+             being null right now doesn't mean logged out, it means "don't
+             know yet." Showing "Login" here (then swapping to the avatar a
+             moment later on a hard refresh) is exactly the flash this avoids;
+             matches the avatar button's own size so nothing shifts once the
+             real state renders. */
+          <div className="ml-2 flex items-center gap-2 animate-pulse" aria-hidden="true">
+            <div className="hidden sm:block h-7 w-16 rounded-full bg-slate-100 dark:bg-slate-800" />
+            <div className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-slate-100 dark:bg-slate-800" />
+          </div>
+        ) : !user ? (
           <button
             onClick={openLoginModal}
             className="ml-2 flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-sm transition-all active:scale-95 cursor-pointer"

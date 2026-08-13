@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Loader2, LogIn, Plus, User as UserIcon } from "lucide-react";
+import { LogIn, Plus, User as UserIcon } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useCreditBalance } from "@/context/CreditBalanceContext";
 import { authFetch } from "@/lib/api";
@@ -13,7 +13,7 @@ import CreditCoinIcon from "@/components/CreditCoinIcon";
 import PaymentAndUsageHistoryTabCard from "@/components/profile/PaymentAndUsageHistoryTabCard";
 
 export default function ProfilePage() {
-  const { user, requireAuth } = useAuth();
+  const { user, requireAuth, loading: authLoading } = useAuth();
   const { setBalance: setNavbarBalance } = useCreditBalance();
 
   const [profile, setProfile] = useState<User | null>(null);
@@ -161,7 +161,7 @@ export default function ProfilePage() {
         </p>
       </div>
 
-      {!user ? (
+      {!authLoading && !user ? (
         <div className="flex flex-col items-center justify-center text-center gap-3 py-20 bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl">
           <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center">
             <UserIcon className="w-6 h-6" />
@@ -178,9 +178,18 @@ export default function ProfilePage() {
             Login
           </button>
         </div>
-      ) : loading || !profile ? (
-        <div className="flex items-center justify-center py-24">
-          <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+      ) : !user || loading || !profile ? (
+        /* Same wrapper classes and 80px avatar as the real card below, so the
+           two render at an identical height and the swap shifts nothing. Also
+           covers the auth-loading window, which would otherwise flash the
+           logged-out prompt before the session resolves. */
+        <div className="bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center gap-6 animate-pulse">
+          <div className="w-20 h-20 rounded-full bg-slate-100 dark:bg-slate-700/50 flex-shrink-0" />
+          <div className="flex-1 min-w-0 w-full flex flex-col gap-2.5">
+            <div className="h-5 w-40 max-w-full rounded bg-slate-100 dark:bg-slate-700/50" />
+            <div className="h-4 w-56 max-w-full rounded bg-slate-100 dark:bg-slate-700/50" />
+          </div>
+          <div className="h-[65px] w-full sm:w-[282px] rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700/80 flex-shrink-0" />
         </div>
       ) : (
         <div className="bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center gap-6">

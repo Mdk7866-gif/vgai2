@@ -24,9 +24,12 @@ import GeneratedScriptFeedbackPopUp from "@/components/generatescript/GeneratedS
 import ShowScriptTemplatesCardPopUp from "@/components/generatescript/ShowScriptTemplatesCardPopUp";
 import AlertMessagePopUp from "@/components/AlertMessagePopUp";
 import ConformationMessagePopUp from "@/components/ConformationMessagePopUp";
+import Pagination from "@/components/Pagination";
+import { usePagination } from "@/hooks/usePagination";
 
 const OTHER_CATEGORY = "Other";
 const CATEGORY_SELECT_OPTIONS = [...CATEGORY_OPTIONS, OTHER_CATEGORY];
+const GENERATED_SCRIPTS_PAGE_SIZE = 10;
 
 // Remembers which script_template the user is currently working in, across
 // page reloads, so their researched topics/form state don't just vanish.
@@ -43,7 +46,7 @@ const inputClass =
 const labelClass = "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5";
 
 export default function GenerateScriptPage() {
-  const { user, requireAuth } = useAuth();
+  const { user, requireAuth, loading: authLoading } = useAuth();
   const router = useRouter();
   const { createProject } = useProjects();
 
@@ -169,6 +172,22 @@ export default function GenerateScriptPage() {
   );
   const insufficientForResearch = balance !== null && balance < TOPIC_RESEARCH_CREDIT_COST;
 
+  // Cards are numbered "Script #N" counting up from the earliest generated
+  // (README behavior), which requires each card's position in the *full*
+  // array — pairing before paginating keeps that number stable across pages,
+  // since a plain slice would otherwise lose the original index.
+  const numberedScripts = useMemo(
+    () => generatedScripts.map((script, i) => ({ script, number: generatedScripts.length - i })),
+    [generatedScripts]
+  );
+  const {
+    page: scriptsPage,
+    setPage: setScriptsPage,
+    pageCount: scriptsPageCount,
+    pageItems: visibleScripts,
+    totalItems: totalScripts,
+  } = usePagination(numberedScripts, GENERATED_SCRIPTS_PAGE_SIZE);
+
   const handleResearch = async () => {
     if (!requireAuth()) return;
     if (!formValid) {
@@ -247,6 +266,11 @@ export default function GenerateScriptPage() {
         script_word_length: activeWordLength ?? scriptWordLength,
       };
       setGeneratedScripts((prev) => [newScript, ...prev]);
+      // A freshly generated script always lands at the front of the full list
+      // (numbered highest, per the "counts up from earliest" scheme above), so
+      // jump back to page 1 to actually show it rather than leaving the user on
+      // whatever page they were paginated to.
+      setScriptsPage(1);
       setBalance(data.credits_remaining);
     } catch (err) {
       setAlert({ title: "Script generation failed", message: err instanceof Error ? err.message : "Something went wrong." });
@@ -419,7 +443,7 @@ export default function GenerateScriptPage() {
         </div>
       </div>
 
-      {!user ? (
+      {!authLoading && !user ? (
         <div className="flex flex-col items-center justify-center text-center gap-3 py-20 bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl">
           <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center">
             <FileText className="w-6 h-6" />
@@ -684,11 +708,11 @@ export default function GenerateScriptPage() {
             <div>
               <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Generated Scripts</h2>
               <div className="flex flex-col gap-5">
-                {generatedScripts.map((generated, i) => (
+                {visibleScripts.map(({ script, number }) => (
                   <GeneratedScriptCard
-                    key={generated.id}
-                    generated={generated}
-                    index={generatedScripts.length - i}
+                    key={script.id}
+                    generated={script}
+                    index={number}
                     onImport={handleImport}
                     onImprovise={handleImprovise}
                     onDelete={handleDeleteGeneratedScript}
@@ -696,6 +720,14 @@ export default function GenerateScriptPage() {
                   />
                 ))}
               </div>
+              <Pagination
+                page={scriptsPage}
+                pageCount={scriptsPageCount}
+                totalItems={totalScripts}
+                pageSize={GENERATED_SCRIPTS_PAGE_SIZE}
+                itemLabel="generated scripts"
+                onChange={setScriptsPage}
+              />
             </div>
           )}
         </>

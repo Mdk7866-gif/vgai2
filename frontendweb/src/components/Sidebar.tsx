@@ -32,7 +32,7 @@ const libraryItems = [
 export const Sidebar = ({ onClose }: SidebarProps) => {
     const pathname = usePathname();
     const router = useRouter();
-    const { user, openLoginModal, requireAuth } = useAuth();
+    const { user, openLoginModal, requireAuth, loading: authLoading } = useAuth();
     const { projects, loading, createProject, renameProject, removeProject, toggleLike } = useProjects();
 
     const [newProjectName, setNewProjectName] = useState("");
@@ -142,6 +142,7 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
                 <Logo />
                 <button
                     onClick={onClose}
+                    aria-label="Close menu"
                     className="md:hidden p-2 -mr-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
                 >
                     <X className="w-5 h-5" />
@@ -182,7 +183,21 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
                         Project Folders
                     </div>
 
-                    {!user ? (
+                    {authLoading ? (
+                        /* AuthContext's initial getSession() hasn't resolved yet — `user`
+                           being null right now doesn't mean logged out, it means "don't
+                           know yet." Showing the login prompt here (then swapping to the
+                           real project list a moment later on a hard refresh) is exactly
+                           the flash this avoids. */
+                        <div className="flex flex-col gap-1.5 px-1" aria-hidden="true">
+                            {[0, 1, 2].map((i) => (
+                                <div
+                                    key={i}
+                                    className="h-9 rounded-xl bg-slate-100 dark:bg-slate-800/70 animate-pulse"
+                                />
+                            ))}
+                        </div>
+                    ) : !user ? (
                         <div className="mx-1 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 p-4 text-center">
                             <p className="text-[13px] text-slate-500 dark:text-slate-400 leading-relaxed">
                                 Login first to see or create your projects.
@@ -231,6 +246,7 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
                                                             }}
                                                             onBlur={() => saveRename(project.id)}
                                                             disabled={renaming}
+                                                            aria-label="Project name"
                                                             className="flex-1 min-w-0 px-2 py-1 text-[13px] rounded-lg border border-indigo-300 dark:border-indigo-500/50 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
                                                         />
                                                         <button
@@ -291,6 +307,7 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
                                     onChange={(e) => setNewProjectName(e.target.value)}
                                     onKeyDown={(e) => e.key === "Enter" && handleCreate()}
                                     placeholder="New project name"
+                                    aria-label="New project name"
                                     className="flex-1 min-w-0 px-3 py-2 text-[13px] rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 transition-all"
                                 />
                                 <button

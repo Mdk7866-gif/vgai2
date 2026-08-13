@@ -116,6 +116,7 @@ export const ChooseCharacterPopUp = ({
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Characters</h2>
           <button
             onClick={onClose}
+            aria-label="Close"
             className="p-1.5 rounded-lg text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/70 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />

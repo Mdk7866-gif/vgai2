@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -67,6 +67,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     await supabase.auth.signOut();
   };
 
+  // Supabase hands out a brand-new `session` (and so a new `session.user`
+  // reference) on every token refresh and window focus, even when the signed-in
+  // user hasn't actually changed. A lot of code across the app keys a
+  // useEffect's dependency array on this `user` object expecting it to only
+  // change on a real sign-in/out (ProjectsContext, CreditBalanceContext, the
+  // characters/style_templates/generate_script pages) — without this, every one
+  // of those re-fires (and re-fetches from the backend) on a plain token
+  // refresh. Memoizing by id keeps `user`'s identity stable across refreshes
+  // that don't change who's signed in.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const user = useMemo(() => session?.user ?? null, [session?.user?.id]);
+
   const openLoginModal = () => setLoginModalOpen(true);
   const closeLoginModal = () => setLoginModalOpen(false);
 
@@ -79,7 +91,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   return (
     <AuthContext.Provider
       value={{
-        user: session?.user ?? null,
+        user,
         session,
         loading,
         signInWithGoogle,

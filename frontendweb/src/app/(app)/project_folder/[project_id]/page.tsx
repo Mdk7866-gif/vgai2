@@ -546,9 +546,39 @@ export default function ProjectFolderPage() {
   };
 
   if (loading) {
+    // Scene count varies per project, so a pixel-exact skeleton isn't
+    // possible the way it is for the fixed-shape card grids elsewhere — but
+    // the header/script/menu/action-row section above the scene list is the
+    // same fixed height on every project, and reserving that (plus a couple
+    // scene-card-shaped placeholders as a "more is coming" signal) still cuts
+    // out most of the jump a bare centered spinner leaves behind.
     return (
-      <div className="flex items-center justify-center py-24">
-        <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+      <div className="flex flex-col gap-6 pb-16 animate-pulse" aria-hidden="true">
+        <div className="h-8 w-64 max-w-full rounded bg-slate-100 dark:bg-slate-700/40" />
+
+        <div className="flex flex-col lg:flex-row gap-4">
+          <div className="flex-1 min-h-[320px] rounded-2xl bg-slate-100 dark:bg-slate-700/40" />
+          <div className="lg:w-64 flex-shrink-0 flex flex-col gap-2.5">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="h-[52px] rounded-xl bg-slate-100 dark:bg-slate-700/40" />
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          <div className="h-11 w-56 rounded-xl bg-slate-100 dark:bg-slate-700/40" />
+          <div className="h-11 w-56 rounded-xl bg-slate-100 dark:bg-slate-700/40" />
+        </div>
+
+        {Array.from({ length: 2 }).map((_, index) => (
+          <div
+            key={index}
+            className="rounded-2xl border border-slate-200 dark:border-slate-700/80 overflow-hidden"
+          >
+            <div className="h-11 border-b border-slate-100 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/60" />
+            <div className="p-4 h-64 bg-slate-100 dark:bg-slate-700/40" />
+          </div>
+        ))}
       </div>
     );
   }
@@ -577,6 +607,7 @@ export default function ProjectFolderPage() {
               }}
               onBlur={saveName}
               disabled={savingName}
+              aria-label="Project name"
               className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-white bg-transparent border-b-2 border-indigo-400 focus:outline-none"
             />
             {savingName && <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />}

@@ -41,7 +41,7 @@ const toListItem = (p: ProjectRow): ProjectListItem => ({
 const ProjectsContext = createContext<ProjectsContextType | undefined>(undefined);
 
 export const ProjectsProvider = ({ children }: { children: React.ReactNode }) => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [projects, setProjects] = useState<ProjectListItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -58,6 +58,13 @@ export const ProjectsProvider = ({ children }: { children: React.ReactNode }) =>
   }, []);
 
   useEffect(() => {
+    // AuthContext's initial getSession() hasn't resolved yet — `user` being
+    // null right now doesn't mean logged out, it means "don't know yet." Bail
+    // without touching `projects`/`loading`, so Sidebar/`/liked_projects` stay
+    // on their loading state on a hard refresh instead of flashing the
+    // logged-out view and then popping the real projects in a moment later.
+    if (authLoading) return;
+
     if (!user) {
       const timer = setTimeout(() => {
         setProjects([]);
@@ -81,7 +88,7 @@ export const ProjectsProvider = ({ children }: { children: React.ReactNode }) =>
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user, authLoading]);
 
   const createProject = useCallback(async (name: string, script?: string) => {
     const res = await authFetch("/projects/create", {

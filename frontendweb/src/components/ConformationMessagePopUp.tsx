@@ -83,6 +83,7 @@ const ConformationMessagePopUp = ({
           <button
             onClick={() => !confirming && onClose()}
             disabled={confirming}
+            aria-label="Close"
             className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/70 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <X className="w-4 h-4 sm:w-5 sm:h-5" />

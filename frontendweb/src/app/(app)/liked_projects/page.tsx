@@ -1,14 +1,19 @@
 "use client";
 
 import React, { useState } from "react";
-import { Heart, LogIn, Loader2 } from "lucide-react";
+import { Heart, LogIn } from "lucide-react";
+import CardGridSkeleton from "@/components/CardGridSkeleton";
+import Pagination from "@/components/Pagination";
+import { usePagination } from "@/hooks/usePagination";
 import { useAuth } from "@/context/AuthContext";
 import { useProjects, type ProjectListItem } from "@/context/ProjectsContext";
 import LikedProjectsCard from "@/components/liked_projects/LikedProjectsCard";
 import AlertMessagePopUp from "@/components/AlertMessagePopUp";
 
+const PAGE_SIZE = 10;
+
 export default function LikedProjectsPage() {
-  const { user, requireAuth } = useAuth();
+  const { user, requireAuth, loading: authLoading } = useAuth();
   const { projects, loading, toggleLike } = useProjects();
 
   const [unlikingId, setUnlikingId] = useState<string | null>(null);
@@ -29,6 +34,7 @@ export default function LikedProjectsPage() {
   };
 
   const likedProjects = projects.filter((p) => p.is_liked);
+  const { page, setPage, pageCount, pageItems, totalItems } = usePagination(likedProjects, PAGE_SIZE);
 
   return (
     <div className="flex flex-col gap-8 pb-16 animate-in fade-in duration-500">
@@ -41,7 +47,7 @@ export default function LikedProjectsPage() {
         </p>
       </div>
 
-      {!user ? (
+      {!authLoading && !user ? (
         <div className="flex flex-col items-center justify-center text-center gap-3 py-20 bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl">
           <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center">
             <Heart className="w-6 h-6" />
@@ -59,9 +65,11 @@ export default function LikedProjectsPage() {
           </button>
         </div>
       ) : loading ? (
-        <div className="flex items-center justify-center py-24">
-          <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
-        </div>
+        <CardGridSkeleton
+          variant="media"
+          gridClassName="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"
+          count={PAGE_SIZE}
+        />
       ) : likedProjects.length === 0 ? (
         <div className="flex flex-col items-center justify-center text-center gap-3 py-20 bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl">
           <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center">
@@ -73,15 +81,25 @@ export default function LikedProjectsPage() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {likedProjects.map((project) => (
-            <LikedProjectsCard
-              key={project.id}
-              project={project}
-              onUnlike={handleUnlike}
-              unliking={unlikingId === project.id}
-            />
-          ))}
+        <div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            {pageItems.map((project) => (
+              <LikedProjectsCard
+                key={project.id}
+                project={project}
+                onUnlike={handleUnlike}
+                unliking={unlikingId === project.id}
+              />
+            ))}
+          </div>
+          <Pagination
+            page={page}
+            pageCount={pageCount}
+            totalItems={totalItems}
+            pageSize={PAGE_SIZE}
+            itemLabel="liked projects"
+            onChange={setPage}
+          />
         </div>
       )}
 

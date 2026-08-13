@@ -24,7 +24,7 @@ interface CreditBalanceContextType {
 const CreditBalanceContext = createContext<CreditBalanceContextType | undefined>(undefined);
 
 export const CreditBalanceProvider = ({ children }: { children: React.ReactNode }) => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [balance, setBalanceState] = useState<number | null>(null);
 
   const refreshBalance = useCallback(async (): Promise<number | null> => {
@@ -39,6 +39,12 @@ export const CreditBalanceProvider = ({ children }: { children: React.ReactNode 
   }, []);
 
   useEffect(() => {
+    // AuthContext's initial getSession() hasn't resolved yet — `user` being
+    // null right now doesn't mean logged out, it means "don't know yet." Bail
+    // without touching `balance`, so the Navbar pill doesn't flash to hidden
+    // and then pop back in once the real session resolves on a hard refresh.
+    if (authLoading) return;
+
     if (!user) {
       const timer = setTimeout(() => setBalanceState(null), 0);
       return () => clearTimeout(timer);
@@ -56,7 +62,7 @@ export const CreditBalanceProvider = ({ children }: { children: React.ReactNode 
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user, authLoading]);
 
   const setBalance = useCallback((value: number | null) => setBalanceState(value), []);
 

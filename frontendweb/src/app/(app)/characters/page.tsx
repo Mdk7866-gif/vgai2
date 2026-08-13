@@ -1,7 +1,10 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Plus, Loader2, Users, LogIn, Sparkles } from "lucide-react";
+import { Plus, Users, LogIn, Sparkles } from "lucide-react";
+import CardGridSkeleton from "@/components/CardGridSkeleton";
+import Pagination from "@/components/Pagination";
+import { usePagination } from "@/hooks/usePagination";
 import { useAuth } from "@/context/AuthContext";
 import { authFetch } from "@/lib/api";
 import type { Character } from "@/types/character";
@@ -13,11 +16,14 @@ import GenerateCharacterSheetPopUp from "@/components/characters/GenerateCharact
 import ConformationMessagePopUp from "@/components/ConformationMessagePopUp";
 import AlertMessagePopUp from "@/components/AlertMessagePopUp";
 
+const PAGE_SIZE = 10;
+
 export default function CharactersPage() {
-  const { user, requireAuth } = useAuth();
+  const { user, requireAuth, loading: authLoading } = useAuth();
 
   const [characters, setCharacters] = useState<Character[]>([]);
   const [loading, setLoading] = useState(true);
+  const { page, setPage, pageCount, pageItems, totalItems } = usePagination(characters, PAGE_SIZE);
 
   const [popupOpen, setPopupOpen] = useState(false);
   const [popupMode, setPopupMode] = useState<"create" | "edit">("create");
@@ -34,6 +40,12 @@ export default function CharactersPage() {
   const [alert, setAlert] = useState<{ title: string; message: string } | null>(null);
 
   useEffect(() => {
+    // AuthContext's initial getSession() hasn't resolved yet — `user` being
+    // null right now doesn't mean logged out, it means "don't know yet." Bail
+    // without touching `characters`/`loading` so the page stays on its initial
+    // loading state instead of flashing the logged-out view.
+    if (authLoading) return;
+
     let cancelled = false;
 
     if (!user) {
@@ -67,7 +79,7 @@ export default function CharactersPage() {
       cancelled = true;
       clearTimeout(startTimer);
     };
-  }, [user]);
+  }, [user, authLoading]);
 
   const handleAddClick = () => {
     if (!requireAuth()) return;
@@ -85,6 +97,7 @@ export default function CharactersPage() {
 
   const handleGenerated = (character: Character) => {
     setCharacters((prev) => [character, ...prev]);
+    setPage(1);
     setGeneratePopupOpen(false);
   };
 
@@ -156,6 +169,9 @@ export default function CharactersPage() {
         const res = await authFetch("/characters/create", { method: "POST", body: formData });
         const created: Character = await res.json();
         setCharacters((prev) => [created, ...prev]);
+        // New items always land at the front — jump back to page 1 so the one
+        // just created is actually visible instead of staying wherever paginated.
+        setPage(1);
       } else if (editingCharacter) {
         const res = await authFetch(`/characters/update/${editingCharacter.id}`, {
           method: "PUT",
@@ -199,7 +215,7 @@ export default function CharactersPage() {
         </div>
       </div>
 
-      {!user ? (
+      {!authLoading && !user ? (
         <div className="flex flex-col items-center justify-center text-center gap-3 py-20 bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl">
           <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center">
             <Users className="w-6 h-6" />
@@ -217,9 +233,11 @@ export default function CharactersPage() {
           </button>
         </div>
       ) : loading ? (
-        <div className="flex items-center justify-center py-24">
-          <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
-        </div>
+        <CardGridSkeleton
+          variant="media"
+          gridClassName="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"
+          count={PAGE_SIZE}
+        />
       ) : characters.length === 0 ? (
         <div className="flex flex-col items-center justify-center text-center gap-3 py-20 bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl">
           <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center">
@@ -231,17 +249,27 @@ export default function CharactersPage() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {characters.map((character) => (
-            <CharacterCard
-              key={character.id}
-              character={character}
-              onEdit={handleEditClick}
-              onDelete={handleDeleteClick}
-              onToggleDefault={handleToggleDefault}
-              togglingDefault={togglingDefaultId === character.id}
-            />
-          ))}
+        <div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            {pageItems.map((character) => (
+              <CharacterCard
+                key={character.id}
+                character={character}
+                onEdit={handleEditClick}
+                onDelete={handleDeleteClick}
+                onToggleDefault={handleToggleDefault}
+                togglingDefault={togglingDefaultId === character.id}
+              />
+            ))}
+          </div>
+          <Pagination
+            page={page}
+            pageCount={pageCount}
+            totalItems={totalItems}
+            pageSize={PAGE_SIZE}
+            itemLabel="characters"
+            onChange={setPage}
+          />
         </div>
       )}
 
