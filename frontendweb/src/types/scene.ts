@@ -59,3 +59,11 @@ export interface GenerateImagesManualResponse {
   credits_spent: number;
   credits_remaining: number;
 }
+
+/** Charges for manual scene-splitting the instant the trigger button is
+ * clicked, before GenerateScenesManualPopUp.tsx opens — see
+ * freescripttoscenesplitter.py's generate_scenes_manual_charge. */
+export interface GenerateScenesManualChargeResponse {
+  credits_spent: number;
+  credits_remaining: number;
+}

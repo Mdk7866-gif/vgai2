@@ -96,7 +96,7 @@ export const GenerateScenesManualPopUp = ({
   projectCharacters,
   onGenerated,
 }: GenerateScenesManualPopUpProps) => {
-  const { reserveBalance, setBalance, refreshBalance } = useCreditBalance();
+  const { setBalance, refreshBalance } = useCreditBalance();
 
   const [rawResponse, setRawResponse] = useState("");
   const [generating, setGenerating] = useState(false);
@@ -143,15 +143,11 @@ export const GenerateScenesManualPopUp = ({
     if (!rawResponse.trim()) return;
     setError(null);
 
-    const liveBalance = await refreshBalance();
-    if (liveBalance !== null && liveBalance < cost) {
-      setError(`Splitting this script into scenes costs ${cost} credits, you have ${liveBalance}.`);
-      return;
-    }
-
+    // Credits were already charged the instant this popup was opened (see
+    // page.tsx's handleOpenManualScenes) — this step only parses/persists the
+    // pasted response, so there's no balance check or reserve here. A malformed
+    // paste can be fixed and retried for free.
     setGenerating(true);
-    // Mirrors the backend reserving the cost before it does any work.
-    reserveBalance(cost);
     try {
       const res = await authFetch("/projects/scenes/generate_manual", {
         method: "POST",
@@ -195,6 +191,16 @@ export const GenerateScenesManualPopUp = ({
         </div>
 
         <div className="px-6 py-5 overflow-y-auto flex flex-col gap-5">
+          {cost > 0 && (
+            <div className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/30 text-[12.5px] text-emerald-700 dark:text-emerald-400">
+              <CreditCoinIcon className="w-3.5 h-3.5 flex-shrink-0" />
+              <span>
+                <strong>{cost} credits</strong> were already charged when you opened this — pasting Gemini&apos;s
+                response back below is free, including retries.
+              </span>
+            </div>
+          )}
+
           <ol className="flex flex-col gap-1.5 text-[13px] text-slate-600 dark:text-slate-300 list-decimal list-inside">
             <li>Copy the prompt below.</li>
             <li>
@@ -329,12 +335,6 @@ export const GenerateScenesManualPopUp = ({
           >
             {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
             Generate
-            {cost > 0 && (
-              <span className="flex items-center gap-1 pl-2 ml-1 border-l border-white/30 text-white/90">
-                <CreditCoinIcon className="w-3.5 h-3.5" />
-                {cost}
-              </span>
-            )}
           </button>
         </div>
       </div>

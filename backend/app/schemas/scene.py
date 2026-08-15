@@ -63,6 +63,21 @@ class GenerateScenesAutomaticRequest(BaseModel):
     project_id: str
 
 
+class GenerateScenesManualChargeRequest(BaseModel):
+    project_id: str
+
+
+class GenerateScenesManualChargeResponse(BaseModel):
+    """Charges for the manual scene-split flow the instant the user clicks
+    "Generate Scenes (Manual)" — before GenerateScenesManualPopUp.tsx even opens
+    and reveals the copy-paste prompt. See freescripttoscenesplitter.py for why:
+    once a user can see/copy the prompt they could run it through gemini.com and
+    use the split outside vgAI without ever pasting a result back."""
+
+    credits_spent: float
+    credits_remaining: float
+
+
 class GenerateScenesManualRequest(BaseModel):
     project_id: str
     # The structured JSON the user pasted back after running our prompt through

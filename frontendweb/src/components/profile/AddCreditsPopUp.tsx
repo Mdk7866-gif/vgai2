@@ -12,12 +12,18 @@ interface AddCreditsPopUpProps {
   submitting?: boolean;
 }
 
-// Pricing: 100 credits = $1 (see README §2). The user enters a USD amount —
-// the actual charge is converted to INR by the backend (see PAISE_PER_CREDIT /
-// USD_TO_INR_RATE in app/routes/payments/crud.py — keep INR_PER_USD below in
-// sync with that rate; it's only used here to preview the charge).
+// Pricing: 100 credits = $1 (see README §2). The user enters a USD amount, which
+// buys credits at CREDITS_PER_USD; Razorpay is then charged in INR, priced per
+// *credit* rather than per dollar — mirroring how the backend actually computes
+// it (`amount_paise = credits * PAISE_PER_CREDIT` in app/routes/payments/crud.py).
+// Deriving the preview from `credits` the same way the backend does is what keeps
+// this readout equal to the amount Razorpay's modal shows; computing it from the
+// USD figure with a separate rate is exactly how the two drifted apart before
+// (a 97 here vs the backend's 100 previewed $5 as ₹485 against a real ₹500 charge).
+// Keep PAISE_PER_CREDIT numerically in sync with the backend constant of the
+// same name — nothing enforces it automatically.
 const CREDITS_PER_USD = 100;
-const INR_PER_USD = 97;
+const PAISE_PER_CREDIT = 100;
 const PRESET_USD = [5, 10, 25, 50];
 const MIN_CREDITS = 10;
 const MAX_CREDITS = 50000;
@@ -61,7 +67,9 @@ export const AddCreditsPopUp = ({
   const amountValue = parseFloat(amountInput);
   const hasValidAmount = Number.isFinite(amountValue) && amountInput.trim() !== "";
   const credits = hasValidAmount ? Math.round(amountValue * CREDITS_PER_USD) : 0;
-  const inrAmount = hasValidAmount ? Math.round(amountValue * INR_PER_USD) : 0;
+  // Same arithmetic the backend runs on the credits it's sent, so this preview
+  // always matches what Razorpay's modal will show.
+  const inrAmount = (credits * PAISE_PER_CREDIT) / 100;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

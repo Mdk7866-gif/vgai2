@@ -31,7 +31,12 @@ import ManualImageGenerationPromptCopyPopUp from "@/components/projectfolder/Man
 import SceneCard from "@/components/projectfolder/SceneCard";
 import VideoMetaDataCard from "@/components/projectfolder/VideoMetaDataCard";
 import type { Project, ProjectCharacter } from "@/types/project";
-import type { Scene, GenerateScenesResponse, GenerateImagesManualResponse } from "@/types/scene";
+import type {
+  Scene,
+  GenerateScenesResponse,
+  GenerateImagesManualResponse,
+  GenerateScenesManualChargeResponse,
+} from "@/types/scene";
 
 const WORDS_PER_CREDIT_AUTO = 10;
 // Mirrors app/routes/project/scenesplitcommon.py's WORDS_PER_CREDIT_MANUAL —
@@ -101,6 +106,7 @@ export default function ProjectFolderPage() {
   const [manualImagesPopupOpen, setManualImagesPopupOpen] = useState(false);
 
   const [generatingScenes, setGeneratingScenes] = useState(false);
+  const [chargingManualScenes, setChargingManualScenes] = useState(false);
   const [chargingManualImages, setChargingManualImages] = useState(false);
   const [alert, setAlert] = useState<{
     title: string;
@@ -315,6 +321,42 @@ export default function ProjectFolderPage() {
           }
         : prev
     );
+  };
+
+  const handleOpenManualScenes = async () => {
+    if (!project || !requireAuth()) return;
+    const liveBalance = await refreshBalance();
+    if (liveBalance !== null && liveBalance < manualCost) {
+      setAlert({
+        title: "Not enough credits",
+        message: `Splitting this script into scenes (manual) costs ${manualCost} credits, you have ${liveBalance}.`,
+      });
+      return;
+    }
+
+    setChargingManualScenes(true);
+    // Charged the instant this button is clicked, before the popup even shows
+    // the copy-paste prompt — see generate_scenes_manual_charge's docstring for
+    // why this can't wait until the user pastes a result back.
+    reserveBalance(manualCost);
+    try {
+      const res = await authFetch("/projects/scenes/generate_manual_charge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ project_id: project.id }),
+      });
+      const data: GenerateScenesManualChargeResponse = await res.json();
+      setBalance(data.credits_remaining);
+      setManualScenesPopupOpen(true);
+    } catch (err) {
+      setAlert({
+        title: "Failed to charge for manual scene generation",
+        message: err instanceof Error ? err.message : "Something went wrong.",
+      });
+      void refreshBalance();
+    } finally {
+      setChargingManualScenes(false);
+    }
   };
 
   const handleOpenManualImages = async () => {
@@ -705,11 +747,11 @@ export default function ProjectFolderPage() {
         </button>
 
         <button
-          onClick={() => requireAuth() && setManualScenesPopupOpen(true)}
-          disabled={!canGenerateAutomatic}
+          onClick={handleOpenManualScenes}
+          disabled={!canGenerateAutomatic || chargingManualScenes}
           className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 border border-emerald-100 dark:border-emerald-500/30 rounded-xl transition-all active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <ClipboardList className="w-4 h-4" />
+          {chargingManualScenes ? <Loader2 className="w-4 h-4 animate-spin" /> : <ClipboardList className="w-4 h-4" />}
           Generate Scenes (Manual)
           {wordCount > 0 && (
             <span className="flex items-center gap-1 pl-2 ml-1 border-l border-emerald-200 dark:border-emerald-500/30">
