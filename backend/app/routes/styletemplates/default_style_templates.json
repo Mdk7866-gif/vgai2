@@ -23,8 +23,8 @@
     "youtube_title_description_tags_prompt": "Write YouTube packaging for an anime-styled narrated story video in an emotive, slightly dramatic tone. Title: under 60 characters, built around the emotional turn or the central question of the story, not a generic topic label. No all-caps, no emoji. Description: plain text only, no markdown symbols, no timestamps. Open with two or three sentences setting up the character and the conflict so a scroller grasps the stakes at once. Follow with one short paragraph on the theme or lesson. Close with a single subscribe line. Tags: 15 to 20 lowercase tags covering the story theme, genre and broad terms such as anime story, animated story, narration. No hashtags.",
     "youtube_thumbnail_image_prompt": "Generate a bright, high-saturation YouTube thumbnail in the same anime cel-shaded style as the video. One character in close crop filling most of the frame, positioned off-centre, with a heightened readable expression — shock, tears, resolve or fury — pushed further than any scene image. Strong key light on the face with vivid rim lighting, hard shading bands, and an overall bright vivid tone rather than a dark one. Simplify the background to a single bold colour field in a contrasting hue, with subtle speed lines or a radial glow behind the head. Leave clean negative space on one side for a text overlay added later. No readable text, no lettering, no numbers, no speech bubbles, no logos, no busy detail.",
     "scene_density": "medium",
-    "image_aspect_ratio": "9:16",
-    "video_aspect_ratio": "9:16",
+    "image_aspect_ratio": "16:9",
+    "video_aspect_ratio": "16:9",
     "best_for": "Drama, mythology, recaps",
     "demo_image_url": "https://res.cloudinary.com/bgf3edbn/image/upload/v1786870405/Screenshot_2026-08-16_142305.png"
   },
@@ -40,7 +40,7 @@
     "image_aspect_ratio": "16:9",
     "video_aspect_ratio": "16:9",
     "best_for": "Documentary, true crime",
-    "demo_image_url": null
+    "demo_image_url": "https://res.cloudinary.com/bgf3edbn/image/upload/v1786887833/cinematic_photoreal.png"
   },
   {
     "slug": "flat-vector-infographic",
@@ -110,7 +110,7 @@
     "image_aspect_ratio": "16:9",
     "video_aspect_ratio": "16:9",
     "best_for": "Nostalgia, gaming, comedy",
-    "demo_image_url": null
+    "demo_image_url": "https://res.cloudinary.com/bgf3edbn/image/upload/v1786887853/Vintage_Archival_Documentary.png"
   },
   {
     "slug": "claymation-stop-motion",
@@ -138,7 +138,7 @@
     "image_aspect_ratio": "16:9",
     "video_aspect_ratio": "16:9",
     "best_for": "Systems, business, infrastructure",
-    "demo_image_url": null
+    "demo_image_url": "https://res.cloudinary.com/bgf3edbn/image/upload/v1786887840/Isometric_Miniature_World.png"
   },
   {
     "slug": "vintage-archival-documentary",
