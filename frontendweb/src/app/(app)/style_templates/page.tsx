@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Plus, Palette, LogIn, Sparkles, Library } from "lucide-react";
 import CardGridSkeleton from "@/components/CardGridSkeleton";
 import Pagination from "@/components/Pagination";
@@ -18,6 +18,33 @@ import ConformationMessagePopUp from "@/components/ConformationMessagePopUp";
 import AlertMessagePopUp from "@/components/AlertMessagePopUp";
 
 const PAGE_SIZE = 10;
+
+// The exact fields defaults.py's import_default_style_template() copies
+// verbatim from a catalog entry into the new row (see _IMPORTABLE_FIELDS in
+// app/routes/styletemplates/defaults.py) — a template counts as "imported
+// from this catalog entry" if every one of these still matches, which is how
+// the "Added" badge survives a page reload without any separate DB column:
+// nothing needs to be persisted, it's re-derived from data already on both
+// sides. It stops matching (and the card reverts to "Add to Library") the
+// moment the user edits the imported copy, since it's then a genuinely
+// different template — which is the correct behavior, not a bug.
+const IMPORT_MATCH_FIELDS = [
+  "name",
+  "description",
+  "image_prompt",
+  "animation_prompt",
+  "youtube_title_description_tags_prompt",
+  "youtube_thumbnail_image_prompt",
+  "scene_density",
+  "image_aspect_ratio",
+  "video_aspect_ratio",
+  "best_for",
+  "demo_image_url",
+] as const;
+
+function matchesDefault(template: StyleTemplate, def: DefaultStyleTemplate): boolean {
+  return IMPORT_MATCH_FIELDS.every((field) => (template[field] ?? null) === (def[field] ?? null));
+}
 
 export default function StyleTemplatesPage() {
   const { user, requireAuth, loading: authLoading } = useAuth();
@@ -38,9 +65,15 @@ export default function StyleTemplatesPage() {
   // Starter catalog — static, public, and independent of auth, so it loads once
   // on mount rather than alongside the user's own templates.
   const [defaults, setDefaults] = useState<DefaultStyleTemplate[]>([]);
+  const [defaultsLoading, setDefaultsLoading] = useState(true);
   const [defaultsPopupOpen, setDefaultsPopupOpen] = useState(false);
   const [importingSlug, setImportingSlug] = useState<string | null>(null);
-  const [importedSlugs, setImportedSlugs] = useState<string[]>([]);
+  // Derived from data, not tracked as its own state — see IMPORT_MATCH_FIELDS
+  // above for why this survives a page reload without a dedicated DB column.
+  const importedSlugs = useMemo(
+    () => defaults.filter((def) => templates.some((t) => matchesDefault(t, def))).map((def) => def.slug),
+    [defaults, templates]
+  );
 
   const [deleteTarget, setDeleteTarget] = useState<StyleTemplate | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -102,7 +135,10 @@ export default function StyleTemplatesPage() {
       // Deliberately silent: the catalog is a nice-to-have next to the user's
       // own library, and an alert here would fire on a page that otherwise
       // loaded fine.
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setDefaultsLoading(false);
+      });
     return () => {
       cancelled = true;
     };
@@ -123,7 +159,6 @@ export default function StyleTemplatesPage() {
         ...(created.is_default ? prev.map((t) => ({ ...t, is_default: false })) : prev),
       ]);
       setPage(1);
-      setImportedSlugs((prev) => (prev.includes(template.slug) ? prev : [...prev, template.slug]));
     } catch (err) {
       setAlert({
         title: "Import failed",
@@ -291,14 +326,32 @@ export default function StyleTemplatesPage() {
           </p>
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto">
-          {defaults.length > 0 && (
-            <button
-              onClick={() => setDefaultsPopupOpen(true)}
-              className="flex items-center gap-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-violet-600 dark:text-violet-400 px-5 py-2.5 rounded-xl font-medium shadow-sm transition-all active:scale-95 flex-1 sm:flex-none justify-center cursor-pointer ring-1 ring-violet-200 dark:ring-violet-500/40"
+          {/* Reserves the same slot/size whether the catalog is still loading,
+              loaded with entries, or (rarely) empty/failed — swapping this in
+              only once `defaults.length > 0` resolves caused every page load
+              to show the header row without this button and then pop it in a
+              moment later, a CLS regression. A skeleton of identical padding/
+              icon/text-width dimensions removes the shift for the common case;
+              the one remaining shift (skeleton → nothing) only happens on the
+              rare empty/failed-fetch outcome. */}
+          {defaultsLoading ? (
+            <div
+              aria-hidden="true"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl flex-1 sm:flex-none justify-center ring-1 ring-slate-200 dark:ring-slate-700 bg-white dark:bg-slate-800"
             >
-              <Library className="w-5 h-5" />
-              <span>Starter Templates</span>
-            </button>
+              <div className="w-5 h-5 rounded bg-slate-200 dark:bg-slate-700 animate-pulse" />
+              <div className="h-4 w-28 rounded bg-slate-200 dark:bg-slate-700 animate-pulse" />
+            </div>
+          ) : (
+            defaults.length > 0 && (
+              <button
+                onClick={() => setDefaultsPopupOpen(true)}
+                className="flex items-center gap-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-violet-600 dark:text-violet-400 px-5 py-2.5 rounded-xl font-medium shadow-sm transition-all active:scale-95 flex-1 sm:flex-none justify-center cursor-pointer ring-1 ring-violet-200 dark:ring-violet-500/40"
+              >
+                <Library className="w-5 h-5" />
+                <span>Starter Templates</span>
+              </button>
+            )
           )}
           <button
             onClick={handleGenerateClick}
