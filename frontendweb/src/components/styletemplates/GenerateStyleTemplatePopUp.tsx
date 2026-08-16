@@ -3,12 +3,18 @@
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Loader2, RotateCcw, Sparkles, X } from "lucide-react";
+import Image from "next/image";
 import { authFetch } from "@/lib/api";
 import { useCreditBalance } from "@/context/CreditBalanceContext";
 import type { StyleTemplate } from "@/types/styletemplate";
 import CreditCoinIcon from "@/components/CreditCoinIcon";
+import Toggle from "@/components/Toggle";
 
 const GENERATE_CREDIT_COST = 2;
+// MUST stay numerically in sync with GENERATE_DEMO_IMAGE_CREDIT_COST in
+// backend/app/routes/styletemplates/crud.py — nothing enforces this
+// automatically (same caveat as every other generate-flow cost constant).
+const GENERATE_DEMO_IMAGE_CREDIT_COST = 4;
 
 const ASPECT_RATIO_OPTIONS = [
   { value: "16:9", label: "16:9", sublabel: "Long Video" },
@@ -21,6 +27,7 @@ interface GenerateResult {
   animation_prompt: string;
   youtube_title_description_tags_prompt: string;
   youtube_thumbnail_image_prompt: string;
+  demo_image_url: string | null;
   credits_spent: number;
   credits_remaining: number;
 }
@@ -45,6 +52,7 @@ export const GenerateStyleTemplatePopUp = ({
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [aspectRatio, setAspectRatio] = useState<string>("16:9");
+  const [generateDemoImage, setGenerateDemoImage] = useState(false);
 
   const { balance, setBalance, refreshBalance } = useCreditBalance();
   const [loadingBalance, setLoadingBalance] = useState(true);
@@ -76,7 +84,8 @@ export const GenerateStyleTemplatePopUp = ({
     return () => window.removeEventListener("keydown", handler);
   }, [isOpen, onClose, generating, accepting]);
 
-  const insufficientCredits = balance !== null && balance < GENERATE_CREDIT_COST;
+  const totalCreditCost = GENERATE_CREDIT_COST + (generateDemoImage ? GENERATE_DEMO_IMAGE_CREDIT_COST : 0);
+  const insufficientCredits = balance !== null && balance < totalCreditCost;
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,9 +96,9 @@ export const GenerateStyleTemplatePopUp = ({
     setError(null);
 
     const freshBalance = await refreshBalance();
-    if (freshBalance !== null && freshBalance < GENERATE_CREDIT_COST) {
+    if (freshBalance !== null && freshBalance < totalCreditCost) {
       setError(
-        `Not enough credits — generating a style template costs ${GENERATE_CREDIT_COST} credits, you have ${freshBalance}.`
+        `Not enough credits — this generation costs ${totalCreditCost} credits, you have ${freshBalance}.`
       );
       return;
     }
@@ -103,6 +112,7 @@ export const GenerateStyleTemplatePopUp = ({
           template_name: name.trim(),
           description: description.trim(),
           aspect_ratio: aspectRatio,
+          generate_demo_image: generateDemoImage,
         }),
       });
       const data: GenerateResult = await res.json();
@@ -135,6 +145,7 @@ export const GenerateStyleTemplatePopUp = ({
         scene_density: "small",
         image_aspect_ratio: aspectRatio,
         video_aspect_ratio: aspectRatio,
+        demo_image_url: result.demo_image_url,
         is_default: false,
       };
       const res = await authFetch("/styletemplates/create", {
@@ -189,7 +200,9 @@ export const GenerateStyleTemplatePopUp = ({
                   Generating your style template…
                 </p>
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  This can take up to 15 seconds. Please wait.
+                  {generateDemoImage
+                    ? "This can take up to 60-90 seconds (includes generating the demo image). Please wait."
+                    : "This can take up to 15 seconds. Please wait."}
                 </p>
               </div>
             </div>
@@ -244,12 +257,54 @@ export const GenerateStyleTemplatePopUp = ({
                   ))}
                 </div>
               </div>
+
+              <div>
+                <Toggle
+                  checked={generateDemoImage}
+                  onChange={setGenerateDemoImage}
+                  label="Generate demo image"
+                />
+                <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">
+                  Also generates and saves a sample preview frame in the resulting style
+                  (<span className="inline-flex items-center gap-0.5 align-middle">
+                    +{GENERATE_DEMO_IMAGE_CREDIT_COST}
+                    <CreditCoinIcon className="w-3 h-3" />
+                  </span>{" "}
+                  credits).
+                </p>
+              </div>
             </form>
           ) : (
             <div className="flex flex-col gap-4">
               <span className="self-start inline-block px-2.5 py-1 rounded-full text-[11px] font-medium bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/30">
                 {aspectRatio === "9:16" ? "9:16 · Reels" : "16:9 · Long Video"}
               </span>
+
+              {result.demo_image_url && (
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Demo Image</h3>
+                  <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-900/60">
+                    {aspectRatio === "9:16" && (
+                      <Image
+                        src={result.demo_image_url}
+                        alt=""
+                        aria-hidden="true"
+                        fill
+                        unoptimized
+                        className="object-cover scale-110 blur-xl opacity-40"
+                      />
+                    )}
+                    <Image
+                      src={result.demo_image_url}
+                      alt="Generated demo image preview"
+                      fill
+                      unoptimized
+                      className={aspectRatio === "9:16" ? "object-contain" : "object-cover"}
+                    />
+                  </div>
+                </div>
+              )}
+
               <div>
                 <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Description</h3>
                 <div className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700/60 rounded-xl p-3.5">
@@ -317,7 +372,7 @@ export const GenerateStyleTemplatePopUp = ({
               Generate
               <span className="flex items-center gap-1 pl-2 ml-0.5 border-l border-white/30 text-indigo-100">
                 <CreditCoinIcon className="w-3.5 h-3.5" />
-                {GENERATE_CREDIT_COST}
+                {totalCreditCost}
               </span>
             </button>
           ) : (

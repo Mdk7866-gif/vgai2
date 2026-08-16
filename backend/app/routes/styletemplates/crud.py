@@ -39,12 +39,90 @@ def _build_demo_image_prompt(image_prompt: str, best_for: str | None) -> str:
     scene image in this style); `best_for` names the content niches the style
     is aimed at, which nudges the image model toward a representative subject
     when the style itself doesn't imply one.
+
+    The trailing safety clause is deliberate: a style whose own wording leans
+    dark (horror, noir, true-crime, war) has a real chance of tripping
+    gpt-image-2's output moderation on the literal generated image even
+    though the *prompt itself* isn't rejected -- steering the model toward
+    expressing mood through color/lighting/composition rather than graphic
+    subject matter meaningfully cuts that down. _generate_demo_image_bytes()
+    below still retries with an even more conservative prompt if this isn't
+    enough.
     """
     prompt = f"Generate a demo image in this art style: {image_prompt.strip()}"
     if best_for and best_for.strip():
         prompt += f". Most used categories: {best_for.strip()}"
-    prompt += ". No text, lettering, numbers, watermarks, signage, or logos anywhere in the image."
+    prompt += (
+        ". No text, lettering, numbers, watermarks, signage, or logos anywhere in the image. "
+        "Keep the image tasteful and safe for a general audience: no graphic violence, gore, "
+        "blood, weapons pointed at people, nudity, sexual content, or hate symbols -- express "
+        "any dark or intense mood through color, lighting, and composition rather than "
+        "graphic content."
+    )
     return prompt
+
+
+def _moderation_blocked(error: Exception) -> bool:
+    """True if `error` is gpt-image-2 rejecting the *output* it generated on
+    safety grounds (OpenAI's 400 `moderation_blocked` error) -- narrow string
+    match rather than an SDK exception-class check, since it has to survive
+    whichever concrete openai-python exception type raised it across SDK
+    versions, and the code is always present verbatim in the error body.
+    """
+    return "moderation_blocked" in str(error)
+
+
+async def _generate_demo_image_bytes(prompt: str, aspect_ratio: str) -> bytes:
+    """Calls gpt-image-2, retrying once with a stricter, more conservative
+    prompt if the first attempt is blocked by output moderation -- a style
+    described with dark/intense language (horror, noir, war, true-crime)
+    occasionally produces an image gpt-image-2 itself flags, even though the
+    prompt is perfectly generatable in the abstract. Raises a clear 422 (not
+    the raw OpenAI error) if even the safer retry is blocked, since at that
+    point it's actionable feedback for the user, not a server-side failure.
+    """
+
+    async def _call(p: str) -> bytes:
+        result = await openai_client.images.generate(  # type: ignore[union-attr]
+            model="gpt-image-2",
+            prompt=p,
+            size=DEMO_IMAGE_SIZES[aspect_ratio],
+            quality="low",
+        )
+        if not result.data or not result.data[0].b64_json:
+            raise HTTPException(status_code=502, detail="Image generation returned no image.")
+        return base64.b64decode(result.data[0].b64_json)
+
+    try:
+        return await _call(prompt)
+    except HTTPException:
+        raise
+    except Exception as e:
+        if not _moderation_blocked(e):
+            raise HTTPException(status_code=502, detail=f"Failed to generate demo image: {e}")
+
+        safer_prompt = (
+            f"{prompt}\n\nThe previous attempt was blocked by an automatic image safety filter. "
+            "Regenerate a strictly safe-for-work, non-graphic, non-violent, non-sexual version: "
+            "keep only the abstract art style, color palette, and lighting, expressed through a "
+            "simple, calm, inoffensive subject (e.g. a still-life object, an empty landscape, or "
+            "a single calm figure seen from a distance) rather than anything intense or dramatic."
+        )
+        try:
+            return await _call(safer_prompt)
+        except HTTPException:
+            raise
+        except Exception as retry_error:
+            if not _moderation_blocked(retry_error):
+                raise HTTPException(status_code=502, detail=f"Failed to generate demo image: {retry_error}")
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "This style's demo image was blocked by OpenAI's safety system, even after "
+                    "a safer retry. Try softening graphic, violent, or disturbing language in "
+                    "the Image Prompt or Best For fields, then generate again."
+                ),
+            )
 
 
 def _get_owned_template(template_id: str, user_id: str) -> dict:
@@ -159,15 +237,7 @@ async def generate_demo_image(
         current_user.id, GENERATE_DEMO_IMAGE_CREDIT_COST, "generating a style template demo image"
     )
     try:
-        result = await openai_client.images.generate(
-            model="gpt-image-2",
-            prompt=prompt,
-            size=DEMO_IMAGE_SIZES[payload.aspect_ratio],
-            quality="low",
-        )
-        if not result.data or not result.data[0].b64_json:
-            raise HTTPException(status_code=502, detail="Image generation returned no image.")
-        image_bytes = base64.b64decode(result.data[0].b64_json)
+        image_bytes = await _generate_demo_image_bytes(prompt, payload.aspect_ratio)
         url = upload_image_bytes(
             image_bytes,
             folder=f"{current_user.id}/{DEMO_IMAGE_FOLDER}",

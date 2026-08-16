@@ -46,12 +46,25 @@ function matchesDefault(template: StyleTemplate, def: DefaultStyleTemplate): boo
   return IMPORT_MATCH_FIELDS.every((field) => (template[field] ?? null) === (def[field] ?? null));
 }
 
+type AspectFilter = "all" | "16:9" | "9:16";
+
+const ASPECT_FILTER_OPTIONS: { value: AspectFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "16:9", label: "16:9 · Long Video" },
+  { value: "9:16", label: "9:16 · Reels" },
+];
+
 export default function StyleTemplatesPage() {
   const { user, requireAuth, loading: authLoading } = useAuth();
 
   const [templates, setTemplates] = useState<StyleTemplate[]>([]);
   const [loading, setLoading] = useState(true);
-  const { page, setPage, pageCount, pageItems, totalItems } = usePagination(templates, PAGE_SIZE);
+  const [aspectFilter, setAspectFilter] = useState<AspectFilter>("all");
+  const filteredTemplates = useMemo(
+    () => (aspectFilter === "all" ? templates : templates.filter((t) => t.image_aspect_ratio === aspectFilter)),
+    [templates, aspectFilter]
+  );
+  const { page, setPage, pageCount, pageItems, totalItems } = usePagination(filteredTemplates, PAGE_SIZE);
 
   const [popupOpen, setPopupOpen] = useState(false);
   const [popupMode, setPopupMode] = useState<"create" | "edit">("create");
@@ -407,26 +420,61 @@ export default function StyleTemplatesPage() {
         </div>
       ) : (
         <div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {pageItems.map((template) => (
-              <StyleTemplateCard
-                key={template.id}
-                template={template}
-                onEdit={handleEditClick}
-                onDelete={handleDeleteClick}
-                onToggleDefault={handleToggleDefault}
-                togglingDefault={togglingDefaultId === template.id}
-              />
+          <div className="mb-5 flex flex-wrap items-center gap-2">
+            {ASPECT_FILTER_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => {
+                  setAspectFilter(opt.value);
+                  setPage(1);
+                }}
+                aria-pressed={aspectFilter === opt.value}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                  aspectFilter === opt.value
+                    ? "bg-indigo-600 text-white shadow-sm"
+                    : "bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-500/50"
+                }`}
+              >
+                {opt.label}
+              </button>
             ))}
           </div>
-          <Pagination
-            page={page}
-            pageCount={pageCount}
-            totalItems={totalItems}
-            pageSize={PAGE_SIZE}
-            itemLabel="style templates"
-            onChange={setPage}
-          />
+
+          {filteredTemplates.length === 0 ? (
+            <div className="flex flex-col items-center justify-center text-center gap-3 py-20 bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl">
+              <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center">
+                <Palette className="w-6 h-6" />
+              </div>
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-white">No style templates match this filter</h2>
+              <p className="text-slate-500 dark:text-slate-400 text-sm max-w-sm">
+                Try a different aspect ratio, or switch back to &ldquo;All&rdquo;.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                {pageItems.map((template) => (
+                  <StyleTemplateCard
+                    key={template.id}
+                    template={template}
+                    onEdit={handleEditClick}
+                    onDelete={handleDeleteClick}
+                    onToggleDefault={handleToggleDefault}
+                    togglingDefault={togglingDefaultId === template.id}
+                  />
+                ))}
+              </div>
+              <Pagination
+                page={page}
+                pageCount={pageCount}
+                totalItems={totalItems}
+                pageSize={PAGE_SIZE}
+                itemLabel="style templates"
+                onChange={setPage}
+              />
+            </>
+          )}
         </div>
       )}
 

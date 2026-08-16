@@ -485,6 +485,11 @@ export const EditStyleTemplateCardPopUp = ({
                           </button>
                         )}
                       </div>
+                      {generatingDemoImage && (
+                        <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">
+                          This can take up to 30-60 seconds. Please wait.
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>

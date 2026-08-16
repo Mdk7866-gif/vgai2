@@ -5,13 +5,26 @@ from pydantic import BaseModel
 from supabase_auth.types import User as SupabaseUser
 
 from app.auth import get_current_user
+from app.cloudinary import upload_image_bytes
 from app.config import settings
 from app.credits import refund_misc_credits, reserve_misc_credits
+from app.openai_client import openai_client
 from app.schemas.styletemplate import GenerateStyleTemplateRequest, GenerateStyleTemplateResponse
+
+from .crud import (
+    DEMO_IMAGE_FOLDER,
+    GENERATE_DEMO_IMAGE_CREDIT_COST,
+    _build_demo_image_prompt,
+    _generate_demo_image_bytes,
+)
 
 router = APIRouter(prefix="/styletemplates", tags=["styletemplates"])
 
-# Miscellaneous-spend cost of one "Generate Style Template" attempt.
+# Miscellaneous-spend cost of one "Generate Style Template" attempt. The
+# optional "Generate demo image" toggle on GenerateStyleTemplatePopUp.tsx adds
+# GENERATE_DEMO_IMAGE_CREDIT_COST (imported from crud.py, the single source of
+# truth for that cost/size/prompt-building, also used by the Edit popup's own
+# standalone "Generate" demo-image button) on top of this, e.g. 2 -> 6.
 GENERATE_CREDIT_COST = 2
 
 # Hard word-count ceilings — MUST match EditStyleTemplateCardPopUp.tsx exactly.
@@ -130,30 +143,65 @@ async def _build_style_template_draft(
     return draft
 
 
+async def _generate_and_upload_demo_image(user_id: str, image_prompt: str, aspect_ratio: str) -> str:
+    """Same generate-then-upload steps as crud.py's own generate_demo_image
+    endpoint (including its moderation-block retry), reused here so a demo
+    image generated as part of this draft matches the freshly-*generated*
+    image_prompt (not whatever the user originally typed in the description
+    field the draft was built from). No best_for is available at this point
+    in the flow -- this AI-generation path doesn't collect/produce that field
+    -- so the prompt is built from image_prompt alone.
+    """
+    prompt = _build_demo_image_prompt(image_prompt, best_for=None)
+    image_bytes = await _generate_demo_image_bytes(prompt, aspect_ratio)
+    return upload_image_bytes(
+        image_bytes,
+        folder=f"{user_id}/{DEMO_IMAGE_FOLDER}",
+        public_id_prefix="demo",
+    )
+
+
 @router.post("/generate", response_model=GenerateStyleTemplateResponse)
 async def generate_style_template(
     payload: GenerateStyleTemplateRequest,
     current_user: SupabaseUser = Depends(get_current_user),
 ):
-    """Generates a style template preview (description + prompts) for the user to review.
+    """Generates a style template preview (description + prompts, optionally a
+    demo image) for the user to review.
 
     Nothing is persisted here. If the user accepts it, the frontend submits the
     (possibly edited) fields to POST /styletemplates/create, same as a manually
-    created template.
+    created template -- demo_image_url included, since (unlike the text fields)
+    it's already a real uploaded Cloudinary asset by the time this returns, not
+    a draft. Rejecting and retrying leaves that upload orphaned, same accepted
+    tradeoff as crud.py's own generate_demo_image and upload_demo_image.
     """
     if not settings.CHATGPT_PAID_API_KEY:
         raise HTTPException(status_code=500, detail="OpenAI is not configured on the backend.")
+    if payload.generate_demo_image and openai_client is None:
+        raise HTTPException(status_code=500, detail="OpenAI is not configured on the backend.")
 
-    # Reserved before the OpenAI call, refunded only if that call fails — see
-    # app/credits.py for why spend happens up front rather than on success.
-    new_balance = reserve_misc_credits(current_user.id, GENERATE_CREDIT_COST, "generating a style template")
+    credit_cost = GENERATE_CREDIT_COST + (GENERATE_DEMO_IMAGE_CREDIT_COST if payload.generate_demo_image else 0)
+
+    # One reservation covering the whole attempt (draft + optional demo image),
+    # refunded in full if any part fails -- see app/credits.py for why spend
+    # happens up front rather than on success.
+    new_balance = reserve_misc_credits(current_user.id, credit_cost, "generating a style template")
+    demo_image_url: str | None = None
     try:
         draft = await _build_style_template_draft(
             payload.template_name, payload.description, payload.aspect_ratio
         )
+        if payload.generate_demo_image:
+            demo_image_url = await _generate_and_upload_demo_image(
+                current_user.id, draft.image_prompt, payload.aspect_ratio
+            )
     except HTTPException:
-        new_balance = refund_misc_credits(current_user.id, GENERATE_CREDIT_COST)
+        new_balance = refund_misc_credits(current_user.id, credit_cost)
         raise
+    except Exception as e:
+        new_balance = refund_misc_credits(current_user.id, credit_cost)
+        raise HTTPException(status_code=502, detail=f"Failed to generate demo image: {e}")
 
     return GenerateStyleTemplateResponse(
         description=draft.description,
@@ -161,6 +209,7 @@ async def generate_style_template(
         animation_prompt=draft.animation_prompt,
         youtube_title_description_tags_prompt=draft.youtube_title_description_tags_prompt,
         youtube_thumbnail_image_prompt=draft.youtube_thumbnail_image_prompt,
-        credits_spent=GENERATE_CREDIT_COST,
+        demo_image_url=demo_image_url,
+        credits_spent=credit_cost,
         credits_remaining=new_balance,
     )

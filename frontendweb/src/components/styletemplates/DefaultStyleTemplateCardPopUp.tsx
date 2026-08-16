@@ -22,6 +22,14 @@ const SCENE_DENSITY_LABELS: Record<DefaultStyleTemplate["scene_density"], string
   high: "High · fewest scenes",
 };
 
+type AspectFilter = "all" | "16:9" | "9:16";
+
+const ASPECT_FILTER_OPTIONS: { value: AspectFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "16:9", label: "16:9 · Long Video" },
+  { value: "9:16", label: "9:16 · Reels" },
+];
+
 /**
  * The Starter Templates catalog, shown as one big popup card (same isOpen/
  * onClose/portal-to-body shape as ImageZoomPopUp, ConformationMessagePopUp,
@@ -41,8 +49,12 @@ export const DefaultStyleTemplateCardPopUp = ({
   // Shared by every card's image so only one ImageZoomPopUp instance is needed
   // for the whole grid instead of one per card.
   const [zoomTarget, setZoomTarget] = useState<{ url: string; alt: string } | null>(null);
+  const [aspectFilter, setAspectFilter] = useState<AspectFilter>("all");
 
   if (!isOpen) return null;
+
+  const filteredDefaults =
+    aspectFilter === "all" ? defaults : defaults.filter((t) => t.image_aspect_ratio === aspectFilter);
 
   return (
     <>
@@ -53,7 +65,12 @@ export const DefaultStyleTemplateCardPopUp = ({
             onClick={onClose}
           />
 
-          <div className="relative w-full sm:max-w-6xl overflow-hidden rounded-t-3xl sm:rounded-2xl bg-white dark:bg-slate-800/95 shadow-2xl dark:shadow-slate-950/80 ring-1 ring-slate-200/80 dark:ring-slate-700/60 max-h-[90vh] flex flex-col">
+          {/* h-[85vh], not max-h — a max-height lets the panel shrink to fit
+              whatever the current filter leaves (one card after filtering
+              looked like a tiny, oddly-shaped dialog); a fixed height keeps
+              the popup the same size regardless of how many cards are
+              showing, with only the card grid below scrolling internally. */}
+          <div className="relative w-full sm:max-w-6xl overflow-hidden rounded-t-3xl sm:rounded-2xl bg-white dark:bg-slate-800/95 shadow-2xl dark:shadow-slate-950/80 ring-1 ring-slate-200/80 dark:ring-slate-700/60 h-[85vh] flex flex-col">
             <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700/60 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-10 h-10 flex-shrink-0 rounded-xl bg-violet-50 dark:bg-violet-500/10 border border-violet-100 dark:border-violet-500/30 text-violet-600 dark:text-violet-400 flex items-center justify-center">
@@ -76,9 +93,35 @@ export const DefaultStyleTemplateCardPopUp = ({
               </button>
             </div>
 
-            <div className="px-6 py-5 overflow-y-auto">
+            <div className="px-6 py-3.5 flex flex-wrap items-center gap-2 border-b border-slate-100 dark:border-slate-700/60">
+              {ASPECT_FILTER_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setAspectFilter(opt.value)}
+                  aria-pressed={aspectFilter === opt.value}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                    aspectFilter === opt.value
+                      ? "bg-violet-600 text-white shadow-sm"
+                      : "bg-slate-50 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-violet-300 dark:hover:border-violet-500/50"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex-1 min-h-0 px-6 py-5 overflow-y-auto">
+              {filteredDefaults.length === 0 ? (
+                <div className="flex flex-col items-center justify-center text-center gap-2 h-full">
+                  <Layers className="w-8 h-8 text-slate-300 dark:text-slate-600" />
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    No starter templates match this filter.
+                  </p>
+                </div>
+              ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                {defaults.map((template) => {
+                {filteredDefaults.map((template) => {
                   const isPortrait = template.image_aspect_ratio === "9:16";
                   const importing = importingSlug === template.slug;
                   const imported = importedSlugs.includes(template.slug);
@@ -216,6 +259,7 @@ export const DefaultStyleTemplateCardPopUp = ({
                   );
                 })}
               </div>
+              )}
             </div>
           </div>
         </div>,

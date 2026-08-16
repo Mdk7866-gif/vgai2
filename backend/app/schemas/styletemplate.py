@@ -72,6 +72,7 @@ class GenerateStyleTemplateRequest(BaseModel):
     template_name: str
     description: str
     aspect_ratio: Literal["16:9", "9:16"] = "16:9"
+    generate_demo_image: bool = False
 
 
 class GenerateStyleTemplateResponse(BaseModel):
@@ -80,6 +81,7 @@ class GenerateStyleTemplateResponse(BaseModel):
     animation_prompt: str
     youtube_title_description_tags_prompt: str
     youtube_thumbnail_image_prompt: str
+    demo_image_url: str | None = None
     credits_spent: float
     credits_remaining: float
 
