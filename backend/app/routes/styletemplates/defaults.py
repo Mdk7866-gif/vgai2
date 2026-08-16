@@ -1,12 +1,17 @@
 """Read-only starter catalog of product-default style templates.
 
-The catalog lives in app/data/default_style_templates.json, generated from
-vgai-default-style-templates-v2.md by scripts/build_default_style_templates.py.
-These are deliberately *not* rows in style_templates:
+The catalog lives in default_style_templates.json, alongside this file --
+edit it directly, no build step. (An earlier version generated this JSON from
+a markdown source via a parser script; that indirection was dropped because
+forgetting to re-run the script after an edit left the API silently serving
+stale content. See CLAUDE.md's starter-catalog bullet for the design notes --
+density-tier rationale, the model-agnostic prompt-language rule, fingerprint
+risk -- that used to live in that markdown's prose.) These are deliberately
+*not* rows in style_templates:
 
-  - Editing a prompt in the JSON updates what every user sees on their next
-    visit. Seeded rows freeze at signup, so an improved prompt would never
-    reach anyone who already has an account.
+  - Editing the JSON updates what every user sees on their next visit. Seeded
+    rows freeze at signup, so an improved prompt would never reach anyone who
+    already has an account.
   - No backfill migration inserting 12 rows for every existing user.
   - Import is the one place a copy is made, which is where the fingerprint
     mitigation (per-user palette/lighting nudges, so a thousand channels
@@ -32,7 +37,7 @@ from .crud import _clear_existing_default
 
 router = APIRouter(prefix="/styletemplates", tags=["styletemplates"])
 
-CATALOG_PATH = Path(__file__).resolve().parents[2] / "data" / "default_style_templates.json"
+CATALOG_PATH = Path(__file__).resolve().parent / "default_style_templates.json"
 
 # Fields copied verbatim into the user's row on import. `slug` is catalog-only
 # metadata and is deliberately not persisted -- once imported, the copy is an

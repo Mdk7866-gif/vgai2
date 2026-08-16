@@ -48,7 +48,7 @@ class StyleTemplateUpdate(StyleTemplateCreate):
 
 
 class DefaultStyleTemplate(BaseModel):
-    """One entry of the read-only starter catalog (app/data/default_style_templates.json).
+    """One entry of the read-only starter catalog (app/routes/styletemplates/default_style_templates.json).
 
     Not DB-backed — it has a `slug` instead of an `id` and no `user_id`/timestamps,
     since nothing exists in style_templates until the user imports it.
