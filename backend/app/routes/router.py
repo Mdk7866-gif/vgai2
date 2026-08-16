@@ -3,6 +3,7 @@ from app.routes import users
 from app.routes.characters import crud as characters_crud
 from app.routes.characters import generatecharacter as characters_generate
 from app.routes.styletemplates import crud as styletemplates_crud
+from app.routes.styletemplates import defaults as styletemplates_defaults
 from app.routes.styletemplates import generatetemplate as styletemplates_generate
 from app.routes.scriptgenerationtemplate import crud as scripttemplates_crud
 from app.routes.scriptgenerationtemplate import viralscripttopicresearch as scripttemplates_generate
@@ -20,6 +21,12 @@ api_router = APIRouter()
 api_router.include_router(users.router)
 api_router.include_router(characters_crud.router)
 api_router.include_router(characters_generate.router)
+# All three share the /styletemplates prefix. defaults first: crud.py has no
+# dynamic /{id} route today so its literal /defaults paths can't be shadowed,
+# but registering literal-path routers ahead of CRUD matches the discipline
+# documented on the scripttemplates routers below and keeps it that way if a
+# /{styletemplate_id} GET is ever added.
+api_router.include_router(styletemplates_defaults.router)
 api_router.include_router(styletemplates_crud.router)
 api_router.include_router(styletemplates_generate.router)
 api_router.include_router(scripttemplates_generate.router)

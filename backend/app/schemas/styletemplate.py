@@ -19,6 +19,8 @@ class StyleTemplate(BaseModel):
     image_aspect_ratio: str
     video_aspect_ratio: str
     description: str
+    best_for: str | None = None
+    demo_image_url: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -37,10 +39,33 @@ class StyleTemplateCreate(BaseModel):
     image_aspect_ratio: str
     video_aspect_ratio: str
     description: str
+    best_for: str | None = None
+    demo_image_url: str | None = None
 
 
 class StyleTemplateUpdate(StyleTemplateCreate):
     pass
+
+
+class DefaultStyleTemplate(BaseModel):
+    """One entry of the read-only starter catalog (app/data/default_style_templates.json).
+
+    Not DB-backed — it has a `slug` instead of an `id` and no `user_id`/timestamps,
+    since nothing exists in style_templates until the user imports it.
+    """
+
+    slug: str
+    name: str
+    description: str
+    image_prompt: str
+    animation_prompt: str
+    youtube_title_description_tags_prompt: str | None = None
+    youtube_thumbnail_image_prompt: str | None = None
+    scene_density: SceneDensity
+    image_aspect_ratio: str
+    video_aspect_ratio: str
+    best_for: str | None = None
+    demo_image_url: str | None = None
 
 
 class GenerateStyleTemplateRequest(BaseModel):

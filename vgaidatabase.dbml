@@ -135,6 +135,13 @@ Table style_templates {
   video_aspect_ratio text [not null]
   description text [not null]
 
+  // Both optional, set from the form's Advanced Settings section.
+  // best_for = content niches this style suits, e.g. 'History, biography,
+  // philosophy'. User-facing only — the scene-splitting brief is in description.
+  // demo_image_url = Cloudinary sample frame previewed on the template card.
+  best_for text
+  demo_image_url text
+
   created_at timestamp [not null, default: `now()`]
   updated_at timestamp [not null, default: `now()`]
 

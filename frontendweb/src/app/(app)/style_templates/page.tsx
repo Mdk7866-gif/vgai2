@@ -1,14 +1,15 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Plus, Palette, LogIn, Sparkles } from "lucide-react";
+import { Plus, Palette, LogIn, Sparkles, ChevronDown, ChevronUp, Library } from "lucide-react";
 import CardGridSkeleton from "@/components/CardGridSkeleton";
 import Pagination from "@/components/Pagination";
 import { usePagination } from "@/hooks/usePagination";
 import { useAuth } from "@/context/AuthContext";
 import { authFetch } from "@/lib/api";
-import type { StyleTemplate } from "@/types/styletemplate";
+import type { DefaultStyleTemplate, StyleTemplate } from "@/types/styletemplate";
 import StyleTemplateCard from "@/components/styletemplates/StyleTemplateCard";
+import DefaultStyleTemplateCard from "@/components/styletemplates/DefaultStyleTemplateCard";
 import EditStyleTemplateCardPopUp, {
   StyleTemplateFormValues,
 } from "@/components/styletemplates/EditStyleTemplateCardPopUp";
@@ -33,6 +34,17 @@ export default function StyleTemplatesPage() {
 
   const [generatePopupOpen, setGeneratePopupOpen] = useState(false);
   const [generatePopupKey, setGeneratePopupKey] = useState(0);
+
+  // Starter catalog — static, public, and independent of auth, so it loads once
+  // on mount rather than alongside the user's own templates.
+  const [defaults, setDefaults] = useState<DefaultStyleTemplate[]>([]);
+  // null = the user hasn't toggled the section, so fall back to the derived
+  // default below. Deriving rather than syncing via an effect keeps this off
+  // eslint's react-hooks/set-state-in-effect and avoids a flash of the wrong
+  // state while `templates` is still loading.
+  const [defaultsExpandedOverride, setDefaultsExpandedOverride] = useState<boolean | null>(null);
+  const [importingSlug, setImportingSlug] = useState<string | null>(null);
+  const [importedSlugs, setImportedSlugs] = useState<string[]>([]);
 
   const [deleteTarget, setDeleteTarget] = useState<StyleTemplate | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -80,6 +92,56 @@ export default function StyleTemplatesPage() {
       clearTimeout(startTimer);
     };
   }, [user, authLoading]);
+
+  // The catalog is public (GET /styletemplates/defaults needs no token), so this
+  // runs once on mount rather than keying off `user` like the effect above —
+  // a signed-out visitor sees the starter library too.
+  useEffect(() => {
+    let cancelled = false;
+    authFetch("/styletemplates/defaults")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled) setDefaults(data);
+      })
+      // Deliberately silent: the catalog is a nice-to-have next to the user's
+      // own library, and an alert here would fire on a page that otherwise
+      // loaded fine.
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Open by default only for a user with nothing of their own — that's who the
+  // starter library is for. Once they have templates, it collapses out of the way.
+  const defaultsExpanded =
+    defaultsExpandedOverride ?? (!loading && templates.length === 0);
+
+  const handleImportDefault = async (template: DefaultStyleTemplate) => {
+    if (!requireAuth()) return;
+    setImportingSlug(template.slug);
+    try {
+      const res = await authFetch(`/styletemplates/defaults/${template.slug}/import`, {
+        method: "POST",
+      });
+      const created: StyleTemplate = await res.json();
+      // The backend marks a user's first-ever template default, so mirror that
+      // locally the same way create/update do.
+      setTemplates((prev) => [
+        created,
+        ...(created.is_default ? prev.map((t) => ({ ...t, is_default: false })) : prev),
+      ]);
+      setPage(1);
+      setImportedSlugs((prev) => (prev.includes(template.slug) ? prev : [...prev, template.slug]));
+    } catch (err) {
+      setAlert({
+        title: "Import failed",
+        message: err instanceof Error ? err.message : "Something went wrong.",
+      });
+    } finally {
+      setImportingSlug(null);
+    }
+  };
 
   const handleAddClick = () => {
     if (!requireAuth()) return;
@@ -146,6 +208,8 @@ export default function StyleTemplatesPage() {
         scene_density: template.scene_density,
         image_aspect_ratio: template.image_aspect_ratio,
         video_aspect_ratio: template.video_aspect_ratio,
+        best_for: template.best_for,
+        demo_image_url: template.demo_image_url,
         is_default: !template.is_default,
       };
       const res = await authFetch(`/styletemplates/update/${template.id}`, {
@@ -185,6 +249,8 @@ export default function StyleTemplatesPage() {
         scene_density: values.sceneDensity,
         image_aspect_ratio: values.imageAspectRatio,
         video_aspect_ratio: values.videoAspectRatio,
+        best_for: values.bestFor || null,
+        demo_image_url: values.demoImageUrl || null,
         is_default: values.isDefault,
       };
 
@@ -251,6 +317,49 @@ export default function StyleTemplatesPage() {
         </div>
       </div>
 
+      {defaults.length > 0 && (
+        <section className="bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl overflow-hidden">
+          <button
+            onClick={() => setDefaultsExpandedOverride(!defaultsExpanded)}
+            aria-expanded={defaultsExpanded}
+            className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 flex-shrink-0 rounded-xl bg-violet-50 dark:bg-violet-500/10 border border-violet-100 dark:border-violet-500/30 text-violet-600 dark:text-violet-400 flex items-center justify-center">
+                <Library className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="font-semibold text-[15px] text-slate-900 dark:text-white">
+                  Starter Templates
+                </h2>
+                <p className="text-[13px] text-slate-500 dark:text-slate-400 truncate">
+                  {defaults.length} ready-made styles — add one to your library and edit it freely.
+                </p>
+              </div>
+            </div>
+            <span className="flex-shrink-0 text-slate-400 dark:text-slate-500">
+              {defaultsExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+            </span>
+          </button>
+
+          {defaultsExpanded && (
+            <div className="px-5 pb-5 pt-1 border-t border-slate-100 dark:border-slate-700/60">
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+                {defaults.map((template) => (
+                  <DefaultStyleTemplateCard
+                    key={template.slug}
+                    template={template}
+                    onImport={handleImportDefault}
+                    importing={importingSlug === template.slug}
+                    imported={importedSlugs.includes(template.slug)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
       {!authLoading && !user ? (
         <div className="flex flex-col items-center justify-center text-center gap-3 py-20 bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl">
           <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center">
@@ -281,7 +390,9 @@ export default function StyleTemplatesPage() {
           </div>
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white">No style templates yet</h2>
           <p className="text-slate-500 dark:text-slate-400 text-sm max-w-sm">
-            Add your first style template to start reusing it across projects.
+            {defaults.length > 0
+              ? "Add one of the starter templates above, or build your own from scratch."
+              : "Add your first style template to start reusing it across projects."}
           </p>
         </div>
       ) : (

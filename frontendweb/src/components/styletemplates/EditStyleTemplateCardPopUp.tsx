@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { X, Loader2, ChevronDown, ChevronUp, ImagePlus, Trash2 } from "lucide-react";
+import Image from "next/image";
+import { authFetch } from "@/lib/api";
 import type { SceneDensity, StyleTemplate } from "@/types/styletemplate";
 import Toggle from "@/components/Toggle";
 
@@ -16,6 +18,8 @@ export interface StyleTemplateFormValues {
   sceneDensity: SceneDensity;
   imageAspectRatio: string;
   videoAspectRatio: string;
+  bestFor: string;
+  demoImageUrl: string;
   isDefault: boolean;
 }
 
@@ -93,6 +97,13 @@ export const EditStyleTemplateCardPopUp = ({
   const [aspectRatio, setAspectRatio] = useState<string>(
     template?.image_aspect_ratio === "9:16" ? "9:16" : "16:9"
   );
+  const [bestFor, setBestFor] = useState(template?.best_for ?? "");
+  // The demo image uploads immediately on pick (POST /styletemplates/upload_demo_image)
+  // rather than riding along with the form, so create/update stay pure JSON —
+  // this holds the URL that call returns, which is what gets submitted.
+  const [demoImageUrl, setDemoImageUrl] = useState(template?.demo_image_url ?? "");
+  const [uploadingDemoImage, setUploadingDemoImage] = useState(false);
+  const demoImageInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
 
   const imagePromptWordCount = countWords(imagePrompt);
@@ -122,6 +133,25 @@ export const EditStyleTemplateCardPopUp = ({
     return () => window.removeEventListener("keydown", handler);
   }, [isOpen, onClose, submitting]);
 
+  const handleDemoImageChange = async (file: File | null) => {
+    if (!file) return;
+    setUploadingDemoImage(true);
+    setError(null);
+    try {
+      const body = new FormData();
+      body.append("demo_image", file);
+      const res = await authFetch("/styletemplates/upload_demo_image", { method: "POST", body });
+      const { url } = await res.json();
+      setDemoImageUrl(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to upload demo image.");
+    } finally {
+      setUploadingDemoImage(false);
+      // Clear the input so re-picking the same file after a failure still fires onChange.
+      if (demoImageInputRef.current) demoImageInputRef.current.value = "";
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !imagePrompt.trim() || !animationPrompt.trim()) {
@@ -146,6 +176,8 @@ export const EditStyleTemplateCardPopUp = ({
         sceneDensity,
         imageAspectRatio: aspectRatio,
         videoAspectRatio: aspectRatio,
+        bestFor: bestFor.trim(),
+        demoImageUrl: demoImageUrl.trim(),
         isDefault,
       });
     } catch (err) {
@@ -315,6 +347,71 @@ export const EditStyleTemplateCardPopUp = ({
                         : ""
                     }`}
                   />
+                </div>
+
+                <div>
+                  <label htmlFor="style-best-for" className={labelClass}>
+                    Best For
+                    <span className="ml-1.5 font-normal text-slate-400 dark:text-slate-500">(optional)</span>
+                  </label>
+                  <input
+                    id="style-best-for"
+                    type="text"
+                    value={bestFor}
+                    onChange={(e) => setBestFor(e.target.value)}
+                    placeholder="e.g. History, biography, philosophy"
+                    className={inputClass}
+                  />
+                  <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">
+                    The content niches this style suits. Shown on the card to help you pick between templates.
+                  </p>
+                </div>
+
+                <div>
+                  <label className={labelClass}>
+                    Demo Image
+                    <span className="ml-1.5 font-normal text-slate-400 dark:text-slate-500">(optional)</span>
+                  </label>
+                  <div className="flex items-start gap-3">
+                    <input
+                      ref={demoImageInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handleDemoImageChange(e.target.files?.[0] ?? null)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => demoImageInputRef.current?.click()}
+                      disabled={uploadingDemoImage}
+                      aria-label={demoImageUrl ? "Replace demo image" : "Upload demo image"}
+                      className="relative w-28 h-20 flex-shrink-0 rounded-xl overflow-hidden border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/60 text-slate-400 dark:text-slate-500 hover:border-indigo-400 hover:text-indigo-500 flex items-center justify-center transition-all cursor-pointer disabled:cursor-not-allowed"
+                    >
+                      {uploadingDemoImage ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : demoImageUrl ? (
+                        <Image src={demoImageUrl} alt="Demo image preview" fill unoptimized className="object-cover" />
+                      ) : (
+                        <ImagePlus className="w-5 h-5" />
+                      )}
+                    </button>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-slate-400 dark:text-slate-500 leading-relaxed">
+                        A sample frame rendered in this style, previewed on the card so a large library
+                        stays scannable at a glance.
+                      </p>
+                      {demoImageUrl && !uploadingDemoImage && (
+                        <button
+                          type="button"
+                          onClick={() => setDemoImageUrl("")}
+                          className="mt-2 flex items-center gap-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 <div>

@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { Pencil, Trash2, Star, Palette, Loader2 } from "lucide-react";
+import Image from "next/image";
+import { Pencil, Trash2, Star, Palette, Loader2, Sparkles } from "lucide-react";
 import type { StyleTemplate } from "@/types/styletemplate";
 
 interface StyleTemplateCardProps {
@@ -54,10 +55,36 @@ export const StyleTemplateCard = ({
         </div>
       </div>
 
+      {template.demo_image_url && (
+        <div
+          className={`relative w-full bg-slate-100 dark:bg-slate-900/60 ${
+            template.image_aspect_ratio === "9:16" ? "aspect-[4/3]" : "aspect-video"
+          }`}
+        >
+          <Image
+            src={template.demo_image_url}
+            alt={`${template.name} demo frame`}
+            fill
+            unoptimized
+            className={template.image_aspect_ratio === "9:16" ? "object-contain" : "object-cover"}
+          />
+        </div>
+      )}
+
       <div className="p-4 flex flex-col gap-3">
         <p className="text-[13px] text-slate-500 dark:text-slate-400 line-clamp-3 leading-relaxed min-h-[3.9em]">
           {template.image_prompt}
         </p>
+
+        {template.best_for && (
+          <div className="flex items-start gap-1.5 text-[12px] text-slate-500 dark:text-slate-400">
+            <Sparkles className="w-3.5 h-3.5 mt-px flex-shrink-0 text-violet-500 dark:text-violet-400" />
+            <span className="line-clamp-2">
+              <span className="font-medium text-slate-600 dark:text-slate-300">Best for: </span>
+              {template.best_for}
+            </span>
+          </div>
+        )}
 
         <button
           onClick={() => onToggleDefault(template)}

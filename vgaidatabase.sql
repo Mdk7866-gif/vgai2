@@ -124,9 +124,21 @@ create table style_templates (
   video_aspect_ratio text not null,
   description text not null,
 
+  -- Both optional, set from the form's Advanced Settings section.
+  -- best_for: content niches this style suits, e.g. 'History, biography,
+  -- philosophy'. User-facing only — the scene-splitting brief is in description.
+  -- demo_image_url: Cloudinary sample frame, previewed on the template card so
+  -- a large library is scannable visually rather than by prompt text.
+  best_for text,
+  demo_image_url text,
+
   created_at timestamp not null default now(),
   updated_at timestamp not null default now()
 );
+
+-- If style_templates already exists in your Supabase project from before
+-- best_for / demo_image_url were added, run vgaidatabase_migration_styletemplate_extras.sql
+-- instead of the create table above (it will fail on an existing table).
 
 -- Partial index: only one default style template per user.
 create unique index idx_user_default_style
