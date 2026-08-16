@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Plus, Palette, LogIn, Sparkles, ChevronDown, ChevronUp, Library } from "lucide-react";
+import { Plus, Palette, LogIn, Sparkles, Library } from "lucide-react";
 import CardGridSkeleton from "@/components/CardGridSkeleton";
 import Pagination from "@/components/Pagination";
 import { usePagination } from "@/hooks/usePagination";
@@ -9,7 +9,7 @@ import { useAuth } from "@/context/AuthContext";
 import { authFetch } from "@/lib/api";
 import type { DefaultStyleTemplate, StyleTemplate } from "@/types/styletemplate";
 import StyleTemplateCard from "@/components/styletemplates/StyleTemplateCard";
-import DefaultStyleTemplateCard from "@/components/styletemplates/DefaultStyleTemplateCard";
+import DefaultStyleTemplateCardPopUp from "@/components/styletemplates/DefaultStyleTemplateCardPopUp";
 import EditStyleTemplateCardPopUp, {
   StyleTemplateFormValues,
 } from "@/components/styletemplates/EditStyleTemplateCardPopUp";
@@ -38,11 +38,7 @@ export default function StyleTemplatesPage() {
   // Starter catalog — static, public, and independent of auth, so it loads once
   // on mount rather than alongside the user's own templates.
   const [defaults, setDefaults] = useState<DefaultStyleTemplate[]>([]);
-  // null = the user hasn't toggled the section, so fall back to the derived
-  // default below. Deriving rather than syncing via an effect keeps this off
-  // eslint's react-hooks/set-state-in-effect and avoids a flash of the wrong
-  // state while `templates` is still loading.
-  const [defaultsExpandedOverride, setDefaultsExpandedOverride] = useState<boolean | null>(null);
+  const [defaultsPopupOpen, setDefaultsPopupOpen] = useState(false);
   const [importingSlug, setImportingSlug] = useState<string | null>(null);
   const [importedSlugs, setImportedSlugs] = useState<string[]>([]);
 
@@ -111,11 +107,6 @@ export default function StyleTemplatesPage() {
       cancelled = true;
     };
   }, []);
-
-  // Open by default only for a user with nothing of their own — that's who the
-  // starter library is for. Once they have templates, it collapses out of the way.
-  const defaultsExpanded =
-    defaultsExpandedOverride ?? (!loading && templates.length === 0);
 
   const handleImportDefault = async (template: DefaultStyleTemplate) => {
     if (!requireAuth()) return;
@@ -300,6 +291,15 @@ export default function StyleTemplatesPage() {
           </p>
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto">
+          {defaults.length > 0 && (
+            <button
+              onClick={() => setDefaultsPopupOpen(true)}
+              className="flex items-center gap-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-violet-600 dark:text-violet-400 px-5 py-2.5 rounded-xl font-medium shadow-sm transition-all active:scale-95 flex-1 sm:flex-none justify-center cursor-pointer ring-1 ring-violet-200 dark:ring-violet-500/40"
+            >
+              <Library className="w-5 h-5" />
+              <span>Starter Templates</span>
+            </button>
+          )}
           <button
             onClick={handleGenerateClick}
             className="flex items-center gap-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-indigo-600 dark:text-indigo-400 px-5 py-2.5 rounded-xl font-medium shadow-sm transition-all active:scale-95 flex-1 sm:flex-none justify-center cursor-pointer ring-1 ring-indigo-200 dark:ring-indigo-500/40"
@@ -316,49 +316,6 @@ export default function StyleTemplatesPage() {
           </button>
         </div>
       </div>
-
-      {defaults.length > 0 && (
-        <section className="bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl overflow-hidden">
-          <button
-            onClick={() => setDefaultsExpandedOverride(!defaultsExpanded)}
-            aria-expanded={defaultsExpanded}
-            className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-colors cursor-pointer"
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 flex-shrink-0 rounded-xl bg-violet-50 dark:bg-violet-500/10 border border-violet-100 dark:border-violet-500/30 text-violet-600 dark:text-violet-400 flex items-center justify-center">
-                <Library className="w-5 h-5" />
-              </div>
-              <div className="min-w-0">
-                <h2 className="font-semibold text-[15px] text-slate-900 dark:text-white">
-                  Starter Templates
-                </h2>
-                <p className="text-[13px] text-slate-500 dark:text-slate-400 truncate">
-                  {defaults.length} ready-made styles — add one to your library and edit it freely.
-                </p>
-              </div>
-            </div>
-            <span className="flex-shrink-0 text-slate-400 dark:text-slate-500">
-              {defaultsExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-            </span>
-          </button>
-
-          {defaultsExpanded && (
-            <div className="px-5 pb-5 pt-1 border-t border-slate-100 dark:border-slate-700/60">
-              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-                {defaults.map((template) => (
-                  <DefaultStyleTemplateCard
-                    key={template.slug}
-                    template={template}
-                    onImport={handleImportDefault}
-                    importing={importingSlug === template.slug}
-                    imported={importedSlugs.includes(template.slug)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-        </section>
-      )}
 
       {!authLoading && !user ? (
         <div className="flex flex-col items-center justify-center text-center gap-3 py-20 bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl">
@@ -380,7 +337,7 @@ export default function StyleTemplatesPage() {
       ) : loading ? (
         <CardGridSkeleton
           variant="panel"
-          gridClassName="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5"
+          gridClassName="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"
           count={PAGE_SIZE}
         />
       ) : templates.length === 0 ? (
@@ -391,13 +348,13 @@ export default function StyleTemplatesPage() {
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white">No style templates yet</h2>
           <p className="text-slate-500 dark:text-slate-400 text-sm max-w-sm">
             {defaults.length > 0
-              ? "Add one of the starter templates above, or build your own from scratch."
+              ? "Browse the Starter Templates above, or build your own from scratch."
               : "Add your first style template to start reusing it across projects."}
           </p>
         </div>
       ) : (
         <div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {pageItems.map((template) => (
               <StyleTemplateCard
                 key={template.id}
@@ -430,6 +387,15 @@ export default function StyleTemplatesPage() {
         template={editingTemplate}
         onSubmit={handleFormSubmit}
         submitting={submitting}
+      />
+
+      <DefaultStyleTemplateCardPopUp
+        isOpen={defaultsPopupOpen}
+        onClose={() => setDefaultsPopupOpen(false)}
+        defaults={defaults}
+        onImport={handleImportDefault}
+        importingSlug={importingSlug}
+        importedSlugs={importedSlugs}
       />
 
       <GenerateStyleTemplatePopUp

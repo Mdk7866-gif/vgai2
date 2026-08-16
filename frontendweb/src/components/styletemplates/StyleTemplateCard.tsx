@@ -1,9 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Image from "next/image";
-import { Pencil, Trash2, Star, Palette, Loader2, Sparkles, ImageOff } from "lucide-react";
+import { Pencil, Trash2, Star, Palette, Loader2, Sparkles, ImageOff, ZoomIn } from "lucide-react";
 import type { StyleTemplate } from "@/types/styletemplate";
+import ImageZoomPopUp from "@/components/ImageZoomPopUp";
 
 interface StyleTemplateCardProps {
   template: StyleTemplate;
@@ -20,98 +21,143 @@ export const StyleTemplateCard = ({
   onToggleDefault,
   togglingDefault = false,
 }: StyleTemplateCardProps) => {
+  const isPortrait = template.image_aspect_ratio === "9:16";
+  const [zoomOpen, setZoomOpen] = useState(false);
+
   return (
-    <div className="bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl overflow-hidden shadow-sm hover:shadow-lg dark:hover:shadow-slate-900/50 hover:-translate-y-0.5 transition-all duration-200">
-      <div className="relative p-4 pb-3 flex items-start justify-between gap-3 border-b border-slate-100 dark:border-slate-700/60">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 flex-shrink-0 rounded-xl bg-violet-50 dark:bg-violet-500/10 border border-violet-100 dark:border-violet-500/30 text-violet-600 dark:text-violet-400 flex items-center justify-center">
-            <Palette className="w-5 h-5" />
-          </div>
-          <div className="min-w-0">
-            <h3 className="font-semibold text-[15px] text-slate-900 dark:text-slate-100 truncate">
+    <div className="flex flex-col h-full bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl overflow-hidden shadow-sm hover:shadow-lg dark:hover:shadow-slate-900/50 hover:-translate-y-0.5 transition-all duration-200">
+      {/* Header — name/actions row, then a badge row that is always exactly one
+          line tall (best_for is `invisible`-collapsed rather than omitted when
+          absent) so every card's media box below starts at the same y no matter
+          how much header content a given template has. */}
+      <div className="p-3.5 pb-2.5 border-b border-slate-100 dark:border-slate-700/60 flex flex-col gap-2">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 flex-shrink-0 rounded-xl bg-violet-50 dark:bg-violet-500/10 border border-violet-100 dark:border-violet-500/30 text-violet-600 dark:text-violet-400 flex items-center justify-center">
+              <Palette className="w-4 h-4" />
+            </div>
+            <h3 className="font-semibold text-[14px] text-slate-900 dark:text-slate-100 truncate">
               {template.name}
             </h3>
-            <span className="mt-1 inline-block px-2 py-0.5 rounded-full text-[11px] font-medium bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/30">
-              {template.image_aspect_ratio === "9:16" ? "9:16 · Reels" : "16:9 · Long Video"}
-            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <button
+              onClick={() => onEdit(template)}
+              aria-label={`Edit ${template.name}`}
+              className="p-2 rounded-full bg-slate-50 dark:bg-slate-900/60 text-slate-500 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 shadow-sm hover:shadow transition-all cursor-pointer"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => onDelete(template)}
+              aria-label={`Delete ${template.name}`}
+              className="p-2 rounded-full bg-slate-50 dark:bg-slate-900/60 text-slate-500 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 shadow-sm hover:shadow transition-all cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 flex-shrink-0">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/30">
+            {isPortrait ? "9:16 · Reels" : "16:9 · Long Video"}
+          </span>
+
           <button
-            onClick={() => onEdit(template)}
-            aria-label={`Edit ${template.name}`}
-            className="p-2 rounded-full bg-slate-50 dark:bg-slate-900/60 text-slate-500 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 shadow-sm hover:shadow transition-all cursor-pointer"
+            onClick={() => onToggleDefault(template)}
+            disabled={togglingDefault}
+            aria-label={template.is_default ? `Remove ${template.name} as default` : `Mark ${template.name} as default`}
+            className={`flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full shadow-sm transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${
+              template.is_default
+                ? "bg-amber-500/95 text-white hover:bg-amber-500"
+                : "bg-slate-50 dark:bg-slate-900/60 text-slate-500 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:text-amber-600 dark:hover:text-amber-400"
+            }`}
           >
-            <Pencil className="w-3.5 h-3.5" />
+            {togglingDefault ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <Star className={`w-3 h-3 ${template.is_default ? "fill-current" : ""}`} />
+            )}
+            {template.is_default ? "Default" : "Set default"}
           </button>
-          <button
-            onClick={() => onDelete(template)}
-            aria-label={`Delete ${template.name}`}
-            className="p-2 rounded-full bg-slate-50 dark:bg-slate-900/60 text-slate-500 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 shadow-sm hover:shadow transition-all cursor-pointer"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
+        </div>
+
+        <div
+          className={`flex items-center gap-1.5 text-[12px] ${
+            template.best_for ? "text-slate-500 dark:text-slate-400" : "invisible"
+          }`}
+        >
+          <Sparkles className="w-3.5 h-3.5 flex-shrink-0 text-violet-500 dark:text-violet-400" />
+          <span className="truncate" title={template.best_for ?? undefined}>
+            <span className="font-medium text-slate-600 dark:text-slate-300">Best for: </span>
+            {template.best_for || "—"}
+          </span>
         </div>
       </div>
 
-      <div
-        className={`relative w-full bg-slate-100 dark:bg-slate-900/60 ${
-          template.image_aspect_ratio === "9:16" ? "aspect-[4/3]" : "aspect-video"
+      {/* Media — a fixed 16:9 box on every card, regardless of the template's
+          own aspect ratio. A 9:16 image is letterboxed inside it (object-contain)
+          over a blurred, scaled-up copy of itself filling the extra space, rather
+          than shrinking the box to 4:3 — that used to make 9:16 cards shorter
+          than 16:9 ones and shift every card's footer to a different height. */}
+      <button
+        type="button"
+        onClick={() => template.demo_image_url && setZoomOpen(true)}
+        disabled={!template.demo_image_url}
+        aria-label={template.demo_image_url ? `View full image for ${template.name}` : "No preview image"}
+        className={`group relative w-full aspect-video bg-slate-100 dark:bg-slate-900/60 overflow-hidden ${
+          template.demo_image_url ? "cursor-zoom-in" : "cursor-default"
         }`}
       >
         {template.demo_image_url ? (
-          <Image
-            src={template.demo_image_url}
-            alt={`${template.name} demo frame`}
-            fill
-            unoptimized
-            className={template.image_aspect_ratio === "9:16" ? "object-contain" : "object-cover"}
-          />
+          <>
+            {isPortrait && (
+              <Image
+                src={template.demo_image_url}
+                alt=""
+                aria-hidden="true"
+                fill
+                unoptimized
+                className="object-cover scale-110 blur-xl opacity-40"
+              />
+            )}
+            <Image
+              src={template.demo_image_url}
+              alt={`${template.name} demo frame`}
+              fill
+              unoptimized
+              className={isPortrait ? "object-contain" : "object-cover"}
+            />
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+              <span className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold bg-black/70 text-white">
+                <ZoomIn className="w-3.5 h-3.5" />
+                View full image
+              </span>
+            </div>
+          </>
         ) : (
-          // No demo image yet — an empty placeholder still reserves the same
-          // aspect-ratio-shaped slot so cards in a grid line up evenly instead
-          // of some being shorter than others.
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-slate-300 dark:text-slate-600">
             <ImageOff className="w-6 h-6" />
             <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500">No preview</span>
           </div>
         )}
-      </div>
+      </button>
 
-      <div className="p-4 flex flex-col gap-3">
+      {/* Footer — a short prompt excerpt only; everything else already lives
+          in the header, so this box's height depends on nothing but the text. */}
+      <div className="p-3.5">
         <p className="text-[13px] text-slate-500 dark:text-slate-400 line-clamp-3 leading-relaxed min-h-[3.9em]">
           {template.image_prompt}
         </p>
-
-        {template.best_for && (
-          <div className="flex items-start gap-1.5 text-[12px] text-slate-500 dark:text-slate-400">
-            <Sparkles className="w-3.5 h-3.5 mt-px flex-shrink-0 text-violet-500 dark:text-violet-400" />
-            <span className="line-clamp-2">
-              <span className="font-medium text-slate-600 dark:text-slate-300">Best for: </span>
-              {template.best_for}
-            </span>
-          </div>
-        )}
-
-        <button
-          onClick={() => onToggleDefault(template)}
-          disabled={togglingDefault}
-          aria-label={template.is_default ? `Remove ${template.name} as default` : `Mark ${template.name} as default`}
-          className={`self-start flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1.5 rounded-full shadow-sm transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${
-            template.is_default
-              ? "bg-amber-500/95 text-white hover:bg-amber-500"
-              : "bg-slate-50 dark:bg-slate-900/60 text-slate-500 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:text-amber-600 dark:hover:text-amber-400"
-          }`}
-        >
-          {togglingDefault ? (
-            <Loader2 className="w-3 h-3 animate-spin" />
-          ) : (
-            <Star className={`w-3 h-3 ${template.is_default ? "fill-current" : ""}`} />
-          )}
-          {template.is_default ? "Default" : "Set default"}
-        </button>
       </div>
+
+      <ImageZoomPopUp
+        isOpen={zoomOpen}
+        onClose={() => setZoomOpen(false)}
+        imageUrl={template.demo_image_url ?? ""}
+        alt={`${template.name} demo frame`}
+      />
     </div>
   );
 };
