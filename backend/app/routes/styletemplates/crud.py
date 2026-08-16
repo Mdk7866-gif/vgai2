@@ -1,14 +1,50 @@
+import base64
+
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from supabase_auth.types import User as SupabaseUser
 
 from app.auth import get_current_user
-from app.cloudinary import delete_media, upload_image
-from app.schemas.styletemplate import StyleTemplate, StyleTemplateCreate, StyleTemplateUpdate
+from app.cloudinary import delete_media, upload_image, upload_image_bytes
+from app.credits import refund_misc_credits, reserve_misc_credits
+from app.openai_client import openai_client
+from app.schemas.styletemplate import (
+    GenerateDemoImageRequest,
+    GenerateDemoImageResponse,
+    StyleTemplate,
+    StyleTemplateCreate,
+    StyleTemplateUpdate,
+)
 from app.supabase import supabase
 
 router = APIRouter(prefix="/styletemplates", tags=["styletemplates"])
 
 DEMO_IMAGE_FOLDER = "style_templates"
+
+# Flat cost of one "Generate" demo-image attempt from the Add/Edit Style
+# Template popup's Demo Image section -- gpt-image-2 at quality="low", same
+# tier/price point as characters/generatecharacter.py's base (non-pro)
+# character sheet generation.
+GENERATE_DEMO_IMAGE_CREDIT_COST = 4
+
+# gpt-image-2 requires both edges to be multiples of 16 (see the same note on
+# characters/generatecharacter.py's SHEET_IMAGE_SIZE). 1792x1008 reduces to
+# exactly 16:9; its transpose, 1008x1792, is the 9:16 portrait counterpart.
+DEMO_IMAGE_SIZES: dict[str, str] = {"16:9": "1792x1008", "9:16": "1008x1792"}
+
+
+def _build_demo_image_prompt(image_prompt: str, best_for: str | None) -> str:
+    """Builds the gpt-image-2 prompt directly from the form's own fields --
+    no separate LLM call to rewrite it first. `image_prompt` already *is* the
+    art-style description (it's the same fragment used to generate every
+    scene image in this style); `best_for` names the content niches the style
+    is aimed at, which nudges the image model toward a representative subject
+    when the style itself doesn't imply one.
+    """
+    prompt = f"Generate a demo image in this art style: {image_prompt.strip()}"
+    if best_for and best_for.strip():
+        prompt += f". Most used categories: {best_for.strip()}"
+    prompt += ". No text, lettering, numbers, watermarks, signage, or logos anywhere in the image."
+    return prompt
 
 
 def _get_owned_template(template_id: str, user_id: str) -> dict:
@@ -90,6 +126,65 @@ async def upload_demo_image(
         public_id_prefix="demo",
     )
     return {"url": url}
+
+
+@router.post("/generate_demo_image", response_model=GenerateDemoImageResponse)
+async def generate_demo_image(
+    payload: GenerateDemoImageRequest,
+    current_user: SupabaseUser = Depends(get_current_user),
+):
+    """Generates and uploads a demo/preview image for the Demo Image field --
+    an alternative to pasting/uploading one by hand, triggered from the same
+    Add/Edit Style Template popup rather than the separate "Generate Style
+    Template" AI-draft flow (generatetemplate.py), since it fills one field
+    on the plain create/update form rather than drafting a whole template.
+
+    Uploads straight to Cloudinary and returns a real URL, the same shape
+    upload_demo_image above already returns -- there's no accept/reject step
+    because the result only fills the form field a manual upload would, and
+    the user still reviews (and can replace) it before saving the template.
+    Orphan risk on an abandoned form is accepted, same as upload_demo_image.
+    """
+    if openai_client is None:
+        raise HTTPException(status_code=500, detail="OpenAI is not configured on the backend.")
+
+    if not payload.image_prompt.strip():
+        raise HTTPException(status_code=422, detail="Image prompt is required to generate a demo image.")
+
+    prompt = _build_demo_image_prompt(payload.image_prompt, payload.best_for)
+
+    # Reserved before the OpenAI call, refunded only if it (or the upload)
+    # fails — see app/credits.py for why spend happens up front.
+    new_balance = reserve_misc_credits(
+        current_user.id, GENERATE_DEMO_IMAGE_CREDIT_COST, "generating a style template demo image"
+    )
+    try:
+        result = await openai_client.images.generate(
+            model="gpt-image-2",
+            prompt=prompt,
+            size=DEMO_IMAGE_SIZES[payload.aspect_ratio],
+            quality="low",
+        )
+        if not result.data or not result.data[0].b64_json:
+            raise HTTPException(status_code=502, detail="Image generation returned no image.")
+        image_bytes = base64.b64decode(result.data[0].b64_json)
+        url = upload_image_bytes(
+            image_bytes,
+            folder=f"{current_user.id}/{DEMO_IMAGE_FOLDER}",
+            public_id_prefix="demo",
+        )
+    except HTTPException:
+        new_balance = refund_misc_credits(current_user.id, GENERATE_DEMO_IMAGE_CREDIT_COST)
+        raise
+    except Exception as e:
+        new_balance = refund_misc_credits(current_user.id, GENERATE_DEMO_IMAGE_CREDIT_COST)
+        raise HTTPException(status_code=502, detail=f"Failed to generate demo image: {e}")
+
+    return GenerateDemoImageResponse(
+        demo_image_url=url,
+        credits_spent=GENERATE_DEMO_IMAGE_CREDIT_COST,
+        credits_remaining=new_balance,
+    )
 
 
 @router.put("/update/{styletemplate_id}", response_model=StyleTemplate)

@@ -82,3 +82,15 @@ class GenerateStyleTemplateResponse(BaseModel):
     youtube_thumbnail_image_prompt: str
     credits_spent: float
     credits_remaining: float
+
+
+class GenerateDemoImageRequest(BaseModel):
+    image_prompt: str
+    best_for: str | None = None
+    aspect_ratio: Literal["16:9", "9:16"] = "16:9"
+
+
+class GenerateDemoImageResponse(BaseModel):
+    demo_image_url: str
+    credits_spent: float
+    credits_remaining: float

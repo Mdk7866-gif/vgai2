@@ -2,11 +2,20 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Loader2, ChevronDown, ChevronUp, ImagePlus, Trash2 } from "lucide-react";
+import { X, Loader2, ChevronDown, ChevronUp, ImagePlus, Trash2, Sparkles } from "lucide-react";
 import Image from "next/image";
 import { authFetch } from "@/lib/api";
+import { useCreditBalance } from "@/context/CreditBalanceContext";
 import type { SceneDensity, StyleTemplate } from "@/types/styletemplate";
 import Toggle from "@/components/Toggle";
+import CreditCoinIcon from "@/components/CreditCoinIcon";
+
+// Flat cost of one "Generate" demo-image attempt — MUST stay numerically in
+// sync with GENERATE_DEMO_IMAGE_CREDIT_COST in
+// backend/app/routes/styletemplates/generatetemplate.py; nothing enforces
+// this automatically (same caveat as every other generate-flow cost constant
+// in this app).
+const GENERATE_DEMO_IMAGE_CREDIT_COST = 4;
 
 export interface StyleTemplateFormValues {
   name: string;
@@ -103,8 +112,11 @@ export const EditStyleTemplateCardPopUp = ({
   // this holds the URL that call returns, which is what gets submitted.
   const [demoImageUrl, setDemoImageUrl] = useState(template?.demo_image_url ?? "");
   const [uploadingDemoImage, setUploadingDemoImage] = useState(false);
+  const [generatingDemoImage, setGeneratingDemoImage] = useState(false);
   const demoImageInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const { balance, setBalance, refreshBalance } = useCreditBalance();
 
   const imagePromptWordCount = countWords(imagePrompt);
   const animationPromptWordCount = countWords(animationPrompt);
@@ -149,6 +161,46 @@ export const EditStyleTemplateCardPopUp = ({
       setUploadingDemoImage(false);
       // Clear the input so re-picking the same file after a failure still fires onChange.
       if (demoImageInputRef.current) demoImageInputRef.current.value = "";
+    }
+  };
+
+  const handleGenerateDemoImage = async () => {
+    if (!imagePrompt.trim()) {
+      setError("Image prompt is required before generating a demo image.");
+      return;
+    }
+    setError(null);
+
+    // The shared balance can go stale while this popup sits open (spent
+    // elsewhere in another tab) — same pre-submit staleness check every other
+    // Generate flow in the app does before spending.
+    const freshBalance = await refreshBalance();
+    if (freshBalance !== null && freshBalance < GENERATE_DEMO_IMAGE_CREDIT_COST) {
+      setError(
+        `Not enough credits — generating a demo image costs ${GENERATE_DEMO_IMAGE_CREDIT_COST} credits, you have ${freshBalance}.`
+      );
+      return;
+    }
+
+    setGeneratingDemoImage(true);
+    try {
+      const res = await authFetch("/styletemplates/generate_demo_image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          image_prompt: imagePrompt.trim(),
+          best_for: bestFor.trim() || null,
+          aspect_ratio: aspectRatio,
+        }),
+      });
+      const data: { demo_image_url: string; credits_spent: number; credits_remaining: number } =
+        await res.json();
+      setDemoImageUrl(data.demo_image_url);
+      setBalance(data.credits_remaining);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to generate demo image.");
+    } finally {
+      setGeneratingDemoImage(false);
     }
   };
 
@@ -383,11 +435,11 @@ export const EditStyleTemplateCardPopUp = ({
                     <button
                       type="button"
                       onClick={() => demoImageInputRef.current?.click()}
-                      disabled={uploadingDemoImage}
+                      disabled={uploadingDemoImage || generatingDemoImage}
                       aria-label={demoImageUrl ? "Replace demo image" : "Upload demo image"}
                       className="relative w-28 h-20 flex-shrink-0 rounded-xl overflow-hidden border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/60 text-slate-400 dark:text-slate-500 hover:border-indigo-400 hover:text-indigo-500 flex items-center justify-center transition-all cursor-pointer disabled:cursor-not-allowed"
                     >
-                      {uploadingDemoImage ? (
+                      {uploadingDemoImage || generatingDemoImage ? (
                         <Loader2 className="w-5 h-5 animate-spin" />
                       ) : demoImageUrl ? (
                         <Image src={demoImageUrl} alt="Demo image preview" fill unoptimized className="object-cover" />
@@ -397,19 +449,42 @@ export const EditStyleTemplateCardPopUp = ({
                     </button>
                     <div className="min-w-0 flex-1">
                       <p className="text-xs text-slate-400 dark:text-slate-500 leading-relaxed">
-                        A sample frame rendered in this style, previewed on the card so a large library
-                        stays scannable at a glance.
+                        Paste a URL below, upload a sample frame, or generate one from your Image
+                        Prompt — previewed on the card so a large library stays scannable at a glance.
                       </p>
-                      {demoImageUrl && !uploadingDemoImage && (
+                      <div className="mt-2 flex flex-wrap items-center gap-3">
                         <button
                           type="button"
-                          onClick={() => setDemoImageUrl("")}
-                          className="mt-2 flex items-center gap-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 cursor-pointer"
+                          onClick={handleGenerateDemoImage}
+                          disabled={
+                            uploadingDemoImage ||
+                            generatingDemoImage ||
+                            (balance !== null && balance < GENERATE_DEMO_IMAGE_CREDIT_COST)
+                          }
+                          className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          Remove
+                          {generatingDemoImage ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Sparkles className="w-3.5 h-3.5" />
+                          )}
+                          {generatingDemoImage ? "Generating…" : demoImageUrl ? "Regenerate" : "Generate"}
+                          <span className="flex items-center gap-0.5 text-slate-400 dark:text-slate-500">
+                            <CreditCoinIcon className="w-3 h-3" />
+                            {GENERATE_DEMO_IMAGE_CREDIT_COST}
+                          </span>
                         </button>
-                      )}
+                        {demoImageUrl && !uploadingDemoImage && !generatingDemoImage && (
+                          <button
+                            type="button"
+                            onClick={() => setDemoImageUrl("")}
+                            className="flex items-center gap-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Remove
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
