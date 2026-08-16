@@ -2,7 +2,7 @@
 
 import React from "react";
 import Image from "next/image";
-import { Pencil, Trash2, Star, Palette, Loader2, Sparkles } from "lucide-react";
+import { Pencil, Trash2, Star, Palette, Loader2, Sparkles, ImageOff } from "lucide-react";
 import type { StyleTemplate } from "@/types/styletemplate";
 
 interface StyleTemplateCardProps {
@@ -55,12 +55,12 @@ export const StyleTemplateCard = ({
         </div>
       </div>
 
-      {template.demo_image_url && (
-        <div
-          className={`relative w-full bg-slate-100 dark:bg-slate-900/60 ${
-            template.image_aspect_ratio === "9:16" ? "aspect-[4/3]" : "aspect-video"
-          }`}
-        >
+      <div
+        className={`relative w-full bg-slate-100 dark:bg-slate-900/60 ${
+          template.image_aspect_ratio === "9:16" ? "aspect-[4/3]" : "aspect-video"
+        }`}
+      >
+        {template.demo_image_url ? (
           <Image
             src={template.demo_image_url}
             alt={`${template.name} demo frame`}
@@ -68,8 +68,16 @@ export const StyleTemplateCard = ({
             unoptimized
             className={template.image_aspect_ratio === "9:16" ? "object-contain" : "object-cover"}
           />
-        </div>
-      )}
+        ) : (
+          // No demo image yet — an empty placeholder still reserves the same
+          // aspect-ratio-shaped slot so cards in a grid line up evenly instead
+          // of some being shorter than others.
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-slate-300 dark:text-slate-600">
+            <ImageOff className="w-6 h-6" />
+            <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500">No preview</span>
+          </div>
+        )}
+      </div>
 
       <div className="p-4 flex flex-col gap-3">
         <p className="text-[13px] text-slate-500 dark:text-slate-400 line-clamp-3 leading-relaxed min-h-[3.9em]">
