@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
-import { Plus, Palette, LogIn, Sparkles, Library } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Plus, Palette, LogIn, Sparkles, Library, FileDown } from "lucide-react";
 import CardGridSkeleton from "@/components/CardGridSkeleton";
 import Pagination from "@/components/Pagination";
 import { usePagination } from "@/hooks/usePagination";
@@ -16,6 +16,7 @@ import EditStyleTemplateCardPopUp, {
 import GenerateStyleTemplatePopUp from "@/components/styletemplates/GenerateStyleTemplatePopUp";
 import ConformationMessagePopUp from "@/components/ConformationMessagePopUp";
 import AlertMessagePopUp from "@/components/AlertMessagePopUp";
+import { parseStyleTemplateImport } from "@/lib/styleTemplateImport";
 
 const PAGE_SIZE = 10;
 
@@ -92,6 +93,11 @@ export default function StyleTemplatesPage() {
   const [deleting, setDeleting] = useState(false);
   const [togglingDefaultId, setTogglingDefaultId] = useState<string | null>(null);
   const [alert, setAlert] = useState<{ title: string; message: string } | null>(null);
+
+  // Import-from-JSON — a hidden file input triggered by the "Import" header
+  // button, so the native file picker still opens off a direct user gesture.
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     // AuthContext's initial getSession() hasn't resolved yet — `user` being
@@ -179,6 +185,40 @@ export default function StyleTemplatesPage() {
       });
     } finally {
       setImportingSlug(null);
+    }
+  };
+
+  const handleImportClick = () => {
+    if (!requireAuth()) return;
+    importInputRef.current?.click();
+  };
+
+  const handleImportFileChange = async (file: File | null) => {
+    if (!file) return;
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const payload = parseStyleTemplateImport(text);
+      const res = await authFetch("/styletemplates/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // Imported templates never inherit is_default from the shared file —
+        // that flag is local to whoever created it and could silently steal
+        // the importer's own existing default otherwise.
+        body: JSON.stringify({ ...payload, is_default: false }),
+      });
+      const created: StyleTemplate = await res.json();
+      setTemplates((prev) => [created, ...prev]);
+      setPage(1);
+    } catch (err) {
+      setAlert({
+        title: "Import failed",
+        message: err instanceof Error ? err.message : "Something went wrong.",
+      });
+    } finally {
+      setImporting(false);
+      // Clear the input so re-picking the same file after a failure still fires onChange.
+      if (importInputRef.current) importInputRef.current.value = "";
     }
   };
 
@@ -373,6 +413,26 @@ export default function StyleTemplatesPage() {
             <Sparkles className="w-5 h-5" />
             <span>Generate Style Template</span>
           </button>
+          <input
+            ref={importInputRef}
+            type="file"
+            // .txt/text/plain accepted alongside .json since the Share
+            // button (StyleTemplateCard.tsx / lib/styleTemplateShare.ts)
+            // sends the identical JSON content as a .txt attachment — the
+            // Web Share API's file-type whitelist doesn't include .json, so
+            // a shared style template arrives as a .txt file.
+            accept=".json,application/json,.txt,text/plain"
+            className="hidden"
+            onChange={(e) => handleImportFileChange(e.target.files?.[0] ?? null)}
+          />
+          <button
+            onClick={handleImportClick}
+            disabled={importing}
+            className="flex items-center gap-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-emerald-600 dark:text-emerald-400 px-5 py-2.5 rounded-xl font-medium shadow-sm transition-all active:scale-95 flex-1 sm:flex-none justify-center cursor-pointer ring-1 ring-emerald-200 dark:ring-emerald-500/40 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            <FileDown className="w-5 h-5" />
+            <span>{importing ? "Importing…" : "Import"}</span>
+          </button>
           <button
             onClick={handleAddClick}
             className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-xl font-medium shadow-md shadow-indigo-200 dark:shadow-indigo-900/40 transition-all active:scale-95 flex-1 sm:flex-none justify-center cursor-pointer ring-1 ring-indigo-700 dark:ring-indigo-500"
@@ -462,6 +522,7 @@ export default function StyleTemplatesPage() {
                     onDelete={handleDeleteClick}
                     onToggleDefault={handleToggleDefault}
                     togglingDefault={togglingDefaultId === template.id}
+                    onShareError={(message) => setAlert({ title: "Share failed", message })}
                   />
                 ))}
               </div>

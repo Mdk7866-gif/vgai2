@@ -2,9 +2,10 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
-import { Pencil, Trash2, Star, Palette, Loader2, Sparkles, ImageOff, ZoomIn } from "lucide-react";
+import { Pencil, Trash2, Star, Palette, Loader2, Sparkles, ImageOff, ZoomIn, Download, Share2 } from "lucide-react";
 import type { StyleTemplate } from "@/types/styletemplate";
 import ImageZoomPopUp from "@/components/ImageZoomPopUp";
+import { downloadStyleTemplateJson, shareStyleTemplateJson } from "@/lib/styleTemplateShare";
 
 interface StyleTemplateCardProps {
   template: StyleTemplate;
@@ -12,6 +13,9 @@ interface StyleTemplateCardProps {
   onDelete: (template: StyleTemplate) => void;
   onToggleDefault: (template: StyleTemplate) => void;
   togglingDefault?: boolean;
+  /** Surfaces a download/share failure to the page's shared alert popup —
+   * both actions otherwise fail silently from inside this card. */
+  onShareError?: (message: string) => void;
 }
 
 export const StyleTemplateCard = ({
@@ -20,9 +24,30 @@ export const StyleTemplateCard = ({
   onDelete,
   onToggleDefault,
   togglingDefault = false,
+  onShareError,
 }: StyleTemplateCardProps) => {
   const isPortrait = template.image_aspect_ratio === "9:16";
   const [zoomOpen, setZoomOpen] = useState(false);
+  const [sharing, setSharing] = useState(false);
+
+  const handleDownload = () => {
+    try {
+      downloadStyleTemplateJson(template);
+    } catch (err) {
+      onShareError?.(err instanceof Error ? err.message : "Failed to download style template.");
+    }
+  };
+
+  const handleShare = async () => {
+    setSharing(true);
+    try {
+      await shareStyleTemplateJson(template);
+    } catch (err) {
+      onShareError?.(err instanceof Error ? err.message : "Failed to share style template.");
+    } finally {
+      setSharing(false);
+    }
+  };
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl overflow-hidden shadow-sm hover:shadow-lg dark:hover:shadow-slate-900/50 hover:-translate-y-0.5 transition-all duration-200">
@@ -42,6 +67,23 @@ export const StyleTemplateCard = ({
           </div>
 
           <div className="flex items-center gap-1.5 flex-shrink-0">
+            <button
+              onClick={handleDownload}
+              aria-label={`Download ${template.name} as JSON`}
+              title="Download as JSON"
+              className="p-2 rounded-full bg-slate-50 dark:bg-slate-900/60 text-slate-500 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 shadow-sm hover:shadow transition-all cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={handleShare}
+              disabled={sharing}
+              aria-label={`Share ${template.name}`}
+              title="Share"
+              className="p-2 rounded-full bg-slate-50 dark:bg-slate-900/60 text-slate-500 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-400 shadow-sm hover:shadow transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {sharing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Share2 className="w-3.5 h-3.5" />}
+            </button>
             <button
               onClick={() => onEdit(template)}
               aria-label={`Edit ${template.name}`}
