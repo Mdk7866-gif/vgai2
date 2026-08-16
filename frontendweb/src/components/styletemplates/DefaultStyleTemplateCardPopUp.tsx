@@ -51,6 +51,14 @@ export const DefaultStyleTemplateCardPopUp = ({
   const [zoomTarget, setZoomTarget] = useState<{ url: string; alt: string } | null>(null);
   const [aspectFilter, setAspectFilter] = useState<AspectFilter>("all");
 
+  // Tracks which demo images have finished loading, keyed by slug, so a card
+  // with a real demo_image_url shows a spinner while it's fetching instead of
+  // the plain media-box background — indistinguishable at a glance from the
+  // "No preview yet" empty state below, which is what actually has no image.
+  const [loadedSlugs, setLoadedSlugs] = useState<Set<string>>(new Set());
+  const markLoaded = (slug: string) =>
+    setLoadedSlugs((prev) => (prev.has(slug) ? prev : new Set(prev).add(slug)));
+
   if (!isOpen) return null;
 
   const filteredDefaults =
@@ -125,6 +133,7 @@ export const DefaultStyleTemplateCardPopUp = ({
                   const isPortrait = template.image_aspect_ratio === "9:16";
                   const importing = importingSlug === template.slug;
                   const imported = importedSlugs.includes(template.slug);
+                  const imageLoaded = loadedSlugs.has(template.slug);
 
                   return (
                     <div
@@ -169,7 +178,9 @@ export const DefaultStyleTemplateCardPopUp = ({
                                 aria-hidden="true"
                                 fill
                                 unoptimized
-                                className="object-cover scale-110 blur-xl opacity-40"
+                                className={`object-cover scale-110 blur-xl transition-opacity duration-300 ${
+                                  imageLoaded ? "opacity-40" : "opacity-0"
+                                }`}
                               />
                             )}
                             <Image
@@ -177,8 +188,16 @@ export const DefaultStyleTemplateCardPopUp = ({
                               alt={`${template.name} demo frame`}
                               fill
                               unoptimized
-                              className={isPortrait ? "object-contain" : "object-cover"}
+                              onLoad={() => markLoaded(template.slug)}
+                              className={`transition-opacity duration-300 ${
+                                isPortrait ? "object-contain" : "object-cover"
+                              } ${imageLoaded ? "opacity-100" : "opacity-0"}`}
                             />
+                            {!imageLoaded && (
+                              <div className="absolute inset-0 flex items-center justify-center bg-slate-100 dark:bg-slate-900/60">
+                                <Loader2 className="w-6 h-6 text-violet-400 dark:text-violet-500 animate-spin" />
+                              </div>
+                            )}
                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
                               <span className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold bg-black/70 text-white">
                                 <ZoomIn className="w-3.5 h-3.5" />

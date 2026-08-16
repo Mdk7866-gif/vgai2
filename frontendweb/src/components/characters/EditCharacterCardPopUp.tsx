@@ -21,6 +21,12 @@ interface EditCharacterCardPopUpProps {
   character?: Character | null;
   onSubmit: (values: CharacterFormValues) => Promise<void>;
   submitting?: boolean;
+  /** "library" (default) edits a real characters row. "project" edits one
+   * project's own project_characters snapshot instead (opened from
+   * ChooseCharacterPopUp.tsx's "Imported to this project" chips) — there's
+   * no `is_default` concept for a single project's own copy, so that toggle
+   * is hidden in this scope. */
+  scope?: "library" | "project";
 }
 
 const MAX_DESCRIPTION_WORDS = 300;
@@ -37,7 +43,9 @@ export const EditCharacterCardPopUp = ({
   character,
   onSubmit,
   submitting = false,
+  scope = "library",
 }: EditCharacterCardPopUpProps) => {
+  const isProjectScope = scope === "project";
   // Re-initialized fresh each time the popup opens because the parent
   // remounts this component with a new `key` per open (see CharactersPage).
   const [name, setName] = useState(character?.name ?? "");
@@ -121,7 +129,7 @@ export const EditCharacterCardPopUp = ({
       >
         <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700/60 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-            {mode === "create" ? "Add Character" : "Edit Character"}
+            {isProjectScope ? "Edit Character for This Project" : mode === "create" ? "Add Character" : "Edit Character"}
           </h2>
           <button
             type="button"
@@ -132,6 +140,13 @@ export const EditCharacterCardPopUp = ({
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {isProjectScope && (
+          <p className="mx-6 mt-5 px-3.5 py-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/30 text-[12.5px] text-indigo-700 dark:text-indigo-300 leading-relaxed">
+            You&apos;re editing this project&apos;s own copy — changes apply only here, not to the character in
+            your library or any other project that imported it.
+          </p>
+        )}
 
         <div className="px-6 py-5 overflow-y-auto flex flex-col lg:flex-row gap-6">
           {/* Left: image + name */}
@@ -193,8 +208,10 @@ export const EditCharacterCardPopUp = ({
               />
             </div>
 
-            {/* Is default */}
-            <Toggle checked={isDefault} onChange={setIsDefault} label="Mark as default character" />
+            {/* Is default — no such concept for a single project's own snapshot */}
+            {!isProjectScope && (
+              <Toggle checked={isDefault} onChange={setIsDefault} label="Mark as default character" />
+            )}
           </div>
 
           {/* Right: description */}

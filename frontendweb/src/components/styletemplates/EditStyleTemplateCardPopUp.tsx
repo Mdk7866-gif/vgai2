@@ -39,6 +39,14 @@ interface EditStyleTemplateCardPopUpProps {
   template?: StyleTemplate | null;
   onSubmit: (values: StyleTemplateFormValues) => Promise<void>;
   submitting?: boolean;
+  /** "library" (default) edits a real style_templates row. "project" edits
+   * one project's snapshot_styletemplate_* columns instead (opened from
+   * ChooseStyleTemplatePopUp.tsx's "Currently applied" card) — there's no
+   * `is_default` concept for a single project's own copy, and the snapshot
+   * has no best_for/demo_image_url columns at all (see vgaidatabase.dbml),
+   * so both are hidden in this scope rather than submitted and silently
+   * dropped. */
+  scope?: "library" | "project";
 }
 
 const ASPECT_RATIO_OPTIONS = [
@@ -79,7 +87,9 @@ export const EditStyleTemplateCardPopUp = ({
   template,
   onSubmit,
   submitting = false,
+  scope = "library",
 }: EditStyleTemplateCardPopUpProps) => {
+  const isProjectScope = scope === "project";
   // Re-initialized fresh each time the popup opens because the parent
   // remounts this component with a new `key` per open (see StyleTemplatesPage).
   const [name, setName] = useState(template?.name ?? "");
@@ -252,7 +262,7 @@ export const EditStyleTemplateCardPopUp = ({
       >
         <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700/60 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-            {mode === "create" ? "Add Style Template" : "Edit Style Template"}
+            {isProjectScope ? "Edit Style Template for This Project" : mode === "create" ? "Add Style Template" : "Edit Style Template"}
           </h2>
           <button
             type="button"
@@ -265,6 +275,13 @@ export const EditStyleTemplateCardPopUp = ({
         </div>
 
         <div className="px-6 py-5 overflow-y-auto flex flex-col gap-5">
+          {isProjectScope && (
+            <p className="px-3.5 py-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/30 text-[12.5px] text-indigo-700 dark:text-indigo-300 leading-relaxed">
+              You&apos;re editing this project&apos;s own copy — changes apply only here, not to the style
+              template in your library or any other project that imported it.
+            </p>
+          )}
+
           <div>
             <label htmlFor="style-name" className={labelClass}>
               Name
@@ -355,12 +372,14 @@ export const EditStyleTemplateCardPopUp = ({
             </div>
           </div>
 
-          <div>
-            <Toggle checked={isDefault} onChange={setIsDefault} label="Mark as default style template" />
-            <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">
-              Only one style template can be default — marking this one will unset any existing default.
-            </p>
-          </div>
+          {!isProjectScope && (
+            <div>
+              <Toggle checked={isDefault} onChange={setIsDefault} label="Mark as default style template" />
+              <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">
+                Only one style template can be default — marking this one will unset any existing default.
+              </p>
+            </div>
+          )}
 
           <div className="pt-1 border-t border-slate-100 dark:border-slate-700/60">
             <button
@@ -401,24 +420,27 @@ export const EditStyleTemplateCardPopUp = ({
                   />
                 </div>
 
-                <div>
-                  <label htmlFor="style-best-for" className={labelClass}>
-                    Best For
-                    <span className="ml-1.5 font-normal text-slate-400 dark:text-slate-500">(optional)</span>
-                  </label>
-                  <input
-                    id="style-best-for"
-                    type="text"
-                    value={bestFor}
-                    onChange={(e) => setBestFor(e.target.value)}
-                    placeholder="e.g. History, biography, philosophy"
-                    className={inputClass}
-                  />
-                  <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">
-                    The content niches this style suits. Shown on the card to help you pick between templates.
-                  </p>
-                </div>
+                {!isProjectScope && (
+                  <div>
+                    <label htmlFor="style-best-for" className={labelClass}>
+                      Best For
+                      <span className="ml-1.5 font-normal text-slate-400 dark:text-slate-500">(optional)</span>
+                    </label>
+                    <input
+                      id="style-best-for"
+                      type="text"
+                      value={bestFor}
+                      onChange={(e) => setBestFor(e.target.value)}
+                      placeholder="e.g. History, biography, philosophy"
+                      className={inputClass}
+                    />
+                    <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">
+                      The content niches this style suits. Shown on the card to help you pick between templates.
+                    </p>
+                  </div>
+                )}
 
+                {!isProjectScope && (
                 <div>
                   <label className={labelClass}>
                     Demo Image
@@ -493,6 +515,7 @@ export const EditStyleTemplateCardPopUp = ({
                     </div>
                   </div>
                 </div>
+                )}
 
                 <div>
                   <label htmlFor="style-scene-density" className={labelClass}>

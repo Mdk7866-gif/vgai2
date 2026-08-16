@@ -896,13 +896,16 @@ export default function ProjectFolderPage() {
         importedCharacters={projectCharacters}
         onImported={(chars) => setProjectCharacters(chars)}
         onRemoved={(id) => setProjectCharacters((prev) => prev.filter((c) => c.id !== id))}
+        onCharacterUpdated={(updated) =>
+          setProjectCharacters((prev) => prev.map((c) => (c.id === updated.id ? updated : c)))
+        }
       />
 
       <ChooseStyleTemplatePopUp
         isOpen={styleTemplatePopupOpen}
         onClose={() => setStyleTemplatePopupOpen(false)}
         projectId={project.id}
-        currentSnapshotName={project.snapshot_styletemplate_name}
+        project={project}
         onImported={(updated) => setProject(updated)}
       />
 

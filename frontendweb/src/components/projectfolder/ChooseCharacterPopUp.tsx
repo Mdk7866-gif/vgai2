@@ -3,10 +3,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
-import { X, Loader2, Check, Users, Trash2 } from "lucide-react";
+import { X, Loader2, Check, Users, Trash2, Pencil } from "lucide-react";
 import { authFetch } from "@/lib/api";
 import type { Character } from "@/types/character";
 import type { ProjectCharacter } from "@/types/project";
+import EditCharacterCardPopUp, { CharacterFormValues } from "@/components/characters/EditCharacterCardPopUp";
 
 interface ChooseCharacterPopUpProps {
   isOpen: boolean;
@@ -15,6 +16,11 @@ interface ChooseCharacterPopUpProps {
   importedCharacters: ProjectCharacter[];
   onImported: (characters: ProjectCharacter[]) => void;
   onRemoved: (projectCharacterId: string) => void;
+  /** Fired after PUT /projects/{id}/characters/{id} edits one project-local
+   * character snapshot — see EditCharacterCardPopUp's "project" scope below.
+   * Kept separate from onImported (which replaces the whole imported list)
+   * since an edit only ever touches one row. */
+  onCharacterUpdated: (updated: ProjectCharacter) => void;
 }
 
 export const ChooseCharacterPopUp = ({
@@ -24,6 +30,7 @@ export const ChooseCharacterPopUp = ({
   importedCharacters,
   onImported,
   onRemoved,
+  onCharacterUpdated,
 }: ChooseCharacterPopUpProps) => {
   const [characters, setCharacters] = useState<Character[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,6 +38,9 @@ export const ChooseCharacterPopUp = ({
   const [importing, setImporting] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const [editingSnapshot, setEditingSnapshot] = useState<ProjectCharacter | null>(null);
+  const [savingSnapshot, setSavingSnapshot] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -105,9 +115,54 @@ export const ChooseCharacterPopUp = ({
     }
   };
 
+  // Edits this project's own project_characters row via
+  // EditCharacterCardPopUp.tsx's "project" scope — multipart like the
+  // library's own update endpoint, since an image replacement is optional
+  // here too. Never touches /characters, so the original library character
+  // (or any other project that imported it) is unaffected.
+  const handleSnapshotSubmit = async (values: CharacterFormValues) => {
+    if (!editingSnapshot) return;
+    setSavingSnapshot(true);
+    try {
+      const body = new FormData();
+      body.append("name", values.name);
+      body.append("description", values.description);
+      if (values.imageFile) body.append("character_sheet", values.imageFile);
+      const res = await authFetch(`/projects/${projectId}/characters/${editingSnapshot.id}`, {
+        method: "PUT",
+        body,
+      });
+      const updated: ProjectCharacter = await res.json();
+      onCharacterUpdated(updated);
+      setEditingSnapshot(null);
+    } finally {
+      setSavingSnapshot(false);
+    }
+  };
+
   if (!isOpen) return null;
 
-  return createPortal(
+  // A synthetic Character built from the project_characters snapshot being
+  // edited — EditCharacterCardPopUp only ever reads character.<field> to
+  // seed the form (never id/user_id/is_default meaningfully in "project"
+  // scope, where the default toggle is hidden), so placeholder values there
+  // are safe.
+  const editingAsCharacter: Character | null = editingSnapshot
+    ? {
+        id: editingSnapshot.id,
+        user_id: "",
+        is_default: false,
+        name: editingSnapshot.snapshot_name,
+        description: editingSnapshot.snapshot_description,
+        character_sheet_url: editingSnapshot.snapshot_character_sheet_url,
+        created_at: editingSnapshot.created_at,
+        updated_at: editingSnapshot.updated_at,
+      }
+    : null;
+
+  return (
+    <>
+      {createPortal(
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="absolute inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-md" onClick={onClose} />
 
@@ -135,10 +190,29 @@ export const ChooseCharacterPopUp = ({
                     key={c.id}
                     className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/30 text-[13px] text-indigo-700 dark:text-indigo-300"
                   >
-                    <span className="relative w-5 h-5 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-700 flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setEditingSnapshot(c)}
+                      aria-label={`View or edit ${c.snapshot_name} for this project`}
+                      className="relative w-5 h-5 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-700 flex-shrink-0 cursor-pointer"
+                    >
                       <Image src={c.snapshot_character_sheet_url} alt={c.snapshot_name} fill unoptimized className="object-cover" />
-                    </span>
-                    {c.snapshot_name}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingSnapshot(c)}
+                      className="hover:underline cursor-pointer"
+                    >
+                      {c.snapshot_name}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingSnapshot(c)}
+                      aria-label={`Edit ${c.snapshot_name} for this project`}
+                      className="text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 cursor-pointer"
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </button>
                     <button
                       onClick={() => handleRemove(c.id)}
                       disabled={removingId === c.id}
@@ -222,7 +296,20 @@ export const ChooseCharacterPopUp = ({
         </div>
       </div>
     </div>,
-    document.body
+        document.body
+      )}
+
+      <EditCharacterCardPopUp
+        key={editingSnapshot ? `snapshot-${editingSnapshot.id}` : "snapshot-closed"}
+        isOpen={!!editingSnapshot}
+        onClose={() => !savingSnapshot && setEditingSnapshot(null)}
+        mode="edit"
+        scope="project"
+        character={editingAsCharacter}
+        onSubmit={handleSnapshotSubmit}
+        submitting={savingSnapshot}
+      />
+    </>
   );
 };
 

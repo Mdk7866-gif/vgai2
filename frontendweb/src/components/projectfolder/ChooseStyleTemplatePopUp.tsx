@@ -2,16 +2,22 @@
 
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Loader2, Check, Palette } from "lucide-react";
+import { X, Loader2, Check, Palette, AlertTriangle, Pencil } from "lucide-react";
 import { authFetch } from "@/lib/api";
 import type { StyleTemplate } from "@/types/styletemplate";
 import type { Project } from "@/types/project";
+import EditStyleTemplateCardPopUp, { StyleTemplateFormValues } from "@/components/styletemplates/EditStyleTemplateCardPopUp";
 
 interface ChooseStyleTemplatePopUpProps {
   isOpen: boolean;
   onClose: () => void;
   projectId: string;
-  currentSnapshotName: string | null;
+  /** The whole project, not just the snapshotted name — the "Currently
+   * applied" section below reads every snapshot_styletemplate_* field
+   * directly off this so it keeps rendering correctly even after the source
+   * template has been deleted from the user's library (snapshots are a real
+   * copy, per vgaidatabase.dbml — see CLAUDE.md's snapshotting-pattern note). */
+  project: Project;
   onImported: (project: Project) => void;
 }
 
@@ -19,13 +25,16 @@ export const ChooseStyleTemplatePopUp = ({
   isOpen,
   onClose,
   projectId,
-  currentSnapshotName,
+  project,
   onImported,
 }: ChooseStyleTemplatePopUpProps) => {
   const [templates, setTemplates] = useState<StyleTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [importingId, setImportingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const [editSnapshotOpen, setEditSnapshotOpen] = useState(false);
+  const [savingSnapshot, setSavingSnapshot] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -66,9 +75,79 @@ export const ChooseStyleTemplatePopUp = ({
     }
   };
 
+  // Reuses EditStyleTemplateCardPopUp.tsx's form in its "project" scope
+  // (see that component's `scope` prop) so editing the snapshot doesn't
+  // touch style_templates at all — onSubmit here PUTs the project's own
+  // snapshot_styletemplate_* columns via /projects/update, never
+  // /styletemplates/..., which is what keeps this project-local per
+  // CLAUDE.md's snapshotting-pattern note.
+  const handleSnapshotSubmit = async (values: StyleTemplateFormValues) => {
+    setSavingSnapshot(true);
+    try {
+      const res = await authFetch(`/projects/update/${projectId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          snapshot_styletemplate_name: values.name,
+          snapshot_styletemplate_image_prompt: values.imagePrompt,
+          snapshot_styletemplate_animation_prompt: values.animationPrompt,
+          snapshot_styletemplate_youtube_title_description_tags_prompt:
+            values.youtubeTitleDescriptionTagsPrompt || null,
+          snapshot_styletemplate_youtube_thumbnail_image_prompt: values.youtubeThumbnailImagePrompt || null,
+          snapshot_styletemplate_description: values.description,
+          snapshot_styletemplate_image_aspect_ratio: values.imageAspectRatio,
+          snapshot_styletemplate_video_aspect_ratio: values.videoAspectRatio,
+          snapshot_styletemplate_scene_density: values.sceneDensity,
+        }),
+      });
+      const data: Project = await res.json();
+      onImported(data);
+      setEditSnapshotOpen(false);
+    } finally {
+      setSavingSnapshot(false);
+    }
+  };
+
   if (!isOpen) return null;
 
-  return createPortal(
+  const snapshotName = project.snapshot_styletemplate_name;
+  // Whether the snapshot still matches something live in the library — if not,
+  // it won't get highlighted in the list below (nothing there matches it
+  // anymore), so the standalone section explains why rather than leaving that
+  // silent.
+  const snapshotStillInLibrary = !loading && templates.some((t) => t.name === snapshotName);
+
+  // A synthetic StyleTemplate built from the project's own snapshot fields —
+  // EditStyleTemplateCardPopUp only ever reads template.<field> to seed the
+  // form, never id/user_id/created_at/updated_at, so placeholder values there
+  // are safe. best_for/demo_image_url have no snapshot equivalent (see that
+  // component's `scope="project"` doc comment) and are hidden in that scope,
+  // so null here is never shown or submitted.
+  const snapshotAsTemplate: StyleTemplate | null = snapshotName
+    ? {
+        id: project.id,
+        user_id: project.user_id,
+        is_default: false,
+        name: snapshotName,
+        image_prompt: project.snapshot_styletemplate_image_prompt ?? "",
+        animation_prompt: project.snapshot_styletemplate_animation_prompt ?? "",
+        youtube_title_description_tags_prompt:
+          project.snapshot_styletemplate_youtube_title_description_tags_prompt,
+        youtube_thumbnail_image_prompt: project.snapshot_styletemplate_youtube_thumbnail_image_prompt,
+        scene_density: project.snapshot_styletemplate_scene_density ?? "small",
+        image_aspect_ratio: project.snapshot_styletemplate_image_aspect_ratio ?? "16:9",
+        video_aspect_ratio: project.snapshot_styletemplate_video_aspect_ratio ?? "16:9",
+        description: project.snapshot_styletemplate_description ?? "",
+        best_for: null,
+        demo_image_url: null,
+        created_at: project.updated_at,
+        updated_at: project.updated_at,
+      }
+    : null;
+
+  return (
+    <>
+      {createPortal(
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="absolute inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-md" onClick={onClose} />
 
@@ -84,8 +163,59 @@ export const ChooseStyleTemplatePopUp = ({
           </button>
         </div>
 
-        <div className="px-6 py-5 overflow-y-auto flex flex-col gap-3">
-          {loading ? (
+        <div className="px-6 py-5 overflow-y-auto flex flex-col gap-6">
+          {/* Reads straight off the project's own snapshot_styletemplate_*
+              columns, never the live /styletemplates/ list below — so this
+              keeps showing exactly what's actually driving generation even
+              after the source template is edited or deleted from the
+              library (snapshots are a real, independent copy). */}
+          {snapshotName && (
+            <div>
+              <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2.5">
+                Currently applied to this project
+              </h3>
+              <div className="flex items-start gap-3 p-4 rounded-xl border-2 border-indigo-500 bg-indigo-50/60 dark:bg-indigo-500/10">
+                <div className="w-9 h-9 flex-shrink-0 rounded-xl bg-violet-50 dark:bg-violet-500/10 border border-violet-100 dark:border-violet-500/30 text-violet-600 dark:text-violet-400 flex items-center justify-center">
+                  <Palette className="w-4.5 h-4.5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-[15px] text-slate-900 dark:text-slate-100 truncate">{snapshotName}</p>
+                    <span className="flex-shrink-0 px-2 py-0.5 rounded-full text-[11px] font-medium bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/30">
+                      {project.snapshot_styletemplate_image_aspect_ratio === "9:16" ? "9:16 · Reels" : "16:9 · Long Video"}
+                    </span>
+                  </div>
+                  {project.snapshot_styletemplate_image_prompt && (
+                    <p className="mt-1 text-[13px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
+                      {project.snapshot_styletemplate_image_prompt}
+                    </p>
+                  )}
+                  {!snapshotStillInLibrary && !loading && (
+                    <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-400">
+                      <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+                      No longer in your library, but this project keeps its own copy — generation is unaffected.
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setEditSnapshotOpen(true)}
+                    className="mt-2 flex items-center gap-1.5 text-[12px] font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 cursor-pointer"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    View / Edit for this project
+                  </button>
+                </div>
+                <Check className="w-4 h-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0 mt-1" />
+              </div>
+            </div>
+          )}
+
+          <div>
+            <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2.5">
+              Your Style Template Library
+            </h3>
+            <div className="flex flex-col gap-3">
+            {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />
             </div>
@@ -96,7 +226,7 @@ export const ChooseStyleTemplatePopUp = ({
             </div>
           ) : (
             templates.map((t) => {
-              const isCurrent = currentSnapshotName === t.name;
+              const isCurrent = snapshotName === t.name;
               const isImporting = importingId === t.id;
               return (
                 <button
@@ -135,6 +265,8 @@ export const ChooseStyleTemplatePopUp = ({
               );
             })
           )}
+            </div>
+          </div>
         </div>
 
         {error && <p className="px-6 pb-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
@@ -149,7 +281,20 @@ export const ChooseStyleTemplatePopUp = ({
         </div>
       </div>
     </div>,
-    document.body
+        document.body
+      )}
+
+      <EditStyleTemplateCardPopUp
+        key={editSnapshotOpen ? "snapshot-open" : "snapshot-closed"}
+        isOpen={editSnapshotOpen}
+        onClose={() => !savingSnapshot && setEditSnapshotOpen(false)}
+        mode="edit"
+        scope="project"
+        template={snapshotAsTemplate}
+        onSubmit={handleSnapshotSubmit}
+        submitting={savingSnapshot}
+      />
+    </>
   );
 };
 

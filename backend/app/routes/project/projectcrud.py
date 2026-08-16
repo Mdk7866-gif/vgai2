@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from supabase_auth.types import User as SupabaseUser
 
 from app.auth import get_current_user
-from app.cloudinary import delete_project_media
+from app.cloudinary import delete_media, delete_project_media, upload_image
 from app.schemas.project import (
     CharacterImportRequest,
     Project,
@@ -37,6 +37,20 @@ def _style_template_snapshot(style_template: dict) -> dict:
         snapshot_field: style_template.get(source_field)
         for snapshot_field, source_field in _STYLETEMPLATE_SNAPSHOT_FIELD_MAP.items()
     }
+
+
+def _owns_project_character_image(url: str | None, user_id: str, project_id: str) -> bool:
+    """True only when `url` was uploaded to this project's own
+    <user_id>/<project_id>/project_characters/ folder -- i.e. a project-local
+    edit already replaced the snapshot's image at least once. A freshly
+    imported snapshot's snapshot_character_sheet_url is a *copy of the URL
+    string* pointing at the live characters/ library asset (see README §9 /
+    CLAUDE.md's snapshotting-pattern note), never a per-project upload --
+    delete_media() on that would delete the still-live character-library
+    image out from under the original character. Only ever delete an asset
+    this project itself uploaded.
+    """
+    return bool(url) and f"/{user_id}/{project_id}/project_characters/" in url
 
 
 def _get_owned_project(project_id: str, user_id: str) -> dict:
@@ -201,6 +215,64 @@ async def import_project_characters(
     return result.data
 
 
+@router.put("/{project_id}/characters/{project_character_id}", response_model=ProjectCharacter)
+async def update_project_character(
+    project_id: str,
+    project_character_id: str,
+    name: str = Form(...),
+    description: str = Form(...),
+    character_sheet: UploadFile | None = File(None),
+    current_user: SupabaseUser = Depends(get_current_user),
+):
+    """Edits this project's own snapshot of an imported character -- name,
+    description, and optionally a replacement sheet image -- without touching
+    the original characters row or any other project that imported the same
+    character. This is the entire point of snapshotting (see CLAUDE.md's
+    snapshotting-pattern note): a user who realizes mid-project that a
+    character needs a project-specific tweak (a detail changed for this
+    story, a different reference image) can edit it here freely.
+
+    A replacement image uploads to this project's own project_characters/
+    folder rather than overwriting the shared characters/ asset the snapshot
+    started out pointing at -- see _owns_project_character_image for why the
+    old value is only delete_media()'d when it was itself a previous
+    project-local upload.
+    """
+    _get_owned_project(project_id, current_user.id)
+    existing = (
+        supabase.table("project_characters")
+        .select("*")
+        .eq("id", project_character_id)
+        .eq("project_id", project_id)
+        .execute()
+    )
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="Imported character not found")
+    existing_row = existing.data[0]
+
+    update_data: dict = {
+        "snapshot_name": name,
+        "snapshot_description": description,
+    }
+    if character_sheet is not None and character_sheet.filename:
+        update_data["snapshot_character_sheet_url"] = await upload_image(
+            character_sheet,
+            folder=f"{current_user.id}/{project_id}/project_characters",
+            public_id_prefix="character",
+        )
+        previous_url = existing_row.get("snapshot_character_sheet_url")
+        if _owns_project_character_image(previous_url, current_user.id, project_id):
+            await delete_media(previous_url, resource_type="image")
+
+    updated = (
+        supabase.table("project_characters")
+        .update(update_data)
+        .eq("id", project_character_id)
+        .execute()
+    )
+    return updated.data[0]
+
+
 @router.delete("/{project_id}/characters/{project_character_id}")
 async def remove_project_character(
     project_id: str,
@@ -208,13 +280,19 @@ async def remove_project_character(
     current_user: SupabaseUser = Depends(get_current_user),
 ):
     _get_owned_project(project_id, current_user.id)
-    existing = supabase.table("project_characters").select("id").eq("id", project_character_id).eq(
+    existing = supabase.table("project_characters").select("*").eq("id", project_character_id).eq(
         "project_id", project_id
     ).execute()
     if not existing.data:
         raise HTTPException(status_code=404, detail="Imported character not found")
 
     supabase.table("project_characters").delete().eq("id", project_character_id).execute()
+    # Only cleans up an image this project uploaded itself (see
+    # _owns_project_character_image) -- a never-edited snapshot still points
+    # at the shared characters/ library asset, which must survive this delete.
+    snapshot_url = existing.data[0].get("snapshot_character_sheet_url")
+    if _owns_project_character_image(snapshot_url, current_user.id, project_id):
+        await delete_media(snapshot_url, resource_type="image")
     return {"success": True}
 
 

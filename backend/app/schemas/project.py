@@ -65,7 +65,17 @@ class ProjectUpdate(BaseModel):
     """All fields optional — applied via model_dump(exclude_unset=True) in
     projectcrud.py. Deliberately a partial-update shape (unlike StyleTemplateUpdate's
     full-replace), since rename, script autosave, and the model-tier pickers are
-    separate UI surfaces that each only ever touch their own subset of fields."""
+    separate UI surfaces that each only ever touch their own subset of fields.
+
+    The snapshot_styletemplate_* fields let a user tweak the style template
+    *snapshotted onto this project* directly (ChooseStyleTemplatePopUp.tsx's
+    "Currently applied" card, reusing EditStyleTemplateCardPopUp.tsx in its
+    project-scoped variant) without touching the original style_templates row
+    or any other project that imported the same template — that's the entire
+    point of snapshotting per vgaidatabase.dbml. Deliberately no endpoint
+    writes these back onto style_templates; this is a one-way, project-local
+    edit only.
+    """
 
     name: str | None = None
     script: str | None = None
@@ -77,6 +87,16 @@ class ProjectUpdate(BaseModel):
     description_of_video: str | None = None
     tags_of_video: str | None = None
     thumbnail_prompt: str | None = None
+
+    snapshot_styletemplate_name: str | None = None
+    snapshot_styletemplate_image_prompt: str | None = None
+    snapshot_styletemplate_animation_prompt: str | None = None
+    snapshot_styletemplate_youtube_title_description_tags_prompt: str | None = None
+    snapshot_styletemplate_youtube_thumbnail_image_prompt: str | None = None
+    snapshot_styletemplate_description: str | None = None
+    snapshot_styletemplate_image_aspect_ratio: str | None = None
+    snapshot_styletemplate_video_aspect_ratio: str | None = None
+    snapshot_styletemplate_scene_density: SceneDensity | None = None
 
 
 class ProjectCharacter(BaseModel):
