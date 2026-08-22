@@ -13,6 +13,7 @@ import {
   Plus,
   Sparkles,
   Trash2,
+  Upload,
   Users,
   X,
   XCircle,
@@ -21,6 +22,8 @@ import { authFetch } from "@/lib/api";
 import { animationCreditCost, imageCreditCost } from "@/lib/credits";
 import { AssetUnavailableError, downloadAsset, getFileExtension } from "@/lib/download";
 import { useCreditBalance } from "@/context/CreditBalanceContext";
+import AlertMessagePopUp from "@/components/AlertMessagePopUp";
+import ConformationMessagePopUp from "@/components/ConformationMessagePopUp";
 import ImageZoomPopUp from "@/components/ImageZoomPopUp";
 import VideoPlayingCardPopUp from "@/components/VideoPlayingCardPopUp";
 import type { Scene } from "@/types/scene";
@@ -85,6 +88,25 @@ export const SceneCard = ({
   const [generatingAnimation, setGeneratingAnimation] = useState(false);
   const imageAbortRef = useRef<AbortController | null>(null);
   const animationAbortRef = useRef<AbortController | null>(null);
+
+  // Manual upload (drag-and-drop or click-to-browse) of an image/animation the
+  // user produced outside vgAI — a pure convenience path, no credits, no AI
+  // call. See the backend's upload_scene_image/upload_scene_animation.
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingAnimation, setUploadingAnimation] = useState(false);
+  const [imageDragOver, setImageDragOver] = useState(false);
+  const [animationDragOver, setAnimationDragOver] = useState(false);
+  const imageFileInputRef = useRef<HTMLInputElement | null>(null);
+  const animationFileInputRef = useRef<HTMLInputElement | null>(null);
+  // Holds a file that would replace an existing image/animation until the user
+  // acknowledges the AlertMessagePopUp warning that the previous one gets
+  // permanently deleted (from Cloudinary too, not just this scene's row).
+  const [pendingReplacement, setPendingReplacement] = useState<{ kind: "image" | "animation"; file: File } | null>(
+    null
+  );
+  const [deletingImage, setDeletingImage] = useState(false);
+  const [deletingAnimation, setDeletingAnimation] = useState(false);
+  const [deleteAssetConfirm, setDeleteAssetConfirm] = useState<"image" | "animation" | null>(null);
 
   const [charPopoverOpen, setCharPopoverOpen] = useState(false);
   const charButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -323,6 +345,131 @@ export const SceneCard = ({
     void cancelGeneration("animation");
   };
 
+  const uploadImageFile = async (file: File) => {
+    setUploadingImage(true);
+    setError(null);
+    const formData = new FormData();
+    formData.append("image", file);
+    try {
+      const res = await authFetch(`/projects/scenes/${scene.id}/upload_image`, {
+        method: "POST",
+        body: formData,
+      });
+      onUpdated(await res.json());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to upload image.");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const uploadAnimationFile = async (file: File) => {
+    setUploadingAnimation(true);
+    setError(null);
+    const formData = new FormData();
+    formData.append("animation", file);
+    try {
+      const res = await authFetch(`/projects/scenes/${scene.id}/upload_animation`, {
+        method: "POST",
+        body: formData,
+      });
+      onUpdated(await res.json());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to upload animation.");
+    } finally {
+      setUploadingAnimation(false);
+    }
+  };
+
+  /** Routes a newly picked/dropped file either straight to upload, or — when it
+   * would replace an existing asset — through the AlertMessagePopUp warning
+   * first. The upload itself fires once that warning is acknowledged. */
+  const selectImageFile = (file: File | null) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setError("Please choose an image file.");
+      return;
+    }
+    if (scene.generated_image_url) {
+      setPendingReplacement({ kind: "image", file });
+    } else {
+      void uploadImageFile(file);
+    }
+  };
+
+  const selectAnimationFile = (file: File | null) => {
+    if (!file) return;
+    if (!file.type.startsWith("video/")) {
+      setError("Please choose a video file.");
+      return;
+    }
+    if (scene.generated_animation_url) {
+      setPendingReplacement({ kind: "animation", file });
+    } else {
+      void uploadAnimationFile(file);
+    }
+  };
+
+  const handleAcknowledgeReplacement = () => {
+    if (!pendingReplacement) return;
+    const { kind, file } = pendingReplacement;
+    setPendingReplacement(null);
+    if (kind === "image") void uploadImageFile(file);
+    else void uploadAnimationFile(file);
+  };
+
+  const makeDropHandlers = (kind: "image" | "animation") => ({
+    onDragOver: (e: React.DragEvent) => {
+      e.preventDefault();
+      if (kind === "image" ? !uploadingImage : !uploadingAnimation) {
+        (kind === "image" ? setImageDragOver : setAnimationDragOver)(true);
+      }
+    },
+    onDragLeave: (e: React.DragEvent) => {
+      e.preventDefault();
+      (kind === "image" ? setImageDragOver : setAnimationDragOver)(false);
+    },
+    onDrop: (e: React.DragEvent) => {
+      e.preventDefault();
+      (kind === "image" ? setImageDragOver : setAnimationDragOver)(false);
+      const file = e.dataTransfer.files?.[0];
+      if (!file) return;
+      if (kind === "image") selectImageFile(file);
+      else selectAnimationFile(file);
+    },
+  });
+
+  const imageDropHandlers = makeDropHandlers("image");
+  const animationDropHandlers = makeDropHandlers("animation");
+
+  const handleDeleteImage = async () => {
+    setDeletingImage(true);
+    setError(null);
+    try {
+      const res = await authFetch(`/projects/scenes/${scene.id}/image`, { method: "DELETE" });
+      onUpdated(await res.json());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete image.");
+    } finally {
+      setDeletingImage(false);
+      setDeleteAssetConfirm(null);
+    }
+  };
+
+  const handleDeleteAnimation = async () => {
+    setDeletingAnimation(true);
+    setError(null);
+    try {
+      const res = await authFetch(`/projects/scenes/${scene.id}/animation`, { method: "DELETE" });
+      onUpdated(await res.json());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete animation.");
+    } finally {
+      setDeletingAnimation(false);
+      setDeleteAssetConfirm(null);
+    }
+  };
+
   const activePromptValue = activeTab === "image" ? imagePrompt : animationPrompt;
   const handleActivePromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     if (activeTab === "image") setImagePrompt(e.target.value);
@@ -523,21 +670,51 @@ export const SceneCard = ({
                       Cancel
                     </button>
                   ) : (
-                    <button
-                      onClick={handleGenerateImage}
-                      disabled={!imagePrompt.trim()}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 rounded-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <Sparkles className="w-3.5 h-3.5" />
-                      {scene.generated_image_url ? "Regenerate" : "Generate"}
-                    </button>
+                    <>
+                      <button
+                        onClick={handleGenerateImage}
+                        disabled={!imagePrompt.trim() || uploadingImage}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 rounded-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        {scene.generated_image_url ? "Regenerate" : "Generate"}
+                      </button>
+                      <button
+                        onClick={() => imageFileInputRef.current?.click()}
+                        disabled={uploadingImage}
+                        title="Upload an image you generated elsewhere"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-semibold text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 bg-slate-100 dark:bg-slate-900/60 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {uploadingImage ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Upload className="w-3.5 h-3.5" />
+                        )}
+                        Upload
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
+              <input
+                ref={imageFileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  selectImageFile(e.target.files?.[0] ?? null);
+                  e.target.value = "";
+                }}
+              />
               <div
-                onClick={() => scene.generated_image_url && setImageZoomOpen(true)}
-                className={`relative w-full ${previewMaxWidthClass} mx-auto ${previewAspectClass} rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700/60 flex items-center justify-center ${
+                onClick={() => scene.generated_image_url && !imageDragOver && setImageZoomOpen(true)}
+                {...imageDropHandlers}
+                className={`relative w-full ${previewMaxWidthClass} mx-auto ${previewAspectClass} rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-900 border-2 flex items-center justify-center transition-colors ${
                   scene.generated_image_url ? "cursor-zoom-in" : ""
+                } ${
+                  imageDragOver
+                    ? "border-dashed border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10"
+                    : "border-slate-200 dark:border-slate-700/60"
                 }`}
               >
                 {scene.generated_image_url ? (
@@ -565,7 +742,29 @@ export const SceneCard = ({
                     >
                       {downloadButtonIcon("image")}
                     </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteAssetConfirm("image");
+                      }}
+                      disabled={deletingImage}
+                      aria-label="Delete image"
+                      title="Delete image"
+                      className="absolute top-1.5 right-9 p-1.5 rounded-lg text-white bg-black/50 hover:bg-red-600/90 transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      {deletingImage ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-3.5 h-3.5" />
+                      )}
+                    </button>
                   </>
+                ) : imageDragOver ? (
+                  <span className="flex flex-col items-center gap-1 text-indigo-500 dark:text-indigo-400 text-[11px] font-medium px-2 text-center">
+                    <Upload className="w-6 h-6" />
+                    Drop image here
+                  </span>
                 ) : (
                   <ImageIcon className="w-6 h-6 text-slate-300 dark:text-slate-600" />
                 )}
@@ -588,22 +787,52 @@ export const SceneCard = ({
                       Cancel
                     </button>
                   ) : (
-                    <button
-                      onClick={handleGenerateAnimation}
-                      disabled={!scene.generated_image_url || !animationPrompt.trim()}
-                      title={!scene.generated_image_url ? "Generate the scene's image first" : undefined}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-semibold text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-500/10 hover:bg-violet-100 dark:hover:bg-violet-500/20 rounded-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <Sparkles className="w-3.5 h-3.5" />
-                      {scene.generated_animation_url ? "Regenerate" : "Generate"}
-                    </button>
+                    <>
+                      <button
+                        onClick={handleGenerateAnimation}
+                        disabled={!scene.generated_image_url || !animationPrompt.trim() || uploadingAnimation}
+                        title={!scene.generated_image_url ? "Generate the scene's image first" : undefined}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-semibold text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-500/10 hover:bg-violet-100 dark:hover:bg-violet-500/20 rounded-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        {scene.generated_animation_url ? "Regenerate" : "Generate"}
+                      </button>
+                      <button
+                        onClick={() => animationFileInputRef.current?.click()}
+                        disabled={uploadingAnimation}
+                        title="Upload an animation you generated elsewhere"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-semibold text-slate-500 dark:text-slate-400 hover:text-violet-600 dark:hover:text-violet-400 bg-slate-100 dark:bg-slate-900/60 hover:bg-violet-50 dark:hover:bg-violet-500/10 rounded-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {uploadingAnimation ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Upload className="w-3.5 h-3.5" />
+                        )}
+                        Upload
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
+              <input
+                ref={animationFileInputRef}
+                type="file"
+                accept="video/*"
+                className="hidden"
+                onChange={(e) => {
+                  selectAnimationFile(e.target.files?.[0] ?? null);
+                  e.target.value = "";
+                }}
+              />
               <div
-                onClick={() => scene.generated_animation_url && setVideoPopupOpen(true)}
-                className={`relative w-full ${previewMaxWidthClass} mx-auto ${previewAspectClass} rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700/60 flex items-center justify-center ${
+                onClick={() => scene.generated_animation_url && !animationDragOver && setVideoPopupOpen(true)}
+                {...animationDropHandlers}
+                className={`relative w-full ${previewMaxWidthClass} mx-auto ${previewAspectClass} rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-900 border-2 flex items-center justify-center transition-colors ${
                   scene.generated_animation_url ? "cursor-pointer" : ""
+                } ${
+                  animationDragOver
+                    ? "border-dashed border-violet-500 bg-violet-50 dark:bg-violet-500/10"
+                    : "border-slate-200 dark:border-slate-700/60"
                 }`}
               >
                 {scene.generated_animation_url ? (
@@ -631,7 +860,29 @@ export const SceneCard = ({
                     >
                       {downloadButtonIcon("animation")}
                     </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteAssetConfirm("animation");
+                      }}
+                      disabled={deletingAnimation}
+                      aria-label="Delete animation"
+                      title="Delete animation"
+                      className="absolute top-1.5 right-9 p-1.5 rounded-lg text-white bg-black/50 hover:bg-red-600/90 transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      {deletingAnimation ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-3.5 h-3.5" />
+                      )}
+                    </button>
                   </>
+                ) : animationDragOver ? (
+                  <span className="flex flex-col items-center gap-1 text-violet-500 dark:text-violet-400 text-[11px] font-medium px-2 text-center">
+                    <Upload className="w-6 h-6" />
+                    Drop video here
+                  </span>
                 ) : (
                   <Clapperboard className="w-6 h-6 text-slate-300 dark:text-slate-600" />
                 )}
@@ -660,6 +911,27 @@ export const SceneCard = ({
           filename={`scene_${scene.scene_number}.${getFileExtension(scene.generated_animation_url, "mp4")}`}
         />
       )}
+
+      <AlertMessagePopUp
+        isOpen={pendingReplacement !== null}
+        onClose={handleAcknowledgeReplacement}
+        type="warning"
+        title={pendingReplacement?.kind === "animation" ? "Replace this animation?" : "Replace this image?"}
+        message={`This scene already has a${
+          pendingReplacement?.kind === "animation" ? "n animation" : "n image"
+        } generated — uploading this file will permanently delete the current one (from Cloudinary too, not just this project) and replace it.`}
+      />
+
+      <ConformationMessagePopUp
+        isOpen={deleteAssetConfirm !== null}
+        onClose={() => setDeleteAssetConfirm(null)}
+        onConfirm={deleteAssetConfirm === "animation" ? handleDeleteAnimation : handleDeleteImage}
+        isDestructive
+        confirming={deleteAssetConfirm === "animation" ? deletingAnimation : deletingImage}
+        title={deleteAssetConfirm === "animation" ? "Delete this animation?" : "Delete this image?"}
+        message="This permanently removes the file, including from Cloudinary. This can't be undone."
+        confirmText="Delete"
+      />
 
       {charPopoverOpen &&
         createPortal(

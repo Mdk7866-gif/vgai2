@@ -52,6 +52,14 @@ def upload_image_bytes(content: bytes, folder: str, public_id_prefix: str = "img
     return _upload_bytes(content, folder, public_id_prefix, resource_type="image")
 
 
+async def upload_video(file: UploadFile, folder: str, public_id_prefix: str = "video") -> str:
+    """Same as upload_image() but for a video UploadFile — e.g. a scene animation
+    the user generated outside vgAI and is attaching by hand, as opposed to
+    upload_video_bytes() for raw bytes already in hand (an OpenRouter clip)."""
+    file_content = await file.read()
+    return _upload_bytes(file_content, folder, public_id_prefix, resource_type="video")
+
+
 def upload_video_bytes(content: bytes, folder: str, public_id_prefix: str = "video") -> str:
     """Uploads raw video bytes (e.g. an OpenRouter-generated animation clip) as a Cloudinary video asset."""
     return _upload_bytes(content, folder, public_id_prefix, resource_type="video")

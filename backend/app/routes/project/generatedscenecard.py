@@ -1,10 +1,10 @@
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from supabase_auth.types import User as SupabaseUser
 
 from app.auth import get_current_user
-from app.cloudinary import delete_media
+from app.cloudinary import delete_media, upload_image, upload_video
 from app.routes.project.projectcrud import _get_owned_project
 from app.schemas.scene import (
     CancelGenerationRequest,
@@ -233,6 +233,142 @@ async def cancel_generation(
         )
     else:
         updated = scene
+
+    return _attach_involved_characters([updated])[0]
+
+
+@router.post("/{scene_id}/upload_image", response_model=Scene)
+async def upload_scene_image(
+    scene_id: str,
+    image: UploadFile = File(...),
+    current_user: SupabaseUser = Depends(get_current_user),
+):
+    """Attaches an image the user generated outside vgAI (e.g. pasted into
+    meta.ai via the manual image-generation flow) straight onto a scene, so a
+    manual workflow ends up just as organized in the project as the automatic
+    one. No AI call, no credit cost — same free-CRUD shape as the rest of this
+    file, not the reserve/refund shape imagegeneration.py uses for a real
+    provider call.
+    """
+    scene = _get_owned_scene(scene_id, current_user.id)
+    if scene["image_status"] == "generating":
+        raise HTTPException(status_code=409, detail="An image generation is already in progress for this scene.")
+    if not (image.content_type or "").startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image.")
+
+    previous_url = scene.get("generated_image_url")
+    image_url = await upload_image(
+        image,
+        folder=f"{current_user.id}/{scene['project_id']}/scene_images",
+        public_id_prefix=f"scene_{scene['scene_number']}",
+    )
+
+    updated = (
+        supabase.table("scenes")
+        .update({"generated_image_url": image_url, "image_status": "completed", "image_generation_token": None})
+        .eq("id", scene_id)
+        .execute()
+        .data[0]
+    )
+
+    # Scene images always live under this project's own scene_images/ folder —
+    # unlike a character sheet, never a shared asset another row also points
+    # at — so the previous one is always safe to delete, same as every
+    # generation path's own replace-and-clean-up.
+    if previous_url and previous_url != image_url:
+        await delete_media(previous_url, resource_type="image")
+
+    return _attach_involved_characters([updated])[0]
+
+
+@router.post("/{scene_id}/upload_animation", response_model=Scene)
+async def upload_scene_animation(
+    scene_id: str,
+    animation: UploadFile = File(...),
+    current_user: SupabaseUser = Depends(get_current_user),
+):
+    """Same idea as upload_scene_image above, for a scene's animation clip.
+    Deliberately does not require scene.generated_image_url to already be
+    set — unlike the automatic Generate button, a manually-produced clip may
+    not have gone through vgAI's own image-to-video step at all."""
+    scene = _get_owned_scene(scene_id, current_user.id)
+    if scene["animation_status"] == "generating":
+        raise HTTPException(
+            status_code=409, detail="An animation generation is already in progress for this scene."
+        )
+    if not (animation.content_type or "").startswith("video/"):
+        raise HTTPException(status_code=400, detail="File must be a video.")
+
+    previous_url = scene.get("generated_animation_url")
+    video_url = await upload_video(
+        animation,
+        folder=f"{current_user.id}/{scene['project_id']}/scene_animation",
+        public_id_prefix=f"scene_{scene['scene_number']}",
+    )
+
+    updated = (
+        supabase.table("scenes")
+        .update(
+            {
+                "generated_animation_url": video_url,
+                "animation_status": "completed",
+                "animation_generation_token": None,
+            }
+        )
+        .eq("id", scene_id)
+        .execute()
+        .data[0]
+    )
+
+    if previous_url and previous_url != video_url:
+        await delete_media(previous_url, resource_type="video")
+
+    return _attach_involved_characters([updated])[0]
+
+
+@router.delete("/{scene_id}/image", response_model=Scene)
+async def delete_scene_image(scene_id: str, current_user: SupabaseUser = Depends(get_current_user)):
+    """Clears a scene's image (generated or manually uploaded) and deletes the
+    Cloudinary asset behind it — there's no reason to keep an asset around on
+    Cloudinary once nothing in the app points at it. Back to "pending" rather
+    than the row's original unset state, same as a cancelled generation."""
+    scene = _get_owned_scene(scene_id, current_user.id)
+    if scene["image_status"] == "generating":
+        raise HTTPException(status_code=409, detail="An image generation is already in progress for this scene.")
+
+    url = scene.get("generated_image_url")
+    updated = (
+        supabase.table("scenes")
+        .update({"generated_image_url": None, "image_status": "pending"})
+        .eq("id", scene_id)
+        .execute()
+        .data[0]
+    )
+    if url:
+        await delete_media(url, resource_type="image")
+
+    return _attach_involved_characters([updated])[0]
+
+
+@router.delete("/{scene_id}/animation", response_model=Scene)
+async def delete_scene_animation(scene_id: str, current_user: SupabaseUser = Depends(get_current_user)):
+    """Same as delete_scene_image above, for the animation clip."""
+    scene = _get_owned_scene(scene_id, current_user.id)
+    if scene["animation_status"] == "generating":
+        raise HTTPException(
+            status_code=409, detail="An animation generation is already in progress for this scene."
+        )
+
+    url = scene.get("generated_animation_url")
+    updated = (
+        supabase.table("scenes")
+        .update({"generated_animation_url": None, "animation_status": "pending"})
+        .eq("id", scene_id)
+        .execute()
+        .data[0]
+    )
+    if url:
+        await delete_media(url, resource_type="video")
 
     return _attach_involved_characters([updated])[0]
 
