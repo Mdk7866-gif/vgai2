@@ -52,6 +52,33 @@ def upload_image_bytes(content: bytes, folder: str, public_id_prefix: str = "img
     return _upload_bytes(content, folder, public_id_prefix, resource_type="image")
 
 
+def copy_image_from_url(source_url: str, folder: str, public_id_prefix: str = "img") -> str:
+    """Server-side copy of an existing Cloudinary (or any fetchable) image URL
+    into a new folder as an independent asset — Cloudinary fetches source_url
+    itself, no download/re-upload round trip through this backend.
+
+    Used by project_characters' import so a project's snapshot owns a real
+    copy of the character-sheet image instead of reusing the library
+    character's own URL (see projectcrud.py's import/create-project sites and
+    README.md §9) — deleting the original characters/ row must never be able
+    to blank an image a project is still displaying.
+    """
+    if not settings.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME:
+        raise HTTPException(status_code=500, detail="Cloudinary is not configured on the backend.")
+
+    try:
+        root = settings.CLOUDINARY_FOLDER_NAME or "vgAI"
+        response = cloudinary.uploader.upload(
+            source_url,
+            folder=f"{root}/{folder}",
+            public_id=f"{public_id_prefix}_{uuid.uuid4().hex[:8]}",
+            resource_type="image",
+        )
+        return response.get('secure_url')
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to copy image in Cloudinary: {str(e)}")
+
+
 async def upload_video(file: UploadFile, folder: str, public_id_prefix: str = "video") -> str:
     """Same as upload_image() but for a video UploadFile — e.g. a scene animation
     the user generated outside vgAI and is attaching by hand, as opposed to

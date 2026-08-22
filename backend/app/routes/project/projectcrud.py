@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from supabase_auth.types import User as SupabaseUser
 
 from app.auth import get_current_user
-from app.cloudinary import delete_media, delete_project_media, upload_image
+from app.cloudinary import copy_image_from_url, delete_media, delete_project_media, upload_image
 from app.schemas.project import (
     CharacterImportRequest,
     Project,
@@ -40,17 +40,45 @@ def _style_template_snapshot(style_template: dict) -> dict:
 
 
 def _owns_project_character_image(url: str | None, user_id: str, project_id: str) -> bool:
-    """True only when `url` was uploaded to this project's own
-    <user_id>/<project_id>/project_characters/ folder -- i.e. a project-local
-    edit already replaced the snapshot's image at least once. A freshly
-    imported snapshot's snapshot_character_sheet_url is a *copy of the URL
-    string* pointing at the live characters/ library asset (see README §9 /
-    CLAUDE.md's snapshotting-pattern note), never a per-project upload --
-    delete_media() on that would delete the still-live character-library
-    image out from under the original character. Only ever delete an asset
-    this project itself uploaded.
+    """True when `url` lives under this project's own
+    <user_id>/<project_id>/project_characters/ folder -- i.e. a real
+    per-project asset, either from import (see import_project_characters/
+    create_project below, which now copy the character-sheet image into this
+    folder via copy_image_from_url() rather than reusing the library URL) or
+    from a later project-local edit replacing it.
+
+    Kept as a guard (rather than assuming every snapshot now owns its image)
+    because a row created before this fix could still hold a *copy of the
+    URL string* pointing at the live characters/ library asset --
+    delete_media() on one of those would delete the still-live
+    character-library image out from under the original character. Every row
+    in the DB was confirmed on this fix's rollout to already own its image
+    copy (a one-time backfill migrated the single pre-fix row that existed),
+    so this guard isn't load-bearing today -- it's cheap insurance against a
+    restored backup or another environment reintroducing an old-style row.
+    Only ever delete an asset actually stored under this project's own
+    folder.
     """
     return bool(url) and f"/{user_id}/{project_id}/project_characters/" in url
+
+
+def _copy_character_sheet_for_project(character_sheet_url: str, user_id: str, project_id: str) -> str:
+    """Gives a newly-imported project_characters row its own copy of the
+    character-sheet image under this project's own project_characters/
+    folder, rather than reusing the library character's characters/ URL --
+    see _owns_project_character_image above. Falls back to the shared URL on
+    a Cloudinary failure (network blip, quota) so an import still succeeds
+    with a working image; that row is then indistinguishable from a pre-fix
+    row and _owns_project_character_image still guards it correctly.
+    """
+    try:
+        return copy_image_from_url(
+            character_sheet_url,
+            folder=f"{user_id}/{project_id}/project_characters",
+            public_id_prefix="character",
+        )
+    except HTTPException:
+        return character_sheet_url
 
 
 def _get_owned_project(project_id: str, user_id: str) -> dict:
@@ -102,17 +130,18 @@ async def create_project(
         supabase.table("characters").select("*").eq("user_id", current_user.id).eq("is_default", True).execute()
     )
     if default_characters.data:
-        supabase.table("project_characters").insert(
-            [
-                {
-                    "project_id": project_id,
-                    "snapshot_name": c["name"],
-                    "snapshot_description": c["description"],
-                    "snapshot_character_sheet_url": c["character_sheet_url"],
-                }
-                for c in default_characters.data
-            ]
-        ).execute()
+        rows_to_insert = [
+            {
+                "project_id": project_id,
+                "snapshot_name": c["name"],
+                "snapshot_description": c["description"],
+                "snapshot_character_sheet_url": _copy_character_sheet_for_project(
+                    c["character_sheet_url"], current_user.id, project_id
+                ),
+            }
+            for c in default_characters.data
+        ]
+        supabase.table("project_characters").insert(rows_to_insert).execute()
 
     default_style = (
         supabase.table("style_templates")
@@ -157,10 +186,13 @@ async def delete_project(project_id: str, current_user: SupabaseUser = Depends(g
     _get_owned_project(project_id, current_user.id)
 
     # Best-effort cleanup of every asset (and now-empty folder) this project owns
-    # in Cloudinary. project_characters' snapshot_character_sheet_url is
-    # deliberately untouched — it's a copied URL pointing at the still-live
-    # character-library asset under a different folder prefix, not a separate
-    # per-project upload, so deleting it would break the original character.
+    # in Cloudinary, by prefix under <user_id>/<project_id>/. A row's
+    # snapshot_character_sheet_url now normally lives under that project's own
+    # project_characters/ folder (see _copy_character_sheet_for_project) so this
+    # correctly cleans it up too. A pre-fix row that still points at the shared
+    # characters/ library asset falls outside this prefix and is left alone —
+    # deleting it would break the original character (see
+    # _owns_project_character_image).
     delete_project_media(current_user.id, project_id)
 
     supabase.table("projects").delete().eq("id", project_id).execute()
@@ -199,7 +231,9 @@ async def import_project_characters(
                 "project_id": project_id,
                 "snapshot_name": c["name"],
                 "snapshot_description": c["description"],
-                "snapshot_character_sheet_url": c["character_sheet_url"],
+                "snapshot_character_sheet_url": _copy_character_sheet_for_project(
+                    c["character_sheet_url"], current_user.id, project_id
+                ),
             }
         )
     if rows_to_insert:
