@@ -1,17 +1,20 @@
 """Read-only starter catalog of product-default style templates.
 
-The catalog lives in default_style_templates.json, alongside this file --
-edit it directly, no build step. (An earlier version generated this JSON from
-a markdown source via a parser script; that indirection was dropped because
-forgetting to re-run the script after an edit left the API silently serving
-stale content. See CLAUDE.md's starter-catalog bullet for the design notes --
-density-tier rationale, the model-agnostic prompt-language rule, fingerprint
-risk -- that used to live in that markdown's prose.) These are deliberately
-*not* rows in style_templates:
+The catalog lives in the shared `default_style_templates` table, edited from
+the **vgai2admin** portal (see that repo's README §9). It used to be a bundled
+`default_style_templates.json` read through an `lru_cache`d loader; that was
+replaced so the catalog can be changed without a redeploy — and deliberately
+with *no* caching here, since the whole point of moving it into the DB is that
+an admin edit shows up on the next request rather than the next restart. (The
+design notes that used to justify each entry's wording — density-tier
+rationale, the model-agnostic prompt-language rule, fingerprint risk — are in
+CLAUDE.md's starter-catalog bullet, not in the data.)
 
-  - Editing the JSON updates what every user sees on their next visit. Seeded
-    rows freeze at signup, so an improved prompt would never reach anyone who
-    already has an account.
+These are still deliberately *not* rows in `style_templates`:
+
+  - Editing the catalog updates what every user sees on their next visit.
+    Seeded rows freeze at signup, so an improved prompt would never reach
+    anyone who already has an account.
   - No backfill migration inserting 12 rows for every existing user.
   - Import is the one place a copy is made, which is where the fingerprint
     mitigation (per-user palette/lighting nudges, so a thousand channels
@@ -21,10 +24,6 @@ Listing is unauthenticated on purpose -- /style_templates is browsable logged
 out (see CLAUDE.md's "public browsing, gated actions"), and the starter library
 is the most persuasive thing a signed-out visitor can see. Importing is gated.
 """
-
-import json
-from functools import lru_cache
-from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 from supabase_auth.types import User as SupabaseUser
@@ -37,13 +36,12 @@ from .crud import _clear_existing_default
 
 router = APIRouter(prefix="/styletemplates", tags=["styletemplates"])
 
-CATALOG_PATH = Path(__file__).resolve().parent / "default_style_templates.json"
-
 # Fields copied verbatim into the user's row on import. `slug` is catalog-only
 # metadata and is deliberately not persisted -- once imported, the copy is an
 # ordinary template the user owns outright and can edit or delete freely, with
 # no link back to the catalog entry it came from (same real-copy-not-reference
-# rule as project_characters).
+# rule as project_characters). The catalog's own is_published/sort_order/
+# timestamps are likewise admin-side bookkeeping, never copied.
 _IMPORTABLE_FIELDS = (
     "name",
     "description",
@@ -59,24 +57,19 @@ _IMPORTABLE_FIELDS = (
 )
 
 
-@lru_cache(maxsize=1)
-def _load_catalog() -> list[dict]:
-    """Parses the catalog once per process -- it is a static bundled asset, so
-    re-reading it on every request would be pure disk churn. Restart (or reload,
-    which dev already does) to pick up an edit."""
-    if not CATALOG_PATH.exists():
-        raise HTTPException(status_code=500, detail="Default style template catalog is missing.")
-    try:
-        return json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        raise HTTPException(
-            status_code=500, detail=f"Default style template catalog is malformed: {exc}"
-        ) from exc
-
-
 @router.get("/defaults", response_model=list[DefaultStyleTemplate])
 async def list_default_style_templates():
-    return _load_catalog()
+    """Only published entries -- vgai2admin can draft an entry (is_published
+    false) and it stays invisible here until it's ready."""
+    result = (
+        supabase.table("default_style_templates")
+        .select("*")
+        .eq("is_published", True)
+        .order("sort_order")
+        .order("created_at")
+        .execute()
+    )
+    return result.data or []
 
 
 @router.post("/defaults/{slug}/import", response_model=StyleTemplate)
@@ -93,10 +86,20 @@ async def import_default_style_template(
 
     Importing the same slug twice is allowed and produces a second independent
     copy; the catalog is a starting point, not a set the library has to mirror.
+
+    Unpublished entries are not importable -- a draft that's hidden from the
+    listing must not be reachable by guessing its slug either.
     """
-    entry = next((item for item in _load_catalog() if item["slug"] == slug), None)
-    if entry is None:
+    result = (
+        supabase.table("default_style_templates")
+        .select("*")
+        .eq("slug", slug)
+        .eq("is_published", True)
+        .execute()
+    )
+    if not result.data:
         raise HTTPException(status_code=404, detail="Default style template not found")
+    entry = result.data[0]
 
     new_template = {field: entry.get(field) for field in _IMPORTABLE_FIELDS}
     new_template["user_id"] = current_user.id

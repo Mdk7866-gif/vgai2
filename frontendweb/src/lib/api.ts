@@ -16,7 +16,18 @@ export async function authFetch(path: string, options: RequestInit = {}) {
 
   if (!res.ok) {
     const body = await res.json().catch(() => null);
-    throw new Error(body?.detail ?? `Request failed (${res.status})`);
+
+    if (res.status === 403 && body?.detail?.code === "ACCESS_REVOKED") {
+      // AuthContext owns the actual sign-out (it already has the supabase
+      // client and session state) -- this just raises the flag. Dispatched
+      // on window rather than passed through a callback since authFetch is
+      // called from dozens of unrelated call sites with no context access.
+      window.dispatchEvent(new CustomEvent("vgai:access-revoked"));
+      throw new Error(body.detail.message ?? "Your access to vgAI has been revoked.");
+    }
+
+    const detail = typeof body?.detail === "string" ? body.detail : null;
+    throw new Error(detail ?? `Request failed (${res.status})`);
   }
 
   return res;

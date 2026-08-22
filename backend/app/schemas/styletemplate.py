@@ -48,10 +48,14 @@ class StyleTemplateUpdate(StyleTemplateCreate):
 
 
 class DefaultStyleTemplate(BaseModel):
-    """One entry of the read-only starter catalog (app/routes/styletemplates/default_style_templates.json).
+    """One entry of the read-only starter catalog, read from the shared
+    `default_style_templates` table (edited from the vgai2admin portal, not
+    from this repo — see its README §9).
 
-    Not DB-backed — it has a `slug` instead of an `id` and no `user_id`/timestamps,
-    since nothing exists in style_templates until the user imports it.
+    This is the *public wire shape* only, not the table's own columns: no
+    `id`/`is_published`/`sort_order`/timestamps, since those are admin-side
+    bookkeeping vgai2 has no use for. Still no `user_id` either way — nothing
+    exists in `style_templates` until a user imports an entry.
     """
 
     slug: str

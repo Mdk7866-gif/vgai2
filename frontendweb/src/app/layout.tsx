@@ -7,6 +7,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { CreditBalanceProvider } from "@/context/CreditBalanceContext";
 import { ProjectsProvider } from "@/context/ProjectsContext";
 import LoginModal from "@/components/LoginModal";
+import AccessRevokedModal from "@/components/AccessRevokedModal";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -69,6 +70,7 @@ export default function RootLayout({
                 <SplashScreen />
                 {children}
                 <LoginModal />
+                <AccessRevokedModal />
               </ProjectsProvider>
             </CreditBalanceProvider>
           </AuthProvider>

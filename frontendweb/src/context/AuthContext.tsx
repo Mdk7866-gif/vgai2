@@ -15,18 +15,33 @@ interface AuthContextType {
   closeLoginModal: () => void;
   /** Returns true if already signed in. Otherwise opens the login modal and returns false. */
   requireAuth: () => boolean;
+  /** True after the backend has rejected a request with ACCESS_REVOKED. */
+  accessRevoked: boolean;
+  dismissAccessRevoked: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Runs right after every sign-in, so it's the login-time half of access-
+// control enforcement (the ongoing half is get_current_user on the backend,
+// checked on every request). A restricted email never gets past this even on
+// a brand-new login -- it dispatches the same event authFetch does, rather
+// than duplicating the sign-out/modal logic here.
 async function syncUserWithBackend(accessToken: string) {
   try {
-    await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/users/sync`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/users/sync`, {
       method: "POST",
       headers: { Authorization: `Bearer ${accessToken}` },
     });
+
+    if (res.status === 403) {
+      const body = await res.json().catch(() => null);
+      if (body?.detail?.code === "ACCESS_REVOKED") {
+        window.dispatchEvent(new CustomEvent("vgai:access-revoked"));
+      }
+    }
   } catch {
-    // Non-fatal: the app still works, retried on next sign-in.
+    // Non-fatal otherwise: the app still works, retried on next sign-in.
   }
 }
 
@@ -34,6 +49,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const [accessRevoked, setAccessRevoked] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -52,6 +68,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     });
 
     return () => listener.subscription.unsubscribe();
+  }, []);
+
+  // Raised by lib/api.ts when the backend rejects a request with
+  // ACCESS_REVOKED. Signs out immediately (the local session is stale the
+  // moment the backend stops honoring it) and flags it so the UI can explain
+  // why, instead of the user just seeing scattered fetch failures.
+  useEffect(() => {
+    const handleAccessRevoked = () => {
+      setAccessRevoked(true);
+      supabase.auth.signOut();
+    };
+    window.addEventListener("vgai:access-revoked", handleAccessRevoked);
+    return () => window.removeEventListener("vgai:access-revoked", handleAccessRevoked);
   }, []);
 
   const signInWithGoogle = async () => {
@@ -88,6 +117,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return false;
   };
 
+  const dismissAccessRevoked = () => setAccessRevoked(false);
+
   return (
     <AuthContext.Provider
       value={{
@@ -100,6 +131,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         openLoginModal,
         closeLoginModal,
         requireAuth,
+        accessRevoked,
+        dismissAccessRevoked,
       }}
     >
       {children}
