@@ -15,6 +15,12 @@ create type generation_status as enum ('pending', 'generating', 'completed', 'fa
 create type payment_status as enum ('pending', 'success', 'failed', 'refunded');
 create type content_type as enum ('long_videos', 'short_videos');
 
+-- Used by the vgai2admin portal's access control (see the access_control_list /
+-- access_system_settings tables below). Enforced by *this* app's backend on
+-- every authenticated request, not only at login.
+create type access_list_type as enum ('allowed', 'restricted');
+create type access_system_mode as enum ('allowed_all', 'allowed_only');
+
 -- ==========================
 -- Tables
 -- ==========================
@@ -48,6 +54,13 @@ create table project_expence_tracker (
   image_credit_spent numeric not null default 0,
   animation_credit_spent numeric not null default 0,
   voiceover_credit_spent numeric not null default 0,
+
+  -- Per-project counterpart to users.miscellaneous_credit_spent. The two are
+  -- disjoint by convention, not by constraint: a project-scoped miscellaneous
+  -- spend books here (add_project_expense(..., 'miscellaneous', ...)) with
+  -- spend_credits(..., p_track_miscellaneous => false), a non-project one does
+  -- the reverse. Counting a spend in both would double it in /profile's totals.
+  miscellaneous_credit_spent numeric not null default 0,
 
   created_at timestamp not null default now(),
   updated_at timestamp not null default now()
@@ -323,6 +336,108 @@ create table credit_topups (
 );
 
 -- ==========================
+-- vgai2admin (shared DB)
+-- ==========================
+-- These four tables are written by the vgai2admin portal, which runs against
+-- this same Supabase project. Two of them are read by *this* app at runtime:
+-- access_control_list / access_system_settings gate who may sign in and keep
+-- using vgAI, and default_style_templates backs GET /styletemplates/defaults.
+-- See vgai2admin/README.md for the full design.
+
+-- One table for both email lists rather than separate allowed_users /
+-- restricted_users tables -- identical columns and CRUD, and one admin popup
+-- component serves both. Entries are emails, not user ids, so an address can be
+-- listed before that person ever signs up. Stored lowercased/trimmed: Google
+-- addresses are case-insensitive, so Foo@gmail.com must block foo@gmail.com.
+create table access_control_list (
+  id uuid primary key default gen_random_uuid(),
+
+  email varchar(255) not null,
+  list_type access_list_type not null,
+
+  note text,
+
+  created_at timestamp not null default now(),
+
+  unique (email, list_type)
+);
+
+create index idx_acl_lookup on access_control_list (list_type, email);
+
+-- Singleton -- the check constraint makes a second row impossible, so the
+-- active mode is never ambiguous. Read on every authenticated request rather
+-- than only at login: a JWT issued before a user was restricted stays valid
+-- until it expires, so a login-only check would let an already-signed-in user
+-- keep working indefinitely.
+create table access_system_settings (
+  id int primary key default 1 check (id = 1),
+  mode access_system_mode not null default 'allowed_all',
+  updated_at timestamp not null default now()
+);
+
+insert into access_system_settings (id, mode) values (1, 'allowed_all');
+
+-- Admin-granted free credits. Deliberately not extra credit_topups rows: that
+-- table requires a unique razorpay_order_id, so a grant would need a fabricated
+-- one polluting payment history and Razorpay reconciliation. Keeping them apart
+-- also keeps "total purchased" honest -- a granted credit isn't a bought one.
+-- The balance change goes through refund_credits() (an unguarded increment,
+-- exactly a grant) so a concurrent generation can't clobber it; this is the
+-- audit trail.
+create table admin_credit_grants (
+  id uuid primary key default gen_random_uuid(),
+
+  user_id uuid not null references users (id) on delete cascade,
+
+  credits_granted numeric not null check (credits_granted > 0),
+  credits_balance_after numeric not null,
+
+  reason text,
+
+  created_at timestamp not null default now()
+);
+
+create index idx_admin_credit_grants_user
+  on admin_credit_grants (user_id, created_at desc);
+
+-- The starter style-template catalog, replacing the bundled
+-- backend/app/routes/styletemplates/default_style_templates.json so it can be
+-- edited from the admin portal without a redeploy. Column names match that
+-- JSON's keys and defaults.py's _IMPORTABLE_FIELDS exactly -- the frontend
+-- derives its "In library" badge by matching a user's templates against catalog
+-- entries field-by-field, so renaming one silently breaks that badge. `slug` is
+-- an API contract (POST /styletemplates/defaults/{slug}/import reads every
+-- field server-side from it), so treat it as immutable once an entry is live.
+create table default_style_templates (
+  id uuid primary key default gen_random_uuid(),
+
+  slug varchar(200) not null unique,
+  name varchar(200) not null,
+
+  image_prompt text not null,
+  animation_prompt text not null,
+  youtube_title_description_tags_prompt text,
+  youtube_thumbnail_image_prompt text,
+
+  scene_density scene_density not null default 'small',
+  image_aspect_ratio text not null,
+  video_aspect_ratio text not null,
+  description text not null,
+
+  best_for text,
+  demo_image_url text,
+
+  is_published boolean not null default true,
+  sort_order int not null default 0,
+
+  created_at timestamp not null default now(),
+  updated_at timestamp not null default now()
+);
+
+create index idx_default_style_templates_published
+  on default_style_templates (is_published, sort_order);
+
+-- ==========================
 -- Credit accounting (atomic)
 -- ==========================
 -- Credits are reserved BEFORE a provider call starts, not after it succeeds: the
@@ -415,28 +530,31 @@ security definer
 set search_path = public
 as $$
 begin
-  if p_kind not in ('llm', 'image', 'animation', 'voiceover') then
+  if p_kind not in ('llm', 'image', 'animation', 'voiceover', 'miscellaneous') then
     raise exception 'UNKNOWN_EXPENSE_KIND: %', p_kind;
   end if;
 
   insert into project_expence_tracker as t (
     user_id, project_id, project_name,
-    llm_credit_spent, image_credit_spent, animation_credit_spent, voiceover_credit_spent
+    llm_credit_spent, image_credit_spent, animation_credit_spent,
+    voiceover_credit_spent, miscellaneous_credit_spent
   )
   values (
     p_user_id, p_project_id, p_project_name,
-    case when p_kind = 'llm'       then p_amount else 0 end,
-    case when p_kind = 'image'     then p_amount else 0 end,
-    case when p_kind = 'animation' then p_amount else 0 end,
-    case when p_kind = 'voiceover' then p_amount else 0 end
+    case when p_kind = 'llm'           then p_amount else 0 end,
+    case when p_kind = 'image'         then p_amount else 0 end,
+    case when p_kind = 'animation'     then p_amount else 0 end,
+    case when p_kind = 'voiceover'     then p_amount else 0 end,
+    case when p_kind = 'miscellaneous' then p_amount else 0 end
   )
   on conflict (project_id) do update
-     set llm_credit_spent       = t.llm_credit_spent       + excluded.llm_credit_spent,
-         image_credit_spent     = t.image_credit_spent     + excluded.image_credit_spent,
-         animation_credit_spent = t.animation_credit_spent + excluded.animation_credit_spent,
-         voiceover_credit_spent = t.voiceover_credit_spent + excluded.voiceover_credit_spent,
-         project_name           = excluded.project_name,
-         updated_at             = now();
+     set llm_credit_spent           = t.llm_credit_spent           + excluded.llm_credit_spent,
+         image_credit_spent         = t.image_credit_spent         + excluded.image_credit_spent,
+         animation_credit_spent     = t.animation_credit_spent     + excluded.animation_credit_spent,
+         voiceover_credit_spent     = t.voiceover_credit_spent     + excluded.voiceover_credit_spent,
+         miscellaneous_credit_spent = t.miscellaneous_credit_spent + excluded.miscellaneous_credit_spent,
+         project_name               = excluded.project_name,
+         updated_at                 = now();
 end;
 $$;
 
@@ -486,3 +604,10 @@ alter table scenes enable row level security;
 alter table scene_characters enable row level security;
 alter table project_voiceovers enable row level security;
 alter table credit_topups enable row level security;
+
+-- vgai2admin's tables, same default-deny lockout. Both backends reach these
+-- with the service-role key, which bypasses RLS.
+alter table access_control_list enable row level security;
+alter table access_system_settings enable row level security;
+alter table admin_credit_grants enable row level security;
+alter table default_style_templates enable row level security;
