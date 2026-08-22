@@ -19,7 +19,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { authFetch } from "@/lib/api";
-import { animationCreditCost, imageCreditCost } from "@/lib/credits";
+import { PROMPT_REWRITE_CREDIT_COST, animationCreditCost, imageCreditCost } from "@/lib/credits";
 import { AssetUnavailableError, downloadAsset, getFileExtension } from "@/lib/download";
 import { useCreditBalance } from "@/context/CreditBalanceContext";
 import AlertMessagePopUp from "@/components/AlertMessagePopUp";
@@ -108,6 +108,14 @@ export const SceneCard = ({
   const [deletingAnimation, setDeletingAnimation] = useState(false);
   const [deleteAssetConfirm, setDeleteAssetConfirm] = useState<"image" | "animation" | null>(null);
 
+  // Offered after a hand-edited image prompt is saved — syncing the animation
+  // prompt to match is opt-in (costs a credit) rather than automatic. Suppressed
+  // when the blur that triggers it was actually caused by clicking Generate/
+  // Regenerate/Upload, which already handle prompt consistency themselves.
+  const [syncAnimationConfirmOpen, setSyncAnimationConfirmOpen] = useState(false);
+  const [syncingAnimation, setSyncingAnimation] = useState(false);
+  const suppressPromptSyncRef = useRef(false);
+
   const [charPopoverOpen, setCharPopoverOpen] = useState(false);
   const charButtonRef = useRef<HTMLButtonElement | null>(null);
   const [charPopoverPos, setCharPopoverPos] = useState({ top: 0, left: 0 });
@@ -150,8 +158,38 @@ export const SceneCard = ({
   const handleTextBlur = () => {
     if (text.trim() && text.trim() !== scene.scene_text) persist({ scene_text: text });
   };
-  const handleImagePromptBlur = () => {
-    if (imagePrompt.trim() !== (scene.scene_image_prompt ?? "")) persist({ scene_image_prompt: imagePrompt });
+  const handleImagePromptBlur = async () => {
+    const trimmed = imagePrompt.trim();
+    if (trimmed === (scene.scene_image_prompt ?? "")) return;
+    await persist({ scene_image_prompt: imagePrompt });
+    if (suppressPromptSyncRef.current) {
+      suppressPromptSyncRef.current = false;
+      return;
+    }
+    if (trimmed) setSyncAnimationConfirmOpen(true);
+  };
+
+  const handleConfirmSyncAnimationPrompt = async () => {
+    setSyncingAnimation(true);
+    setError(null);
+    reserveBalance(PROMPT_REWRITE_CREDIT_COST);
+    try {
+      const res = await authFetch("/projects/image/sync_animation_prompt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scene_id: scene.id }),
+      });
+      const data = await res.json();
+      setAnimationPrompt(data.scene.scene_animation_prompt ?? "");
+      onUpdated(data.scene);
+      setBalance(data.credits_remaining);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update the animation prompt.");
+      void refreshBalance();
+    } finally {
+      setSyncingAnimation(false);
+      setSyncAnimationConfirmOpen(false);
+    }
   };
   const handleAnimationPromptBlur = () => {
     if (animationPrompt.trim() !== (scene.scene_animation_prompt ?? ""))
@@ -271,24 +309,36 @@ export const SceneCard = ({
       onImageConcurrencyLimitReached();
       return;
     }
+    suppressPromptSyncRef.current = true;
     if (imagePrompt.trim() !== (scene.scene_image_prompt ?? "")) {
       await persist({ scene_image_prompt: imagePrompt });
     }
+    // Once an image already exists, "Regenerate" doesn't resubmit the same
+    // prompt that already produced a disliked result — the backend rewrites
+    // both the image and animation prompts first (1 credit), then generates
+    // from the rewritten prompt. A first-time Generate is unaffected.
+    const isRegenerate = Boolean(scene.generated_image_url);
     const controller = new AbortController();
     imageAbortRef.current = controller;
     setGeneratingImage(true);
     setError(null);
     // Mirror the backend reserving the cost up front, so the balance reflects
     // money already committed rather than only updating if this call succeeds.
-    reserveBalance(imageCreditCost(imageModelId));
+    const cost = imageCreditCost(imageModelId) + (isRegenerate ? PROMPT_REWRITE_CREDIT_COST : 0);
+    reserveBalance(cost);
     try {
-      const res = await authFetch("/projects/image/generate_and_save", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scene_id: scene.id }),
-        signal: controller.signal,
-      });
+      const res = await authFetch(
+        isRegenerate ? "/projects/image/regenerate_and_save" : "/projects/image/generate_and_save",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ scene_id: scene.id }),
+          signal: controller.signal,
+        }
+      );
       const data = await res.json();
+      setImagePrompt(data.scene.scene_image_prompt ?? "");
+      setAnimationPrompt(data.scene.scene_animation_prompt ?? "");
       onUpdated(data.scene);
       setBalance(data.credits_remaining);
     } catch (err) {
@@ -673,14 +723,22 @@ export const SceneCard = ({
                     <>
                       <button
                         onClick={handleGenerateImage}
-                        disabled={!imagePrompt.trim() || uploadingImage}
+                        disabled={!imagePrompt.trim() || uploadingImage || syncingAnimation}
+                        title={
+                          scene.generated_image_url
+                            ? `Rewrites the image & animation prompts with AI (+${PROMPT_REWRITE_CREDIT_COST} credit) and generates a fresh image from them`
+                            : undefined
+                        }
                         className="flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 rounded-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Sparkles className="w-3.5 h-3.5" />
                         {scene.generated_image_url ? "Regenerate" : "Generate"}
                       </button>
                       <button
-                        onClick={() => imageFileInputRef.current?.click()}
+                        onClick={() => {
+                          suppressPromptSyncRef.current = true;
+                          imageFileInputRef.current?.click();
+                        }}
                         disabled={uploadingImage}
                         title="Upload an image you generated elsewhere"
                         className="flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-semibold text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 bg-slate-100 dark:bg-slate-900/60 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
@@ -790,7 +848,9 @@ export const SceneCard = ({
                     <>
                       <button
                         onClick={handleGenerateAnimation}
-                        disabled={!scene.generated_image_url || !animationPrompt.trim() || uploadingAnimation}
+                        disabled={
+                          !scene.generated_image_url || !animationPrompt.trim() || uploadingAnimation || syncingAnimation
+                        }
                         title={!scene.generated_image_url ? "Generate the scene's image first" : undefined}
                         className="flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-semibold text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-500/10 hover:bg-violet-100 dark:hover:bg-violet-500/20 rounded-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                       >
@@ -911,6 +971,17 @@ export const SceneCard = ({
           filename={`scene_${scene.scene_number}.${getFileExtension(scene.generated_animation_url, "mp4")}`}
         />
       )}
+
+      <ConformationMessagePopUp
+        isOpen={syncAnimationConfirmOpen}
+        onClose={() => setSyncAnimationConfirmOpen(false)}
+        onConfirm={handleConfirmSyncAnimationPrompt}
+        confirming={syncingAnimation}
+        title="Update animation prompt to match?"
+        message={`You changed this scene's image prompt. Want the animation prompt rewritten with AI to match it too? This costs ${PROMPT_REWRITE_CREDIT_COST} credit.`}
+        confirmText="Update Animation Prompt"
+        cancelText="Not Now"
+      />
 
       <AlertMessagePopUp
         isOpen={pendingReplacement !== null}
