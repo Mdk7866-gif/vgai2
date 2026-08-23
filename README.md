@@ -183,9 +183,28 @@ Two buttons above the scene grid generate every remaining scene's image at once,
 
 Both buttons draw from the same 5-slot concurrency limit as each scene card's own Generate button — a 6th concurrent image generation started anywhere on the page is rejected with a warning instead of silently queued.
 
-#### Voiceover generation
+#### Download All
+
+A button above the scene grid downloads everything the project has generated so far — every scene image, every scene animation, and the video thumbnail — in one action, with a live progress bar (files saved / total, the filenames currently downloading, a Stop button). Nothing here is billed; these are just fetches of assets already sitting in Cloudinary. Only present once the project has scenes; disabled with an explanatory tooltip if nothing has actually been generated yet, so clicking it never opens an empty folder picker.
+
+Where the browser supports the **File System Access API** (Chrome, Edge), clicking it opens the OS's own folder picker, and the files are written straight into whatever folder is chosen:
+
+```
+<chosen folder>/
+  thumbnail.<ext>              # only if a thumbnail has been generated
+  images/scene_01.<ext> ...    # every scene with a generated_image_url
+  animation/scene_01.<ext> ... # every scene with a generated_animation_url
+```
+
+Scene numbers are zero-padded to the project's own scene count (`scene_01`, not `scene_1`, once there are 10+ scenes) so a file browser sorts them in the right order. In a browser without that API (Firefox, Safari), the same structure is built as a single `.zip` and downloaded normally instead — the button's tooltip says so, and names the browsers that get the real folder picker.
+
+**Voiceover is deliberately absent from this**, matching the rest of this page: nothing generates `project_voiceovers` rows yet (see below), so there is nothing to add to a `voiceover/` folder today. The download code is written so that once voiceover generation ships, adding those files is a small, additive change — not a restructuring.
+
+#### Voiceover generation — *(Not built yet)*
 
 Clicking **Generate Voiceover** sends the script to **ElevenLabs**. Since ElevenLabs can only process ~5,000 characters per request, the backend automatically chunks the script into pieces and generates a voiceover per chunk (`project_voiceovers`, ordered by `voiceover_number`). The user can preview each chunk, and clicking **Stitch Audio** uses **FFmpeg** to merge all chunks into a single master audio file.
+
+This is still the intended spec, not the current behavior — the button is disabled ("Coming soon") and the backend route (`app/routes/project/voiceovertts.py`) exists but isn't registered in `router.py`. See the Download All note just above for how this connects once it lands.
 
 ### `/login`
 

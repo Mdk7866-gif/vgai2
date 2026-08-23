@@ -20,6 +20,12 @@ import { useCreditBalance } from "@/context/CreditBalanceContext";
 import { useProjects } from "@/context/ProjectsContext";
 import { authFetch } from "@/lib/api";
 import { imageCreditCost } from "@/lib/credits";
+import {
+  buildDownloadTasks,
+  runProjectDownload,
+  supportsDirectoryPicker,
+  type DownloadProgress as DownloadAllProgress,
+} from "@/lib/downloadProject";
 import CreditCoinIcon from "@/components/CreditCoinIcon";
 import AlertMessagePopUp from "@/components/AlertMessagePopUp";
 import ChooseCharacterPopUp from "@/components/projectfolder/ChooseCharacterPopUp";
@@ -124,6 +130,13 @@ export default function ProjectFolderPage() {
   const bulkImageInFlightRef = useRef<Map<string, AbortController>>(new Map());
   const [nowTick, setNowTick] = useState(() => Date.now());
 
+  // "Download All" -- see lib/downloadProject.ts for the folder-picker /
+  // zip-fallback split. A single AbortController for the whole run (not one
+  // per file) both stops new fetches from starting and cancels whatever's
+  // currently in flight the moment Stop is clicked.
+  const [downloadProgress, setDownloadProgress] = useState<DownloadAllProgress | null>(null);
+  const downloadAbortRef = useRef<AbortController | null>(null);
+
   const cancelSceneImageGeneration = useCallback(async (sceneId: string) => {
     try {
       await authFetch("/projects/scenes/cancel_generation", {
@@ -152,6 +165,10 @@ export default function ProjectFolderPage() {
         controller.abort();
         void cancelSceneImageGeneration(sceneId);
       });
+      // Same idea for a "Download All" run in progress -- nothing here is
+      // credit-charged the way image generation is, so there's no cancel
+      // callback to fire, just the fetches to stop.
+      downloadAbortRef.current?.abort();
     };
   }, [cancelSceneImageGeneration]);
 
@@ -230,6 +247,16 @@ export default function ProjectFolderPage() {
     [scenes]
   );
   const bulkImageCost = pendingImageScenes.length * imageCreditCost(project?.image_model_id);
+
+  // Everything currently downloadable: generated scene images/animations plus
+  // the video thumbnail if one exists. Voiceover is deliberately absent — see
+  // lib/downloadProject.ts's module docstring for why. Recomputed whenever
+  // scenes/project change so the button's file count and disabled state stay
+  // accurate as generations complete.
+  const downloadTasks = useMemo(
+    () => (project ? buildDownloadTasks(project, scenes) : []),
+    [project, scenes]
+  );
 
   const handleScriptBlur = async () => {
     if (!project || scriptDraft === (project.script ?? "")) return;
@@ -587,6 +614,57 @@ export default function ProjectFolderPage() {
     }
   };
 
+  const handleStopDownload = () => {
+    downloadAbortRef.current?.abort();
+    setDownloadProgress((prev) => (prev ? { ...prev, stopping: true } : prev));
+  };
+
+  const handleDownloadAll = async () => {
+    if (!project || downloadProgress || downloadTasks.length === 0) return;
+
+    const controller = new AbortController();
+    downloadAbortRef.current = controller;
+    setDownloadProgress({ total: downloadTasks.length, completed: 0, failed: 0, currentFiles: [], stopping: false });
+
+    try {
+      const result = await runProjectDownload(downloadTasks, project.name, setDownloadProgress, controller.signal);
+
+      if (result === null) {
+        // User closed the OS folder picker without choosing anything -- not
+        // an error, nothing happened, no alert needed.
+        return;
+      }
+
+      const summaryParts: string[] = [];
+      if (result.succeeded > 0) summaryParts.push(`${result.succeeded} file${result.succeeded !== 1 ? "s" : ""} saved`);
+      if (result.cancelled > 0) summaryParts.push(`${result.cancelled} cancelled`);
+      if (result.failed.length > 0) summaryParts.push(`${result.failed.length} failed`);
+      const destinationLabel =
+        result.destination === "directory" ? `into "${result.destinationName}"` : `as ${result.destinationName}`;
+
+      setAlert({
+        type: result.failed.length > 0 ? "warning" : result.cancelled > 0 ? "info" : "success",
+        title:
+          result.failed.length > 0
+            ? "Download finished with some failures"
+            : result.cancelled > 0
+            ? "Download stopped"
+            : "Download complete",
+        message: [
+          `${summaryParts.join(", ")} ${destinationLabel}.`,
+          result.failed.length > 0 ? result.failed.map((f) => `${f.filename}: ${f.message}`).join("\n") : null,
+        ]
+          .filter(Boolean)
+          .join("\n\n"),
+      });
+    } catch (err) {
+      setAlert({ title: "Download failed", message: err instanceof Error ? err.message : "Something went wrong." });
+    } finally {
+      setDownloadProgress(null);
+      downloadAbortRef.current = null;
+    }
+  };
+
   if (loading) {
     // Scene count varies per project, so a pixel-exact skeleton isn't
     // possible the way it is for the fixed-shape card grids elsewhere — but
@@ -813,13 +891,67 @@ export default function ProjectFolderPage() {
           </button>
 
           <button
-            disabled
-            title="Coming soon"
-            className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800/60 rounded-xl cursor-not-allowed"
+            onClick={handleDownloadAll}
+            disabled={!!downloadProgress || downloadTasks.length === 0}
+            title={
+              downloadTasks.length === 0
+                ? "Nothing generated yet — there are no images, animations, or a thumbnail to download."
+                : supportsDirectoryPicker()
+                ? "Choose a folder — images go in images/, animations in animation/, and the thumbnail in the folder itself."
+                : "Your browser can't choose a folder directly, so this downloads everything as one .zip instead. Use Chrome or Edge to save straight to a folder."
+            }
+            className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 border border-emerald-100 dark:border-emerald-500/30 rounded-xl transition-all active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Download className="w-4 h-4" />
+            {downloadProgress ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
             Download All
+            {downloadTasks.length > 0 && (
+              <span className="pl-2 ml-1 border-l border-emerald-200 dark:border-emerald-500/30 text-emerald-600/80 dark:text-emerald-400/80 font-normal">
+                {downloadTasks.length} file{downloadTasks.length !== 1 ? "s" : ""}
+              </span>
+            )}
           </button>
+        </div>
+      )}
+
+      {downloadProgress && (
+        <div className="rounded-xl border border-emerald-100 dark:border-emerald-500/30 bg-emerald-50/70 dark:bg-emerald-500/10 px-4 py-3 flex flex-col gap-2">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex flex-col gap-0.5">
+              <span className="flex items-center gap-2 text-[13px] font-medium text-emerald-700 dark:text-emerald-300">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                {downloadProgress.completed}/{downloadProgress.total} files saved
+                {downloadProgress.failed > 0 && (
+                  <span className="text-red-600 dark:text-red-400">· {downloadProgress.failed} failed</span>
+                )}
+              </span>
+              <span className="text-[12px] text-emerald-600/80 dark:text-emerald-400/80 pl-6">
+                {downloadProgress.stopping
+                  ? "Stopping — finishing what's already in flight…"
+                  : downloadProgress.currentFiles.length > 0
+                  ? `Downloading ${downloadProgress.currentFiles.slice(0, 2).join(", ")}${
+                      downloadProgress.currentFiles.length > 2
+                        ? ` +${downloadProgress.currentFiles.length - 2} more`
+                        : ""
+                    }…`
+                  : "Starting…"}
+              </span>
+            </div>
+            <button
+              onClick={handleStopDownload}
+              disabled={downloadProgress.stopping}
+              className="text-[12px] font-semibold text-red-600 dark:text-red-400 hover:underline cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline"
+            >
+              {downloadProgress.stopping ? "Stopping…" : "Stop"}
+            </button>
+          </div>
+          <div className="h-1.5 rounded-full bg-emerald-100 dark:bg-emerald-950/50 overflow-hidden">
+            <div
+              className="h-full bg-emerald-600 transition-all duration-300"
+              style={{
+                width: `${Math.min(100, (downloadProgress.completed / Math.max(1, downloadProgress.total)) * 100)}%`,
+              }}
+            />
+          </div>
         </div>
       )}
 
