@@ -1,0 +1,39 @@
+# Build context for the frontend image.
+#
+# node_modules is excluded on purpose: the image runs `npm ci` from
+# package-lock.json so the install matches the image's own Node/platform. A
+# node_modules copied off a Windows host would carry the wrong native binaries
+# (and is by far the biggest thing that would otherwise be uploaded to the
+# daemon on every build).
+node_modules/
+.next/
+out/
+build/
+
+# --- Secrets: NEXT_PUBLIC_* values are passed as build args by
+# --- docker-compose.yml, so no env file needs to enter the context.
+.env
+.env.*
+
+# --- VCS / tooling
+.git/
+.gitignore
+.dockerignore
+Dockerfile
+.vscode/
+.idea/
+
+# --- Local artifacts
+*.tsbuildinfo
+next-env.d.ts
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+coverage/
+.vercel/
+*.pem
+
+# --- OS noise
+.DS_Store
+Thumbs.db

@@ -16,7 +16,9 @@ env/
 # uv package manager
 # =========================
 .uv/
-uv.lock
+# uv.lock is deliberately NOT ignored — it is the lockfile the Docker build
+# runs `uv sync` against, so leaving it untracked means a fresh clone on the
+# server resolves its own (possibly different) dependency versions. Commit it.
 
 # =========================
 # Build & packaging

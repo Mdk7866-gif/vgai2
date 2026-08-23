@@ -1,0 +1,21 @@
+# Repo-root ignores. backend/ and frontendweb/ keep their own .gitignore files
+# for language-specific artifacts; this one covers the deployment layer.
+
+# ---------------------------------------------------------------------------
+# Deployment secrets — the root .env feeds docker-compose.yml every credential
+# in the stack (Supabase service-role key, Razorpay secret, provider API keys).
+# It must never be committed. Only the placeholder template is tracked.
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+
+# ---------------------------------------------------------------------------
+# Let's Encrypt state, created on the server by certbot. Contains the site's
+# private key; it is host-specific and re-issuable, so it does not belong here.
+# ---------------------------------------------------------------------------
+/certbot/
+
+# OS noise
+.DS_Store
+Thumbs.db
