@@ -52,6 +52,7 @@ Credits are **reserved before the AI provider is called**, not deducted after it
 | `/liked_projects` | Liked projects |
 | `/generate_script` | AI topic research & script generation |
 | `/profile` | Account, balance, payment & usage history |
+| `/contact` | Support form — name, email or mobile, issue description, optional screenshot |
 | `/login` | Google login only, via Supabase Auth |
 
 ---
@@ -74,6 +75,12 @@ Credits are **reserved before the AI provider is called**, not deducted after it
 - Full CRUD: add, update, delete characters.
 - **Starter Characters**: a read-only catalog of product-made characters, browsable in a big popup opened from a "Starter Characters" button on the page — each shown as a card with its sheet image, a "Best for" hint, its description, and an "Add to Library" button that copies it into the user's own library in one click, ready to edit or delete freely afterward. Importing the same one twice is allowed and makes two independent copies; later edits to the catalog only affect characters imported after the edit, not ones already in a library. The catalog is edited from the vgai2admin portal (`/defaultcharacter`), and an import makes a real Cloudinary copy of the sheet (§9), so removing a catalog entry can never blank an image someone already imported. An imported character is never auto-marked default — a default character gets snapshotted into every new project, so that stays an explicit opt-in via the card's own "Set default" toggle.
 - **Generate Character Sheet** button: user enters a character name, a brief description, and optionally a reference image. The backend uses **OpenAI** end-to-end — `ChatOpenAI` (LangChain) writes a detailed character-sheet image prompt (front/3-4/back/left-profile/right-profile views plus happy/sad/angry/confused/thinking/surprised expression close-ups, laid out as a labeled two-row grid on a **plain pure-white backdrop** — sheets get composited over other backgrounds later, so the prompt-writing step is explicitly instructed to demand flat white with no scenery, gradient, texture, or cast shadows), then `gpt-image-2` renders it. A "Generate with Pro" toggle switches the render from `quality="low"` (4 credits) to `quality="high"` (8 credits). The user reviews the generated sheet and accepts or rejects it before it's added to their character library, with the generated image prompt itself stored as the character's `description`.
+
+### `/contact`
+
+- A support form, reachable from the navbar. Asks for a **name**, an **email or mobile number** (either — free text, whichever is easiest to reach the user on), a **description of the issue**, and an **optional screenshot** (images only, up to 10 MB).
+- **Usable signed-out**, and deliberately so: a user whose access was revoked is signed out the moment the backend rejects them, and someone who can't sign in at all still has to be able to report that. Gating this behind login would lock out exactly the people who most need it. When there *is* a session, the name and contact fields are prefilled from it (still editable) and the submission is attributed to that account.
+- Submissions are not visible anywhere in vgAI — there's no "my tickets" view. They're read and worked from the **vgai2admin** portal's `/contact` page, which is also where a screenshot is viewed full size. Nothing sends email; support replies by hand using the contact detail given.
 
 ### `/style_templates`
 
@@ -595,6 +602,7 @@ All uploaded/generated media (character sheets, scene images, scene animations, 
 vgai2/
   default_style_templates/       # demo frames for the starter style-template catalog (product-wide)
   default_characters/            # character sheets for the starter character catalog (product-wide)
+  contacts/                      # screenshots attached to /contact submissions (product-wide)
   <user_id>/
     characters/                  # character sheets from /characters (library, not tied to a project)
     <project_id>/
@@ -606,7 +614,7 @@ vgai2/
 ```
 
 - `<user_id>` / `<project_id>` are the Supabase row UUIDs (`users.id`, `projects.id`).
-- The two `default_*` folders sit at the root rather than under a `<user_id>`, because a starter-catalog asset belongs to the product, not to any one user. Both are written **only** from the vgai2admin portal (`/defaultstyletemplate` and `/defaultcharacter`), never by vgAI itself. Each catalog's delete path only removes an asset that is actually inside its own folder, so an entry whose URL was pasted in from elsewhere is left alone — see `_owns_demo_image()` / `_owns_character_sheet()` in vgai2admin's routers.
+- The three product-wide folders (`default_style_templates/`, `default_characters/`, `contacts/`) sit at the root rather than under a `<user_id>`. For the two catalogs that's because a starter asset belongs to the product, not to any one user; for `contacts/` it's because the contact form is usable **signed-out**, so there may be no `<user_id>` folder to write into at all. Both are written **only** from the vgai2admin portal (`/defaultstyletemplate` and `/defaultcharacter`), never by vgAI itself. Each catalog's delete path only removes an asset that is actually inside its own folder, so an entry whose URL was pasted in from elsewhere is left alone — see `_owns_demo_image()` / `_owns_character_sheet()` in vgai2admin's routers.
 - `upload_image()` (`backend/app/cloudinary.py`) takes a `folder` argument that is the path *under* the root — e.g. `f"{user_id}/characters"` or `f"{user_id}/{project_id}/scene_images"`. Callers build that path; the helper just prefixes the root folder and picks a unique `public_id`.
 - `delete_media()` (same file) is the matching per-asset cleanup: it parses the `public_id` back out of a stored `secure_url` and deletes that asset from Cloudinary. Every place that removes or replaces a media-bearing row uses it — deleting a character, deleting a scene (image + animation), and regenerating a scene's image, a scene's animation, or the project thumbnail (the *previous* asset is deleted once the new one is successfully saved, never on a cancelled/failed attempt).
 - `delete_project_media()` is the project-wide version: deleting a project deletes every image/video resource under its `<user_id>/<project_id>/` prefix — not just what's tracked on scene/thumbnail rows, so a stray upload from a cancelled generation doesn't linger either — and then removes the now-empty subfolders and the project folder itself.

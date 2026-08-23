@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 from app.routes import users
 from app.routes.characters import crud as characters_crud
+from app.routes.contact import crud as contact_crud
 from app.routes.characters import defaults as characters_defaults
 from app.routes.characters import generatecharacter as characters_generate
 from app.routes.styletemplates import crud as styletemplates_crud
@@ -21,6 +22,9 @@ from app.routes.project import animationgeneration
 api_router = APIRouter()
 
 api_router.include_router(users.router)
+# Unauthenticated by design — see its module docstring for why the one action
+# a blocked/signed-out user must still be able to take isn't behind auth.
+api_router.include_router(contact_crud.router)
 # defaults before crud: same literal-path-first discipline the styletemplates
 # routers below follow. crud.py has no dynamic /{character_id} route today so
 # /defaults can't be shadowed, but registering it first keeps that true if one

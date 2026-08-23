@@ -464,6 +464,38 @@ create table default_characters (
 create index idx_default_characters_published
   on default_characters (is_published, sort_order);
 
+-- Backs vgAI's /contact form; read and triaged from the vgai2admin portal.
+-- user_id is nullable with `on delete set null` (not cascade) because the form
+-- is reachable signed-out, a revoked user is exactly who most needs it, and a
+-- report should outlive the account it came from. `contact` is free text since
+-- the form accepts an email OR a mobile number.
+create table contact_submissions (
+  id uuid primary key default gen_random_uuid(),
+
+  user_id uuid references users (id) on delete set null,
+
+  name varchar(200) not null,
+  contact varchar(320) not null,
+  issue_description text not null,
+
+  -- Cloudinary URL under <root>/contacts/ -- product-wide, not per-user, since
+  -- a signed-out submitter has no user folder.
+  screenshot_url text,
+
+  status text not null default 'new'
+    check (status in ('new', 'in_progress', 'resolved')),
+  admin_note text,
+
+  created_at timestamp not null default now(),
+  updated_at timestamp not null default now()
+);
+
+create index idx_contact_submissions_status
+  on contact_submissions (status, created_at desc);
+
+create index idx_contact_submissions_created
+  on contact_submissions (created_at desc);
+
 -- ==========================
 -- Credit accounting (atomic)
 -- ==========================
@@ -639,3 +671,4 @@ alter table access_system_settings enable row level security;
 alter table admin_credit_grants enable row level security;
 alter table default_style_templates enable row level security;
 alter table default_characters enable row level security;
+alter table contact_submissions enable row level security;
