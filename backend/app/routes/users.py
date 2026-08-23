@@ -1,11 +1,22 @@
 from fastapi import APIRouter, Depends
 
+from app.access_control import get_public_mode
 from app.auth import get_current_user
 from app.schemas.user import User
 from app.supabase import supabase
 from supabase_auth.types import User as SupabaseUser
 
 router = APIRouter(prefix="/users", tags=["users"])
+
+
+@router.get("/access_status")
+async def get_access_status():
+    """Unauthenticated on purpose -- the Navbar needs this before anyone has
+    signed in, to show "this app is invite-only" without knowing who's
+    asking. Mode only, never the lists themselves: no email addresses leave
+    this endpoint. See app/access_control.py::get_public_mode.
+    """
+    return {"mode": get_public_mode()}
 
 
 @router.post("/sync", response_model=User)

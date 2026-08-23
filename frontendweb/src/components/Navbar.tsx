@@ -2,7 +2,7 @@
 
 import React, { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { User, Menu, Sun, Moon, LogOut, UserCircle } from "lucide-react";
+import { User, Menu, Sun, Moon, LogOut, UserCircle, ShieldCheck, ShieldQuestion } from "lucide-react";
 import Logo from "./Logo";
 import CreditCoinIcon from "./CreditCoinIcon";
 import { useTheme } from "./ThemeProvider";
@@ -17,7 +17,7 @@ interface NavbarProps {
 
 export const Navbar = ({ onMenuClick }: NavbarProps) => {
   const { theme, toggleTheme } = useTheme();
-  const { user, signOut, openLoginModal, loading: authLoading } = useAuth();
+  const { user, signOut, openLoginModal, loading: authLoading, accessMode } = useAuth();
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [avatarFailed, setAvatarFailed] = useState(false);
@@ -70,6 +70,14 @@ export const Navbar = ({ onMenuClick }: NavbarProps) => {
             <Sun className="w-5 h-5 text-amber-400 transition-transform duration-300 group-hover:rotate-45 group-hover:scale-110" />
           )}
         </button>
+
+        {/* Only shown in the restrictive mode -- the default "allow all" mode
+            needs no explanation, and showing this unconditionally would make
+            the common case noisier for no reason. Gated on !authLoading so it
+            doesn't flash the "not on the list" copy for a frame while the
+            session is still resolving on first load (same reasoning as the
+            authLoading branch just below). */}
+        {!authLoading && accessMode === "allowed_only" && <AccessModeBadge allowed={Boolean(user)} />}
 
         {authLoading ? (
           /* AuthContext's initial getSession() hasn't resolved yet — `user`
@@ -163,5 +171,38 @@ export const Navbar = ({ onMenuClick }: NavbarProps) => {
     </nav>
   );
 };
+
+/**
+ * Small invite-only indicator, shown only while access mode is
+ * `allowed_only` (see useAuth().accessMode, sourced from the unauthenticated
+ * GET /users/access_status). `allowed` is just `Boolean(user)` from the
+ * caller: reaching this render signed-in at all means the backend already
+ * let the sync-on-login call through (see access_control.py::enforce_access),
+ * so a currently signed-in user is *by definition* on the allowed list --
+ * there's no separate "check if I'm allowed" call to make.
+ *
+ * A signed-out visitor can't get the personalized version (their email isn't
+ * known yet), so they get the neutral form instead; if they try to sign in
+ * with a non-allowed email, AccessRevokedModal explains it after the fact.
+ */
+function AccessModeBadge({ allowed }: { allowed: boolean }) {
+  return allowed ? (
+    <span
+      title="This app is currently invite-only, and your email is on the allowed list."
+      className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200/80 dark:border-emerald-500/25 text-emerald-700 dark:text-emerald-300 text-xs font-medium"
+    >
+      <ShieldCheck className="w-3.5 h-3.5" />
+      Invite-only · You&apos;re allowed
+    </span>
+  ) : (
+    <span
+      title="Only emails on the allowed list can sign in right now."
+      className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 text-xs font-medium"
+    >
+      <ShieldQuestion className="w-3.5 h-3.5" />
+      Invite-only mode
+    </span>
+  );
+}
 
 export default Navbar;

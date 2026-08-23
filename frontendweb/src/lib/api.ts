@@ -22,7 +22,14 @@ export async function authFetch(path: string, options: RequestInit = {}) {
       // client and session state) -- this just raises the flag. Dispatched
       // on window rather than passed through a callback since authFetch is
       // called from dozens of unrelated call sites with no context access.
-      window.dispatchEvent(new CustomEvent("vgai:access-revoked"));
+      // mode/reason ride along so AccessRevokedModal can explain *why*, not
+      // just show a generic "revoked" message -- see backend's
+      // access_control.py::enforce_access for what populates them.
+      window.dispatchEvent(
+        new CustomEvent("vgai:access-revoked", {
+          detail: { mode: body.detail.mode ?? null, reason: body.detail.reason ?? null },
+        })
+      );
       throw new Error(body.detail.message ?? "Your access to vgAI has been revoked.");
     }
 

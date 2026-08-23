@@ -22,7 +22,10 @@ _CACHE_TTL_SECONDS = 30
 
 _cache_lock = Lock()
 _cache_mode = "allowed_all"
-_cache_emails: set[str] = set()
+# email -> note (the admin-entered "why", vgai2admin's AllowedUsersCardPopUp /
+# RestrictedUsersCardPopUp "Reason" field). A dict, not a set, so a block can
+# be explained to the user it happened to, not just enforced silently.
+_cache_entries: dict[str, str | None] = {}
 _cache_expires_at = 0.0
 
 
@@ -31,7 +34,7 @@ def _normalize_email(email: str) -> str:
 
 
 def _refresh_cache() -> None:
-    global _cache_mode, _cache_emails, _cache_expires_at
+    global _cache_mode, _cache_entries, _cache_expires_at
 
     settings_resp = (
         supabase.table("access_system_settings").select("mode").eq("id", 1).execute()
@@ -43,25 +46,39 @@ def _refresh_cache() -> None:
     list_type = "restricted" if mode == "allowed_all" else "allowed"
     list_resp = (
         supabase.table("access_control_list")
-        .select("email")
+        .select("email, note")
         .eq("list_type", list_type)
         .execute()
     )
-    emails = {_normalize_email(row["email"]) for row in (list_resp.data or [])}
+    entries = {
+        _normalize_email(row["email"]): row.get("note") for row in (list_resp.data or [])
+    }
 
     with _cache_lock:
         _cache_mode = mode
-        _cache_emails = emails
+        _cache_entries = entries
         _cache_expires_at = time.monotonic() + _CACHE_TTL_SECONDS
 
 
-def _get_cached_state() -> tuple[str, set[str]]:
+def _get_cached_state() -> tuple[str, dict[str, str | None]]:
     with _cache_lock:
         expired = time.monotonic() >= _cache_expires_at
     if expired:
         _refresh_cache()
     with _cache_lock:
-        return _cache_mode, _cache_emails
+        return _cache_mode, _cache_entries
+
+
+def get_public_mode() -> str:
+    """The current access mode only -- no emails, no notes. Safe to expose on
+    an unauthenticated endpoint so the frontend can show mode-aware copy
+    (e.g. an "invite-only" navbar note) before anyone has signed in.
+    """
+    try:
+        mode, _ = _get_cached_state()
+    except Exception:
+        return "allowed_all"
+    return mode
 
 
 def enforce_access(email: str | None) -> None:
@@ -70,23 +87,41 @@ def enforce_access(email: str | None) -> None:
     hiccup here must not lock every signed-in user out of the whole product;
     the admin panel's own guard against emptying the allowed list is what
     keeps this feature safe, not this fallback.
+
+    The 403 detail carries `mode` and `reason` alongside the old `code`/
+    `message` shape, so the frontend (AccessRevokedModal, see vgai2admin
+    README §10.3-adjacent access-control docs) can explain *why* rather than
+    just that. `reason` is the admin's note on the matching restricted-list
+    entry when one exists (allowed_all mode); there is no per-user reason for
+    an allowed_only block, since being blocked there just means "absent from
+    the allowed list", not "present on some other list".
     """
     if not email:
         return
 
     try:
-        mode, emails = _get_cached_state()
+        mode, entries = _get_cached_state()
     except Exception:
         return
 
     normalized = _normalize_email(email)
-    blocked = normalized in emails if mode == "allowed_all" else normalized not in emails
+
+    if mode == "allowed_all":
+        blocked = normalized in entries
+        reason = entries.get(normalized) if blocked else None
+        message = "Your access to vgAI has been revoked."
+    else:
+        blocked = normalized not in entries
+        reason = None
+        message = "vgAI is currently invite-only, and this email is not on the allowed list."
 
     if blocked:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
                 "code": "ACCESS_REVOKED",
-                "message": "Your access to vgAI has been revoked.",
+                "message": message,
+                "mode": mode,
+                "reason": reason,
             },
         )
