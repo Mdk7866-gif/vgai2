@@ -27,6 +27,20 @@ Enum content_type {
   short_videos
 }
 
+// vgai2admin-owned enums -- written/read from the separate admin portal
+// (C:\Users\ASUS\OneDrive\Desktop\vgai2admin), same shared database. See that
+// repo's README.md §4/§9 for the design behind each.
+
+Enum access_list_type {
+  allowed
+  restricted
+}
+
+Enum access_system_mode {
+  allowed_all
+  allowed_only
+}
+
 Table users {
   id uuid [pk, default: `gen_random_uuid()`]
 
@@ -57,6 +71,14 @@ Table project_expence_tracker {
   image_credit_spent numeric [not null, default: 0]
   animation_credit_spent numeric [not null, default: 0]
   voiceover_credit_spent numeric [not null, default: 0]
+
+  // Per-project counterpart to users.miscellaneous_credit_spent -- added for
+  // vgai2admin's per-project view so it can break spend down the same five
+  // ways /profile does. The two must stay disjoint (a spend books into
+  // exactly one, never both) or totals double-count. Nothing currently books
+  // into this column -- it reads 0 for every project until a project-scoped
+  // spend (e.g. imageregeneration.py's prompt-rewrite fee) is moved into it.
+  miscellaneous_credit_spent numeric [not null, default: 0]
 
   created_at timestamp [not null, default: `now()`]
   updated_at timestamp [not null, default: `now()`]
@@ -328,6 +350,97 @@ Table credit_topups {
   created_at timestamp [not null, default: `now()`]
   updated_at timestamp [not null, default: `now()`]
 }
+
+// ==========================
+// vgai2admin-owned tables
+// ==========================
+// Written/read from the separate admin portal (vgai2admin), not this repo --
+// see that repo's README.md §4/§7/§9 for the design behind each. Kept in this
+// file because it's the same shared database vgai2 itself reads.
+
+Table access_control_list {
+  id uuid [pk, default: `gen_random_uuid()`]
+
+  // Emails, not user ids -- an address can be listed before that person ever
+  // signs up. Stored lowercased/trimmed; enforced by the writer, not the DB.
+  email varchar(255) [not null]
+  list_type access_list_type [not null]
+
+  // Optional free-text: why this email is on this list.
+  note text
+
+  created_at timestamp [not null, default: `now()`]
+
+  indexes {
+    (email, list_type) [unique]
+    (list_type, email) [name: 'idx_acl_lookup']
+  }
+}
+
+Table access_system_settings {
+  // Singleton -- checked in DDL: id int, default 1, check (id = 1). Read by
+  // vgai2's backend on every authenticated request (app/access_control.py),
+  // not just at login, since a JWT issued before a restriction stays valid
+  // until it expires.
+  id int [pk, default: 1]
+  mode access_system_mode [not null, default: 'allowed_all']
+
+  updated_at timestamp [not null, default: `now()`]
+}
+
+Table admin_credit_grants {
+  id uuid [pk, default: `gen_random_uuid()`]
+
+  user_id uuid [not null]
+
+  // Enforced in DDL: check (credits_granted > 0) -- add-only, no subtract
+  // path through the admin portal.
+  credits_granted numeric [not null]
+  credits_balance_after numeric [not null]
+
+  reason text
+
+  created_at timestamp [not null, default: `now()`]
+
+  indexes {
+    (user_id, created_at) [name: 'idx_admin_credit_grants_user']
+  }
+}
+
+Table default_style_templates {
+  id uuid [pk, default: `gen_random_uuid()`]
+
+  // Import contract -- POST /styletemplates/defaults/{slug}/import reads
+  // every field server-side from this row by slug. Immutable once live.
+  slug varchar(200) [not null, unique]
+  name varchar(200) [not null]
+
+  image_prompt text [not null]
+  animation_prompt text [not null]
+  youtube_title_description_tags_prompt text
+  youtube_thumbnail_image_prompt text
+
+  scene_density scene_density [not null, default: 'small']
+  image_aspect_ratio text [not null]
+  video_aspect_ratio text [not null]
+  description text [not null]
+
+  best_for text
+  demo_image_url text
+
+  // Lets an entry be drafted in vgai2admin before vgai2 users can see/import
+  // it -- GET /styletemplates/defaults filters is_published = true.
+  is_published boolean [not null, default: true]
+  sort_order int [not null, default: 0]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  indexes {
+    (is_published, sort_order) [name: 'idx_default_style_templates_published']
+  }
+}
+
 // ==========================
 // Relationships
 // ==========================
@@ -338,6 +451,7 @@ Ref: style_templates.user_id > users.id
 Ref: script_templates.user_id > users.id
 Ref: credit_topups.user_id > users.id
 Ref: project_expence_tracker.user_id > users.id
+Ref: admin_credit_grants.user_id > users.id
 
 Ref: researched_topics.script_template_id > script_templates.id
 Ref: researched_topics.user_id > users.id
