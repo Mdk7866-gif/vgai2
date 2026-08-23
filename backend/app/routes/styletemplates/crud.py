@@ -133,14 +133,21 @@ def _get_owned_template(template_id: str, user_id: str) -> dict:
 
 
 def _owns_demo_image(url: str | None, user_id: str) -> bool:
-    """True only when `url` points at an asset this user uploaded themselves.
+    """True only when `url` points at an asset under this user's own folder.
 
-    A template imported from the starter catalog carries a demo_image_url
-    pointing at a *shared* asset that every other importer's row also references
-    -- same trap as project_characters.snapshot_character_sheet_url. Deleting or
-    replacing such a template must never delete_media() that URL, or one user's
-    edit blanks the preview for everyone. Only assets under this user's own
-    upload folder are safe to remove.
+    Imports no longer create the hazard this guard was originally written for:
+    defaults.py's import now makes a real Cloudinary *copy* into
+    <user_id>/style_templates/, so an imported template owns its preview and
+    this correctly returns True for it -- deleting the template cleans up its
+    own copy, which is what should happen.
+
+    The guard stays because two other cases still reference assets this user
+    does not own: a demo_image_url pasted in from somewhere else, and any row
+    imported *before* that fix that still points straight at the catalog's
+    shared default_style_templates/ asset (the production backfill converted
+    the ones that existed, but a restored backup or another environment could
+    reintroduce one). Deleting either would blank an image outside this user's
+    ownership -- the same trap project_characters had.
     """
     return bool(url) and f"/{user_id}/{DEMO_IMAGE_FOLDER}/" in (url or "")
 

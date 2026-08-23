@@ -29,10 +29,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from supabase_auth.types import User as SupabaseUser
 
 from app.auth import get_current_user
+from app.cloudinary import copy_image_from_url
 from app.schemas.styletemplate import DefaultStyleTemplate, StyleTemplate
 from app.supabase import supabase
 
-from .crud import _clear_existing_default
+from .crud import DEMO_IMAGE_FOLDER, _clear_existing_default
 
 router = APIRouter(prefix="/styletemplates", tags=["styletemplates"])
 
@@ -42,6 +43,9 @@ router = APIRouter(prefix="/styletemplates", tags=["styletemplates"])
 # no link back to the catalog entry it came from (same real-copy-not-reference
 # rule as project_characters). The catalog's own is_published/sort_order/
 # timestamps are likewise admin-side bookkeeping, never copied.
+#
+# `demo_image_url` is NOT here: it needs a real Cloudinary copy rather than a
+# copied URL string, so it's handled separately in the import below.
 _IMPORTABLE_FIELDS = (
     "name",
     "description",
@@ -53,7 +57,6 @@ _IMPORTABLE_FIELDS = (
     "image_aspect_ratio",
     "video_aspect_ratio",
     "best_for",
-    "demo_image_url",
 )
 
 
@@ -84,6 +87,15 @@ async def import_default_style_template(
     payload can't smuggle in different content, and a catalog edit takes effect
     on the next import with no frontend change.
 
+    The demo image is copied as a real, independent Cloudinary asset into the
+    importer's own folder rather than reusing the catalog's URL string. A copied
+    URL would leave every importer's row pointing at the catalog's own asset, so
+    an admin replacing or deleting that entry would blank the preview on every
+    template already imported from it -- the same trap project_characters had
+    (see CLAUDE.md's character-import note). It also means an imported template
+    genuinely owns its preview: editing or deleting it cleans up its own copy
+    via crud.py's _owns_demo_image(), which no longer has to refuse.
+
     Importing the same slug twice is allowed and produces a second independent
     copy; the catalog is a starting point, not a set the library has to mirror.
 
@@ -103,6 +115,18 @@ async def import_default_style_template(
 
     new_template = {field: entry.get(field) for field in _IMPORTABLE_FIELDS}
     new_template["user_id"] = current_user.id
+
+    # Nullable in the catalog, so only copy when there's actually one to copy.
+    catalog_demo_url = entry.get("demo_image_url")
+    new_template["demo_image_url"] = (
+        copy_image_from_url(
+            catalog_demo_url,
+            folder=f"{current_user.id}/{DEMO_IMAGE_FOLDER}",
+            public_id_prefix="demo",
+        )
+        if catalog_demo_url
+        else None
+    )
 
     # A user's first-ever template becomes their default, so project creation
     # (which auto-imports the default style template) works without them having

@@ -29,6 +29,11 @@ const PAGE_SIZE = 10;
 // sides. It stops matching (and the card reverts to "Add to Library") the
 // moment the user edits the imported copy, since it's then a genuinely
 // different template — which is the correct behavior, not a bug.
+//
+// `demo_image_url` is deliberately NOT here, and must not be added back: the
+// import makes a real Cloudinary copy into the user's own folder, so the URL
+// differs from the catalog's on every import by design. Matching on it would
+// mean the badge never matches at all.
 const IMPORT_MATCH_FIELDS = [
   "name",
   "description",
@@ -40,7 +45,6 @@ const IMPORT_MATCH_FIELDS = [
   "image_aspect_ratio",
   "video_aspect_ratio",
   "best_for",
-  "demo_image_url",
 ] as const;
 
 function matchesDefault(template: StyleTemplate, def: DefaultStyleTemplate): boolean {
