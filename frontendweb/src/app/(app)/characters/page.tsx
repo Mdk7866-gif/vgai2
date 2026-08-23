@@ -1,14 +1,15 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { Plus, Users, LogIn, Sparkles } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import { Plus, Users, LogIn, Sparkles, Library } from "lucide-react";
 import CardGridSkeleton from "@/components/CardGridSkeleton";
 import Pagination from "@/components/Pagination";
 import { usePagination } from "@/hooks/usePagination";
 import { useAuth } from "@/context/AuthContext";
 import { authFetch } from "@/lib/api";
-import type { Character } from "@/types/character";
+import type { Character, DefaultCharacter } from "@/types/character";
 import CharacterCard from "@/components/characters/CharacterCard";
+import DefaultCharacterCardPopUp from "@/components/characters/DefaultCharacterCardPopUp";
 import EditCharacterCardPopUp, {
   CharacterFormValues,
 } from "@/components/characters/EditCharacterCardPopUp";
@@ -17,6 +18,22 @@ import ConformationMessagePopUp from "@/components/ConformationMessagePopUp";
 import AlertMessagePopUp from "@/components/AlertMessagePopUp";
 
 const PAGE_SIZE = 10;
+
+// A character counts as "imported from this catalog entry" if these still
+// match, which is how the "In library" badge survives a page reload without any
+// separate DB column: nothing is persisted, it's re-derived from data already
+// on both sides. It stops matching (and the card reverts to "Add to Library")
+// the moment the user edits their copy, since it's then a genuinely different
+// character — the correct behavior, not a bug.
+//
+// character_sheet_url is deliberately NOT one of these, unlike the style
+// catalog's equivalent list: import makes a real Cloudinary copy into the
+// user's own folder, so the URL is different by design on every import.
+const IMPORT_MATCH_FIELDS = ["name", "description"] as const;
+
+function matchesDefault(character: Character, def: DefaultCharacter): boolean {
+  return IMPORT_MATCH_FIELDS.every((field) => (character[field] ?? null) === (def[field] ?? null));
+}
 
 export default function CharactersPage() {
   const { user, requireAuth, loading: authLoading } = useAuth();
@@ -33,6 +50,19 @@ export default function CharactersPage() {
 
   const [generatePopupOpen, setGeneratePopupOpen] = useState(false);
   const [generatePopupKey, setGeneratePopupKey] = useState(0);
+
+  // Starter catalog — public and independent of auth, so it loads once on
+  // mount rather than alongside the user's own characters.
+  const [defaults, setDefaults] = useState<DefaultCharacter[]>([]);
+  const [defaultsLoading, setDefaultsLoading] = useState(true);
+  const [defaultsPopupOpen, setDefaultsPopupOpen] = useState(false);
+  const [importingSlug, setImportingSlug] = useState<string | null>(null);
+  // Derived from data, not tracked as its own state — see IMPORT_MATCH_FIELDS
+  // above for why this survives a page reload without a dedicated DB column.
+  const importedSlugs = useMemo(
+    () => defaults.filter((def) => characters.some((c) => matchesDefault(c, def))).map((def) => def.slug),
+    [defaults, characters]
+  );
 
   const [deleteTarget, setDeleteTarget] = useState<Character | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -80,6 +110,50 @@ export default function CharactersPage() {
       clearTimeout(startTimer);
     };
   }, [user, authLoading]);
+
+  // The catalog is public (GET /characters/defaults needs no token), so this
+  // runs once on mount rather than keying off `user` like the effect above —
+  // a signed-out visitor sees the starter library too.
+  useEffect(() => {
+    let cancelled = false;
+    authFetch("/characters/defaults")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled) setDefaults(data);
+      })
+      // Deliberately silent: the catalog is a nice-to-have next to the user's
+      // own library, and an alert here would fire on a page that otherwise
+      // loaded fine.
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setDefaultsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleImportDefault = async (character: DefaultCharacter) => {
+    if (!requireAuth()) return;
+    setImportingSlug(character.slug);
+    try {
+      const res = await authFetch(`/characters/defaults/${character.slug}/import`, {
+        method: "POST",
+      });
+      const created: Character = await res.json();
+      // Imports are never auto-defaulted (see defaults.py), so unlike create/
+      // update there's no other card's is_default to clear here.
+      setCharacters((prev) => [created, ...prev]);
+      setPage(1);
+    } catch (err) {
+      setAlert({
+        title: "Import failed",
+        message: err instanceof Error ? err.message : "Something went wrong.",
+      });
+    } finally {
+      setImportingSlug(null);
+    }
+  };
 
   const handleAddClick = () => {
     if (!requireAuth()) return;
@@ -198,6 +272,30 @@ export default function CharactersPage() {
           </p>
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto">
+          {/* Reserves the same slot/size whether the catalog is still loading,
+              loaded with entries, or (rarely) empty/failed — swapping this in
+              only once `defaults.length > 0` resolves would show the header row
+              without this button and then pop it in a moment later, a CLS
+              regression. Same treatment as the style-templates page. */}
+          {defaultsLoading ? (
+            <div
+              aria-hidden="true"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl flex-1 sm:flex-none justify-center ring-1 ring-slate-200 dark:ring-slate-700 bg-white dark:bg-slate-800"
+            >
+              <div className="w-5 h-5 rounded bg-slate-200 dark:bg-slate-700 animate-pulse" />
+              <div className="h-4 w-28 rounded bg-slate-200 dark:bg-slate-700 animate-pulse" />
+            </div>
+          ) : (
+            defaults.length > 0 && (
+              <button
+                onClick={() => setDefaultsPopupOpen(true)}
+                className="flex items-center gap-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-violet-600 dark:text-violet-400 px-5 py-2.5 rounded-xl font-medium shadow-sm transition-all active:scale-95 flex-1 sm:flex-none justify-center cursor-pointer ring-1 ring-violet-200 dark:ring-violet-500/40"
+              >
+                <Library className="w-5 h-5" />
+                <span>Starter Characters</span>
+              </button>
+            )
+          )}
           <button
             onClick={handleGenerateClick}
             className="flex items-center gap-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-indigo-600 dark:text-indigo-400 px-5 py-2.5 rounded-xl font-medium shadow-sm transition-all active:scale-95 flex-1 sm:flex-none justify-center cursor-pointer ring-1 ring-indigo-200 dark:ring-indigo-500/40"
@@ -245,7 +343,9 @@ export default function CharactersPage() {
           </div>
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white">No characters yet</h2>
           <p className="text-slate-500 dark:text-slate-400 text-sm max-w-sm">
-            Add your first character to start reusing it across projects.
+            {defaults.length > 0
+              ? "Browse the Starter Characters above, or add your own from scratch."
+              : "Add your first character to start reusing it across projects."}
           </p>
         </div>
       ) : (
@@ -283,6 +383,15 @@ export default function CharactersPage() {
         character={editingCharacter}
         onSubmit={handleFormSubmit}
         submitting={submitting}
+      />
+
+      <DefaultCharacterCardPopUp
+        isOpen={defaultsPopupOpen}
+        onClose={() => setDefaultsPopupOpen(false)}
+        defaults={defaults}
+        onImport={handleImportDefault}
+        importingSlug={importingSlug}
+        importedSlugs={importedSlugs}
       />
 
       <GenerateCharacterSheetPopUp

@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 from app.routes import users
 from app.routes.characters import crud as characters_crud
+from app.routes.characters import defaults as characters_defaults
 from app.routes.characters import generatecharacter as characters_generate
 from app.routes.styletemplates import crud as styletemplates_crud
 from app.routes.styletemplates import defaults as styletemplates_defaults
@@ -20,6 +21,11 @@ from app.routes.project import animationgeneration
 api_router = APIRouter()
 
 api_router.include_router(users.router)
+# defaults before crud: same literal-path-first discipline the styletemplates
+# routers below follow. crud.py has no dynamic /{character_id} route today so
+# /defaults can't be shadowed, but registering it first keeps that true if one
+# is ever added.
+api_router.include_router(characters_defaults.router)
 api_router.include_router(characters_crud.router)
 api_router.include_router(characters_generate.router)
 # All three share the /styletemplates prefix. defaults first: crud.py has no

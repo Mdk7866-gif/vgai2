@@ -437,6 +437,33 @@ create table default_style_templates (
 create index idx_default_style_templates_published
   on default_style_templates (is_published, sort_order);
 
+-- The character-library counterpart of default_style_templates: the starter
+-- catalog behind GET /characters/defaults, edited from the admin portal.
+-- `slug` is likewise an API contract (POST /characters/defaults/{slug}/import
+-- reads every field server-side from it), so treat it as immutable once live.
+-- character_sheet_url is not-null here -- for a character the sheet *is* the
+-- content, not a preview, and characters.character_sheet_url is not-null too,
+-- so an entry without one could never produce a valid row on import.
+create table default_characters (
+  id uuid primary key default gen_random_uuid(),
+
+  slug varchar(200) not null unique,
+  name varchar(200) not null,
+  description text not null,
+  character_sheet_url text not null,
+
+  best_for text,
+
+  is_published boolean not null default true,
+  sort_order int not null default 0,
+
+  created_at timestamp not null default now(),
+  updated_at timestamp not null default now()
+);
+
+create index idx_default_characters_published
+  on default_characters (is_published, sort_order);
+
 -- ==========================
 -- Credit accounting (atomic)
 -- ==========================
@@ -611,3 +638,4 @@ alter table access_control_list enable row level security;
 alter table access_system_settings enable row level security;
 alter table admin_credit_grants enable row level security;
 alter table default_style_templates enable row level security;
+alter table default_characters enable row level security;
