@@ -23,6 +23,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
+> **Ports 8000/3000 belong to this app. The sibling admin portal (`vgai2admin`)
+> runs on 8001/3001 — keep it that way.** Both projects were on 8000/3000 once
+> and it broke vgAI: Windows lets two processes bind the same port without an
+> error, so vgai2admin's backend silently answered this app's requests. Its
+> router only serves `/admin/*`, so `/users/me`, `/users/sync`, `/payments/...`
+> all returned `{"detail":"Not Found"}` — users signed in fine (Supabase auth is
+> client-side) into a completely dead app. **`app/access_control.py` stopped
+> being enforced at the same time**, since `get_current_user` was never reached:
+> restricted emails got a 404 instead of the 403 `ACCESS_REVOKED` that
+> `AuthContext` signs people out on, so blocked users appeared to have access.
+> If vgAI ever returns a bare "Not Found" for everything, check what is actually
+> listening on 8000 before debugging anything else. See `vgai2admin/README.md` §10.3.
+
 ### Backend (`backend/`)
 ```bash
 uv sync                        # install dependencies
