@@ -53,6 +53,8 @@ Credits are **reserved before the AI provider is called**, not deducted after it
 | `/generate_script` | AI topic research & script generation |
 | `/profile` | Account, balance, payment & usage history |
 | `/contact` | Support form — name, email or mobile, issue description, optional screenshot |
+| `/privacy-policy` | Static privacy policy (13 sections, no backend) |
+| `/about` | *Placeholder — "coming soon"* |
 | `/login` | Google login only, via Supabase Auth |
 
 ---
@@ -104,7 +106,7 @@ Credits are **reserved before the AI provider is called**, not deducted after it
 1. User fills in a form: `category` (a dropdown of common YouTube content categories — Finance & Investing, News & Current Affairs, Entertainment, Story/Drama, True Crime & Mystery, Motivational & Self-Improvement, History, Technology, Health & Fitness, Educational/How-To, Comedy, Gaming, Travel, Food & Cooking, Science, Horror/Creepy, Business & Entrepreneurship, Relationships & Lifestyle, Sports, Kids & Family — with a free-text "Other" option), `target_country` (a searchable country combobox — type to filter, click or Enter to pick — the audience Perplexity should research trends for), `video_type`/`content_type` (long-form video or YouTube Shorts/Reel), `script_word_length` (a dropdown of 100-word bands from `100-200` up to `1400-1500`), `topic_description`, and `script_description` (max 300 words — a free-form "skill file" the creator uses to tell Claude exactly how they want the script written: tone, structure, must-hit points, etc.).
 2. **Get Top 10 Viral Topics** (5 credits) — calls **Perplexity** (via OpenRouter, `perplexity/sonar-pro`) to research the web and return 10 trending/viral topic ideas for the given category, topic description, target country, and video format. Each shows as a card (title + why it's trending) with its own **+ Generate** button — no popup. The first research call of a session creates a `script_templates` row behind the scenes (not yet a "saved template" — see step 6); re-researching under the same session **updates that same row's 10 `researched_topics` in place** rather than creating new ones, so a session always has at most 10 researched topics.
 3. Clicking **+ Generate** on a topic card calls **Claude** (via OpenRouter, `anthropic/claude-sonnet-5`) to write a full script matching the `script_description` and chosen word-length band, along with a list of characters involved in the story (name, e.g. "Nick, 30, male", plus profession and a brief physical appearance description) — shown as "None" if the script has no named characters. Cost scales with the word-length band: `words_per_credit = 30` (rounded up to a whole credit), so e.g. a script capped at 900 words costs 30 credits. The result renders as its own numbered card ("Script #1", "Script #2", ... numbered from the earliest generated) showing topic, script, word count, and character list — also not a popup, and every generated-script card **persists in the database** and stays visible (across page reloads and across different research sessions) until the user deletes it. A user can also **edit** a card's topic/script text directly (no AI call, no credit cost) or **delete** it entirely.
-4. **Import** — imports the generated script into a project folder to start working on it. *(Placeholder until `/project_folder/{project_id}` exists — see that section.)*
+4. **Import** — creates a **new** project folder pre-filled with that script and navigates to `/project_folder/{project_id}` to start working on it. Always a new project; there's no "import into an existing one" picker.
 5. **Improvise** — opens a feedback popup; the given feedback + the current script are sent back to Claude, which returns a revised script that replaces the same card in place (same word-length-based credit cost). Can be repeated as many times as the user likes.
 6. The form inputs (`category`, `topic_description`, `script_description`, `target_country`, `video_type`, `script_word_length`) can be saved as a reusable **script template** for later — this flips the session's `script_templates` row to `is_saved = true` (or creates one if the user never researched first) rather than creating a duplicate row. A "My Templates" popup lists only the user's explicitly-saved templates (auto-created research-session rows don't clutter this list) so they can be imported back into the form — which also restores that session's researched topics — without retyping everything. Deleting a saved template also deletes its researched topics and generated scripts.
 
@@ -234,13 +236,15 @@ Google sign-in only, via **Supabase Auth**.
 
   > **Open question:** the UI collects USD but bills INR at a rate well above market, which reads as a bad conversion rather than as deliberate regional pricing. Standardizing on USD is the likely direction — most users aren't in India and every provider bill (OpenAI, OpenRouter, Cloudinary, ElevenLabs) is already in dollars, so USD pricing takes FX risk out of the margin entirely. It's gated on Razorpay international payments being approved on the account, needs a workable minimum charge (today's `MIN_CREDITS = 10` would become an unprocessable $0.10), and would leave `credit_topups` holding genuinely mixed currencies — at which point `/payments/history`'s single `total_amount_paid` sum stops being meaningful. Not decided yet.
 
-> **Note:** §5's `/project_folder` description above still says automatic scene splitting goes to Gemini in all cases — in the built code that's the `"pro"` tier only, with `"base"` on `gpt-4o`. See `CLAUDE.md` for what's actually implemented.
+> **Note:** this document is the product *spec* — intended behavior. `CLAUDE.md` is the record of what is actually implemented, and is the one to trust where the two disagree. (Both were reconciled on the provider question: automatic scene splitting is `gpt-4o` on the `"base"` tier and Gemini on `"pro"` only, and the Characters/Style Templates generate flows are OpenAI, not Gemini as originally spec'd.)
 
 ---
 
 ## 7. Database Schema (DBML)
 
-The full, current schema lives in [`vgaidatabase.dbml`](./vgaidatabase.dbml), with runnable DDL in [`vgaidatabase.sql`](./vgaidatabase.sql) — which also defines the `spend_credits` / `refund_credits` / `add_project_expense` functions the credit system depends on. An existing database is brought up to date with [`vgaidatabase_migration_credits.sql`](./vgaidatabase_migration_credits.sql); until that's applied, every credit-spending endpoint fails.
+The full, current schema lives in [`vgaidatabase.dbml`](./vgaidatabase.dbml), with runnable DDL in [`vgaidatabase.sql`](./vgaidatabase.sql) — which also defines the `spend_credits` / `refund_credits` / `add_project_expense` functions the credit system depends on. An existing database is brought up to date with [`migration/vgaidatabase_migration_credits.sql`](./migration/vgaidatabase_migration_credits.sql); until that's applied, every credit-spending endpoint fails.
+
+Migrations are run **by hand** in the Supabase SQL Editor — neither backend can execute DDL, since both hold the Supabase REST service-role key rather than a Postgres connection string. `migration/` here holds vgAI's own two (both already applied); the tables added for the sibling admin portal (`access_control_list`, `access_system_settings`, `admin_credit_grants`, `default_style_templates`, `default_characters`, `contact_submissions`) live in **`vgai2admin/migration/`**, which is the primary home for any new schema change against this one shared database.
 
 Summary of tables:
 
@@ -639,3 +643,33 @@ vgai2/
 - `delete_project_media()` is the project-wide version: deleting a project deletes every image/video resource under its `<user_id>/<project_id>/` prefix — not just what's tracked on scene/thumbnail rows, so a stray upload from a cancelled generation doesn't linger either — and then removes the now-empty subfolders and the project folder itself.
 - **Current state**: `<user_id>/characters/`, `<user_id>/<project_id>/{scene_images,scene_animation,thumbnail_image}/`, and `<user_id>/<project_id>/project_characters/` are all wired up. Importing a character (explicit import or the default-character auto-import on project creation) makes a real server-side copy of the character-sheet image into the project's own `project_characters/` folder (`app/cloudinary.py`'s `copy_image_from_url()`, called from `projectcrud.py`) rather than reusing the library character's `characters/` URL — so deleting or replacing a library character can never affect a project that already imported it, and deleting the project cleans up its character copies too, by the same `<user_id>/<project_id>/` prefix delete as everything else. Every `project_characters` row in the DB was confirmed to already be on this per-project-copy scheme as of the fix (a one-time backfill script migrated the one pre-fix row that existed, then was deleted — see `_owns_project_character_image()` in `projectcrud.py`, whose guard is kept in place regardless in case a restored backup or another environment ever reintroduces an old-style row). `voiceovers/` is not wired up — voiceover generation is still a stub.
 - **Both starter-catalog imports copy the image, never reference it.** `POST /characters/defaults/{slug}/import` and `POST /styletemplates/defaults/{slug}/import` each run `copy_image_from_url()` to pull the catalog's asset out of its root-level folder and into the importer's own `<user_id>/characters/` or `<user_id>/style_templates/` folder, so every imported row owns an independent asset. That is what makes deleting a catalog entry safe: a copied URL string would leave every importer pointing at the catalog's asset, and removing the entry (which deletes it) would blank the image for all of them — the exact bug `project_characters` had. The style-template half was added later, after the same reasoning was applied to characters; a one-time backfill converted the two existing rows that still shared a catalog URL, and `_owns_demo_image()`/`_owns_character_sheet()` remain as guards for a pasted external URL or a row restored from an old backup.
+
+---
+
+## 10. Deployment
+
+**Written and verified to build; not yet deployed.** The target is a single AWS EC2 instance running four Docker containers behind nginx with a free Let's Encrypt certificate.
+
+[`awsdeployment.md`](./awsdeployment.md) is the end-to-end runbook — instance sizing, security group, DNS, certificate issuance, build/start, the post-deploy dashboard changes, day-2 operations, and the failures that actually happen. Read it rather than reconstructing the setup from the config files.
+
+The shape, since everything else follows from it:
+
+```
+                Internet
+             :80 │ :443          ← the only ports open on the instance
+                 ▼
+              nginx              TLS termination + reverse proxy
+          /api/* │ │ everything else
+                 ▼ ▼
+           backend   frontend    FastAPI :8000 / Next.js :3000  (internal only)
+           certbot                renews the certificate silently
+```
+
+- **One origin.** `https://<domain>/` is the frontend, `https://<domain>/api/...` is the backend, with nginx stripping the `/api` prefix so FastAPI still sees `/users/me` exactly as it does locally. The frontend therefore calls the backend at the **relative** path `/api`, and no domain name is ever compiled into the JavaScript bundle.
+- **The domain is written once**, as `DOMAIN` in the root `.env` — nginx renders it into `server_name` and the certificate paths, and the backend's `ALLOWED_ORIGINS` is derived from it. Changing domains needs no frontend rebuild.
+- **Only nginx publishes ports.** The backend and frontend use `expose`, so 3000/8000 are reachable only on the internal Docker network and must never be opened in the security group.
+- **Nothing to provision for data** — Supabase and Cloudinary are already hosted, and the deployment points at the same shared project, so the schema and every existing asset are live the moment the containers start.
+- **The deployment env file is the root [`.env.example`](./.env.example) → `.env`**, separate from `backend/.env` and `frontendweb/.env.local`, which local development still uses unchanged. `NEXT_PUBLIC_*` values are baked into the browser bundle at **build** time, so changing one needs `docker compose build frontend`, not a restart.
+- After going live, three external dashboards need updating (all covered in §10 of the runbook): Supabase redirect URLs (sign-in is broken without this), Razorpay's authorised Checkout domains, and — now that a real domain exists — optionally activating the payment webhook that has been sitting unregistered because Razorpay refuses `localhost`.
+
+[`dockercommands.md`](./dockercommands.md) is the **earlier MVP's** build reference (`mdk7866/vgai-backend` / `vgai-frontend`) and is kept only for that; this stack uses `vgai2-*` image tags everywhere.
