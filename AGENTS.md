@@ -8,6 +8,10 @@ This repository is developed alongside the sibling `vgai2admin` portal. Whenever
 
 The older desktop project named `VG AI` is an unrelated MVP. Current work is scoped only to this `vgai2` repository and its sibling `C:\Users\ASUS\OneDrive\Desktop\vgai2admin`; do not inspect, reuse, or modify the old MVP unless the user explicitly asks.
 
+## Shared starter-catalog authoring
+
+The local-only sibling admin portal now has OpenAI drafting and demo-image tools for the shared `default_style_templates` catalog. They run only at `vgai2admin`'s `/admin/default_style_templates/generate` and `/generate_demo_image`, use that backend's `CHATGPT_PAID_API_KEY`, and deliberately never reserve or change any vgAI user's credits. The public app remains read/import-only for that catalog.
+
 This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
 
 ## What this repo is
