@@ -4,6 +4,10 @@
 
 This repository is developed alongside the sibling `vgai2admin` portal. Whenever a change adds, removes, or materially changes a feature, user/admin behavior, route/API, schema, credit rule, provider integration, deployment setup, or established implementation convention, update the relevant documentation as part of the same task — not in a later cleanup. Keep `README.md`, `AGENTS.md`, and `CLAUDE.md` accurate in this repository and, when the change affects the other application or shared database, update the corresponding documents in `C:\Users\ASUS\OneDrive\Desktop\vgai2admin` too. This rule exists so a new chat in Codex, Claude Code, or Antigravity has reliable current context.
 
+## Repository scope
+
+The older desktop project named `VG AI` is an unrelated MVP. Current work is scoped only to this `vgai2` repository and its sibling `C:\Users\ASUS\OneDrive\Desktop\vgai2admin`; do not inspect, reuse, or modify the old MVP unless the user explicitly asks.
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## What this repo is
