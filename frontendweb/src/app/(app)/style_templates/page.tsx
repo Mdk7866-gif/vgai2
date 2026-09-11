@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Palette, LogIn, Sparkles, Library, FileDown } from "lucide-react";
 import CardGridSkeleton from "@/components/CardGridSkeleton";
+import LibrarySearch from "@/components/LibrarySearch";
 import Pagination from "@/components/Pagination";
 import { usePagination } from "@/hooks/usePagination";
 import { useAuth } from "@/context/AuthContext";
@@ -63,11 +64,12 @@ export default function StyleTemplatesPage() {
   const { user, requireAuth, loading: authLoading } = useAuth();
 
   const [templates, setTemplates] = useState<StyleTemplate[]>([]);
+  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [aspectFilter, setAspectFilter] = useState<AspectFilter>("all");
   const filteredTemplates = useMemo(
-    () => (aspectFilter === "all" ? templates : templates.filter((t) => t.image_aspect_ratio === aspectFilter)),
-    [templates, aspectFilter]
+    () => templates.filter((t) => (aspectFilter === "all" || t.image_aspect_ratio === aspectFilter) && `${t.name} ${t.description ?? ""}`.toLowerCase().includes(query.trim().toLowerCase())),
+    [templates, aspectFilter, query]
   );
   const { page, setPage, pageCount, pageItems, totalItems } = usePagination(filteredTemplates, PAGE_SIZE);
 
@@ -373,8 +375,9 @@ export default function StyleTemplatesPage() {
 
   return (
     <div className="flex flex-col gap-8 pb-16 animate-in fade-in duration-500">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+      <div className="relative flex flex-col items-start justify-between gap-6 overflow-hidden rounded-3xl border border-brand-200/60 bg-gradient-to-br from-white via-brand-50/70 to-cyan-50/60 p-6 shadow-sm dark:border-white/10 dark:from-surface dark:via-surface dark:to-slate-900 lg:p-8">
         <div>
+          <p className="eyebrow mb-3">A signature for every scene</p>
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 dark:text-white">
             Style Templates
           </h1>
@@ -382,7 +385,7 @@ export default function StyleTemplatesPage() {
             Save reusable visual styles — prompts, scene density, and aspect ratios — ready to import into any project.
           </p>
         </div>
-        <div className="flex items-center gap-3 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-3 w-full">
           {/* Reserves the same slot/size whether the catalog is still loading,
               loaded with entries, or (rarely) empty/failed — swapping this in
               only once `defaults.length > 0` resolves caused every page load
@@ -403,7 +406,7 @@ export default function StyleTemplatesPage() {
             defaults.length > 0 && (
               <button
                 onClick={() => setDefaultsPopupOpen(true)}
-                className="flex items-center gap-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-violet-600 dark:text-violet-400 px-5 py-2.5 rounded-xl font-medium shadow-sm transition-all active:scale-95 flex-1 sm:flex-none justify-center cursor-pointer ring-1 ring-violet-200 dark:ring-violet-500/40"
+                className="flex items-center gap-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-brand-600 dark:text-brand-400 px-5 py-2.5 rounded-xl font-medium shadow-sm transition-all active:scale-95 flex-1 sm:flex-none justify-center cursor-pointer ring-1 ring-brand-200 dark:ring-brand-500/40"
               >
                 <Library className="w-5 h-5" />
                 <span>Starter Templates</span>
@@ -412,7 +415,7 @@ export default function StyleTemplatesPage() {
           )}
           <button
             onClick={handleGenerateClick}
-            className="flex items-center gap-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-indigo-600 dark:text-indigo-400 px-5 py-2.5 rounded-xl font-medium shadow-sm transition-all active:scale-95 flex-1 sm:flex-none justify-center cursor-pointer ring-1 ring-indigo-200 dark:ring-indigo-500/40"
+            className="flex items-center gap-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-brand-600 dark:text-brand-400 px-5 py-2.5 rounded-xl font-medium shadow-sm transition-all active:scale-95 flex-1 sm:flex-none justify-center cursor-pointer ring-1 ring-brand-200 dark:ring-brand-500/40"
           >
             <Sparkles className="w-5 h-5" />
             <span>Generate Style Template</span>
@@ -439,7 +442,7 @@ export default function StyleTemplatesPage() {
           </button>
           <button
             onClick={handleAddClick}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-xl font-medium shadow-md shadow-indigo-200 dark:shadow-indigo-900/40 transition-all active:scale-95 flex-1 sm:flex-none justify-center cursor-pointer ring-1 ring-indigo-700 dark:ring-indigo-500"
+            className="flex items-center gap-2 bg-action hover:bg-action-hover text-action-foreground px-5 py-2.5 rounded-xl font-medium shadow-md shadow-brand-200 dark:shadow-brand-900/40 transition-all active:scale-95 flex-1 sm:flex-none justify-center cursor-pointer ring-1 ring-brand-700 dark:ring-brand-500"
           >
             <Plus className="w-5 h-5" />
             <span>Add Style Template</span>
@@ -447,9 +450,11 @@ export default function StyleTemplatesPage() {
         </div>
       </div>
 
+      {user && !loading && templates.length > 0 && <LibrarySearch value={query} onChange={(value) => { setQuery(value); setPage(1); }} label="Search style templates" count={totalItems} />}
+
       {!authLoading && !user ? (
-        <div className="flex flex-col items-center justify-center text-center gap-3 py-20 bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl">
-          <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center">
+        <div className="flex flex-col items-center justify-center text-center gap-3 py-20 bg-white dark:bg-surface border border-slate-200 dark:border-border rounded-2xl">
+          <div className="w-12 h-12 bg-brand-50 dark:bg-brand-500/10 border border-brand-100 dark:border-brand-500/30 text-brand-600 dark:text-brand-400 rounded-xl flex items-center justify-center">
             <Palette className="w-6 h-6" />
           </div>
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Login to view your style templates</h2>
@@ -458,7 +463,7 @@ export default function StyleTemplatesPage() {
           </p>
           <button
             onClick={() => requireAuth()}
-            className="mt-2 flex items-center gap-2 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 cursor-pointer"
+            className="mt-2 flex items-center gap-2 text-sm font-medium text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 cursor-pointer"
           >
             <LogIn className="w-4 h-4" />
             Login
@@ -471,8 +476,8 @@ export default function StyleTemplatesPage() {
           count={PAGE_SIZE}
         />
       ) : templates.length === 0 ? (
-        <div className="flex flex-col items-center justify-center text-center gap-3 py-20 bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl">
-          <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center">
+        <div className="flex flex-col items-center justify-center text-center gap-3 py-20 bg-white dark:bg-surface border border-slate-200 dark:border-border rounded-2xl">
+          <div className="w-12 h-12 bg-brand-50 dark:bg-brand-500/10 border border-brand-100 dark:border-brand-500/30 text-brand-600 dark:text-brand-400 rounded-xl flex items-center justify-center">
             <Palette className="w-6 h-6" />
           </div>
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white">No style templates yet</h2>
@@ -496,8 +501,8 @@ export default function StyleTemplatesPage() {
                 aria-pressed={aspectFilter === opt.value}
                 className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
                   aspectFilter === opt.value
-                    ? "bg-indigo-600 text-white shadow-sm"
-                    : "bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-500/50"
+                    ? "bg-brand-600 text-white shadow-sm"
+                    : "bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-brand-300 dark:hover:border-brand-500/50"
                 }`}
               >
                 {opt.label}
@@ -506,14 +511,13 @@ export default function StyleTemplatesPage() {
           </div>
 
           {filteredTemplates.length === 0 ? (
-            <div className="flex flex-col items-center justify-center text-center gap-3 py-20 bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl">
-              <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center">
+            <div className="flex flex-col items-center justify-center text-center gap-3 py-20 bg-white dark:bg-surface border border-slate-200 dark:border-border rounded-2xl">
+              <div className="w-12 h-12 bg-brand-50 dark:bg-brand-500/10 border border-brand-100 dark:border-brand-500/30 text-brand-600 dark:text-brand-400 rounded-xl flex items-center justify-center">
                 <Palette className="w-6 h-6" />
               </div>
-              <h2 className="text-lg font-semibold text-slate-900 dark:text-white">No style templates match this filter</h2>
-              <p className="text-slate-500 dark:text-slate-400 text-sm max-w-sm">
-                Try a different aspect ratio, or switch back to &ldquo;All&rdquo;.
-              </p>
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-white">No style templates match your filters</h2>
+              <p className="text-slate-500 dark:text-slate-400 text-sm max-w-sm">Try a different search or aspect ratio.</p>
+              <button onClick={() => { setQuery(""); setAspectFilter("all"); setPage(1); }} className="mt-3 rounded-xl bg-action px-4 py-2 text-sm font-semibold text-action-foreground hover:bg-action-hover">Reset filters</button>
             </div>
           ) : (
             <>

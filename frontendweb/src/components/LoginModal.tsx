@@ -1,5 +1,6 @@
 "use client";
 
+import { useDialogFocus } from "@/hooks/useDialogFocus";
 import React from "react";
 import { X } from "lucide-react";
 import Logo from "./Logo";
@@ -7,6 +8,8 @@ import { useAuth } from "@/context/AuthContext";
 
 export const LoginModal = () => {
   const { loginModalOpen, closeLoginModal, signInWithGoogle } = useAuth();
+
+  const dialogRef = useDialogFocus(loginModalOpen, closeLoginModal);
 
   if (!loginModalOpen) return null;
 
@@ -17,7 +20,7 @@ export const LoginModal = () => {
         onClick={closeLoginModal}
       />
 
-      <div className="relative w-full max-w-md md:max-w-lg bg-white dark:bg-slate-800/95 border border-slate-200 dark:border-slate-700/80 rounded-3xl shadow-2xl p-10 md:p-12 flex flex-col items-center gap-8 animate-in fade-in zoom-in-95 duration-200">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Sign in to vgAI" tabIndex={-1} className="relative max-h-[90dvh] overflow-y-auto w-full max-w-md md:max-w-lg bg-white dark:bg-surface border border-slate-200 dark:border-border rounded-3xl shadow-2xl p-6 sm:p-10 md:p-12 flex flex-col items-center gap-8 animate-in fade-in zoom-in-95 duration-200">
         <button
           onClick={closeLoginModal}
           aria-label="Close"

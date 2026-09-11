@@ -29,14 +29,14 @@ export default function HomePageAllowOnlyTheseUserAccessCard() {
     const firstName = typeof fullName === "string" ? fullName.trim().split(/\s+/)[0] : null;
 
     return (
-      <section className="relative overflow-hidden rounded-3xl border border-indigo-200/80 bg-gradient-to-r from-indigo-50 via-white to-violet-50 p-6 shadow-sm dark:border-indigo-500/25 dark:from-indigo-950/45 dark:via-slate-900/80 dark:to-violet-950/35 sm:p-8">
-        <div className="pointer-events-none absolute -right-16 -top-20 h-52 w-52 rounded-full bg-violet-300/25 blur-3xl dark:bg-violet-500/10" />
+      <section className="relative overflow-hidden rounded-3xl border border-brand-200/80 bg-gradient-to-r from-brand-50 via-white to-brand-50 p-6 shadow-sm dark:border-brand-500/25 dark:from-brand-950/45 dark:via-slate-900/80 dark:to-brand-950/35 sm:p-8">
+        <div className="pointer-events-none absolute -right-16 -top-20 h-52 w-52 rounded-full bg-brand-300/25 blur-3xl dark:bg-brand-500/10" />
         <div className="relative flex items-start gap-4">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-md shadow-indigo-200 dark:shadow-indigo-950/50">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-600 text-white shadow-md shadow-brand-200 dark:shadow-brand-950/50">
             <Sparkles className="h-5 w-5" />
           </div>
           <div>
-            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-indigo-600 dark:text-indigo-300">
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-600 dark:text-brand-300">
               {user ? "Your creative workspace" : "Open access"}
             </div>
             <h2 className="mt-1.5 text-xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-2xl">
@@ -77,11 +77,11 @@ export default function HomePageAllowOnlyTheseUserAccessCard() {
   };
 
   return (
-    <section className="relative overflow-hidden rounded-3xl border border-indigo-200/80 bg-gradient-to-br from-indigo-50 via-white to-violet-50 p-6 shadow-sm dark:border-indigo-500/25 dark:from-indigo-950/45 dark:via-slate-900/80 dark:to-violet-950/35 sm:p-8">
-      <div className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-indigo-300/20 blur-3xl dark:bg-indigo-500/10" />
+    <section className="relative overflow-hidden rounded-3xl border border-brand-200/80 bg-gradient-to-br from-brand-50 via-white to-brand-50 p-6 shadow-sm dark:border-brand-500/25 dark:from-brand-950/45 dark:via-slate-900/80 dark:to-brand-950/35 sm:p-8">
+      <div className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-brand-300/20 blur-3xl dark:bg-brand-500/10" />
       <div className="relative grid gap-7 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
         <div>
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-white/70 px-3 py-1.5 text-xs font-semibold text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-300">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-brand-200 bg-white/70 px-3 py-1.5 text-xs font-semibold text-brand-700 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-brand-300">
             <ShieldCheck className="h-3.5 w-3.5" />
             vgAI is currently invite-only
           </div>
@@ -92,7 +92,7 @@ export default function HomePageAllowOnlyTheseUserAccessCard() {
             Tell us which Google account you&apos;ll use. We review each request and add approved emails to the access list.
           </p>
           <div className="mt-5 flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
-            <Clock3 className="h-4 w-4 text-indigo-500" />
+            <Clock3 className="h-4 w-4 text-brand-500" />
             You can submit again later if a previous request was denied.
           </div>
         </div>
@@ -113,17 +113,17 @@ export default function HomePageAllowOnlyTheseUserAccessCard() {
             <label htmlFor="access-request-email" className="block text-sm font-semibold text-slate-800 dark:text-slate-100">Google account email</label>
             <div className="relative mt-2">
               <Mail className="pointer-events-none absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-              <input id="access-request-email" type="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3.5 text-sm text-slate-900 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-950/60 dark:text-white" />
+              <input id="access-request-email" type="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3.5 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-500/20 dark:border-slate-700 dark:bg-slate-950/60 dark:text-white" />
             </div>
 
             <label htmlFor="access-request-purpose" className="mt-4 block text-sm font-semibold text-slate-800 dark:text-slate-100">
               What will you create? <span className="font-normal text-slate-400">(optional)</span>
             </label>
-            <textarea id="access-request-purpose" value={purpose} onChange={(event) => setPurpose(event.target.value)} maxLength={1000} rows={4} placeholder="For example: history documentaries, educational Shorts, animated stories…" className="mt-2 w-full resize-none rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-950/60 dark:text-white" />
+            <textarea id="access-request-purpose" value={purpose} onChange={(event) => setPurpose(event.target.value)} maxLength={1000} rows={4} placeholder="For example: history documentaries, educational Shorts, animated stories…" className="mt-2 w-full resize-none rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-500/20 dark:border-slate-700 dark:bg-slate-950/60 dark:text-white" />
             <div className="mt-1 text-right text-[11px] tabular-nums text-slate-400">{purpose.length}/1000</div>
 
             {error && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
-            <button type="submit" disabled={submitting} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-200 transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60 dark:shadow-indigo-950/50">
+            <button type="submit" disabled={submitting} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-action px-4 py-2.5 text-sm font-semibold text-action-foreground shadow-md shadow-brand-200 transition hover:bg-action-hover disabled:cursor-not-allowed disabled:opacity-60 dark:shadow-brand-950/50">
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
               {submitting ? "Submitting…" : "Request access"}
             </button>

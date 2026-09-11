@@ -48,9 +48,9 @@ function Section({
 
 export default function PrivacyPolicyPage() {
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
-      <div className="mb-10">
-        <p className="text-sm font-medium text-purple-600 dark:text-purple-400 mb-2">
+    <div className="max-w-5xl mx-auto pb-12">
+      <div className="mb-8 rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-border dark:bg-surface sm:p-8">
+        <p className="text-sm font-medium text-brand-600 dark:text-brand-400 mb-2">
           Legal
         </p>
         <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 dark:text-white">
@@ -73,16 +73,16 @@ export default function PrivacyPolicyPage() {
 
       <div className="lg:grid lg:grid-cols-[220px_1fr] lg:gap-10">
         {/* Table of contents */}
-        <nav className="hidden lg:block sticky top-24 self-start">
+        <nav aria-label="Policy sections" className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 lg:sticky lg:top-6 lg:self-start dark:border-border dark:bg-surface">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-3">
             On this page
           </p>
-          <ul className="space-y-2 text-sm">
+          <ul className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2 lg:grid-cols-1">
             {sections.map((s) => (
               <li key={s.id}>
                 <a
                   href={`#${s.id}`}
-                  className="text-slate-500 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+                  className="text-slate-500 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
                 >
                   {s.title}
                 </a>
@@ -92,7 +92,7 @@ export default function PrivacyPolicyPage() {
         </nav>
 
         {/* Content */}
-        <div className="space-y-10 min-w-0">
+        <div className="space-y-10 min-w-0 rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 dark:border-border dark:bg-surface">
           <Section id="overview" title="1. Overview">
             <p>
               vgAI lets you paste a script, split it into scenes, and generate
@@ -332,7 +332,7 @@ export default function PrivacyPolicyPage() {
               To exercise any of these rights, email us at{" "}
               <a
                 href={`mailto:${CONTACT_EMAIL}`}
-                className="text-purple-600 dark:text-purple-400 hover:underline"
+                className="text-brand-600 dark:text-brand-400 hover:underline"
               >
                 {CONTACT_EMAIL}
               </a>
@@ -374,7 +374,7 @@ export default function PrivacyPolicyPage() {
               Questions about this policy or your data? Reach out to us at{" "}
               <a
                 href={`mailto:${CONTACT_EMAIL}`}
-                className="text-purple-600 dark:text-purple-400 hover:underline"
+                className="text-brand-600 dark:text-brand-400 hover:underline"
               >
                 {CONTACT_EMAIL}
               </a>

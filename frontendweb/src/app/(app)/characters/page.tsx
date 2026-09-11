@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Plus, Users, LogIn, Sparkles, Library } from "lucide-react";
 import CardGridSkeleton from "@/components/CardGridSkeleton";
+import LibrarySearch from "@/components/LibrarySearch";
 import Pagination from "@/components/Pagination";
 import { usePagination } from "@/hooks/usePagination";
 import { useAuth } from "@/context/AuthContext";
@@ -39,8 +40,9 @@ export default function CharactersPage() {
   const { user, requireAuth, loading: authLoading } = useAuth();
 
   const [characters, setCharacters] = useState<Character[]>([]);
+  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
-  const { page, setPage, pageCount, pageItems, totalItems } = usePagination(characters, PAGE_SIZE);
+  const { page, setPage, pageCount, pageItems, totalItems } = usePagination(characters.filter((character) => `${character.name} ${character.description ?? ""}`.toLowerCase().includes(query.trim().toLowerCase())), PAGE_SIZE);
 
   const [popupOpen, setPopupOpen] = useState(false);
   const [popupMode, setPopupMode] = useState<"create" | "edit">("create");
@@ -262,8 +264,9 @@ export default function CharactersPage() {
 
   return (
     <div className="flex flex-col gap-8 pb-16 animate-in fade-in duration-500">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+      <div className="relative flex flex-col items-start justify-between gap-6 overflow-hidden rounded-3xl border border-brand-200/60 bg-gradient-to-br from-white via-brand-50/70 to-cyan-50/60 p-6 shadow-sm dark:border-white/10 dark:from-surface dark:via-surface dark:to-slate-900 lg:p-8">
         <div>
+          <p className="eyebrow mb-3">Your recurring cast</p>
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 dark:text-white">
             Character Library
           </h1>
@@ -271,7 +274,7 @@ export default function CharactersPage() {
             Save reusable characters with a consistent look, ready to import into any project.
           </p>
         </div>
-        <div className="flex items-center gap-3 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-3 w-full">
           {/* Reserves the same slot/size whether the catalog is still loading,
               loaded with entries, or (rarely) empty/failed — swapping this in
               only once `defaults.length > 0` resolves would show the header row
@@ -289,7 +292,7 @@ export default function CharactersPage() {
             defaults.length > 0 && (
               <button
                 onClick={() => setDefaultsPopupOpen(true)}
-                className="flex items-center gap-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-violet-600 dark:text-violet-400 px-5 py-2.5 rounded-xl font-medium shadow-sm transition-all active:scale-95 flex-1 sm:flex-none justify-center cursor-pointer ring-1 ring-violet-200 dark:ring-violet-500/40"
+                className="flex items-center gap-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-brand-600 dark:text-brand-400 px-5 py-2.5 rounded-xl font-medium shadow-sm transition-all active:scale-95 flex-1 sm:flex-none justify-center cursor-pointer ring-1 ring-brand-200 dark:ring-brand-500/40"
               >
                 <Library className="w-5 h-5" />
                 <span>Starter Characters</span>
@@ -298,14 +301,14 @@ export default function CharactersPage() {
           )}
           <button
             onClick={handleGenerateClick}
-            className="flex items-center gap-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-indigo-600 dark:text-indigo-400 px-5 py-2.5 rounded-xl font-medium shadow-sm transition-all active:scale-95 flex-1 sm:flex-none justify-center cursor-pointer ring-1 ring-indigo-200 dark:ring-indigo-500/40"
+            className="flex items-center gap-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-brand-600 dark:text-brand-400 px-5 py-2.5 rounded-xl font-medium shadow-sm transition-all active:scale-95 flex-1 sm:flex-none justify-center cursor-pointer ring-1 ring-brand-200 dark:ring-brand-500/40"
           >
             <Sparkles className="w-5 h-5" />
             <span>Generate Character</span>
           </button>
           <button
             onClick={handleAddClick}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-xl font-medium shadow-md shadow-indigo-200 dark:shadow-indigo-900/40 transition-all active:scale-95 flex-1 sm:flex-none justify-center cursor-pointer ring-1 ring-indigo-700 dark:ring-indigo-500"
+            className="flex items-center gap-2 bg-action hover:bg-action-hover text-action-foreground px-5 py-2.5 rounded-xl font-medium shadow-md shadow-brand-200 dark:shadow-brand-900/40 transition-all active:scale-95 flex-1 sm:flex-none justify-center cursor-pointer ring-1 ring-brand-700 dark:ring-brand-500"
           >
             <Plus className="w-5 h-5" />
             <span>Add Character</span>
@@ -313,9 +316,11 @@ export default function CharactersPage() {
         </div>
       </div>
 
+      {user && !loading && characters.length > 0 && <LibrarySearch value={query} onChange={(value) => { setQuery(value); setPage(1); }} label="Search characters" count={totalItems} />}
+
       {!authLoading && !user ? (
-        <div className="flex flex-col items-center justify-center text-center gap-3 py-20 bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl">
-          <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center">
+        <div className="flex flex-col items-center justify-center text-center gap-3 py-20 bg-white dark:bg-surface border border-slate-200 dark:border-border rounded-2xl">
+          <div className="w-12 h-12 bg-brand-50 dark:bg-brand-500/10 border border-brand-100 dark:border-brand-500/30 text-brand-600 dark:text-brand-400 rounded-xl flex items-center justify-center">
             <Users className="w-6 h-6" />
           </div>
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Login to view your characters</h2>
@@ -324,7 +329,7 @@ export default function CharactersPage() {
           </p>
           <button
             onClick={() => requireAuth()}
-            className="mt-2 flex items-center gap-2 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 cursor-pointer"
+            className="mt-2 flex items-center gap-2 text-sm font-medium text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 cursor-pointer"
           >
             <LogIn className="w-4 h-4" />
             Login
@@ -337,8 +342,8 @@ export default function CharactersPage() {
           count={PAGE_SIZE}
         />
       ) : characters.length === 0 ? (
-        <div className="flex flex-col items-center justify-center text-center gap-3 py-20 bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl">
-          <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center">
+        <div className="flex flex-col items-center justify-center text-center gap-3 py-20 bg-white dark:bg-surface border border-slate-200 dark:border-border rounded-2xl">
+          <div className="w-12 h-12 bg-brand-50 dark:bg-brand-500/10 border border-brand-100 dark:border-brand-500/30 text-brand-600 dark:text-brand-400 rounded-xl flex items-center justify-center">
             <Users className="w-6 h-6" />
           </div>
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white">No characters yet</h2>
@@ -347,6 +352,12 @@ export default function CharactersPage() {
               ? "Browse the Starter Characters above, or add your own from scratch."
               : "Add your first character to start reusing it across projects."}
           </p>
+        </div>
+      ) : totalItems === 0 ? (
+        <div className="rounded-3xl border border-dashed border-slate-300 p-10 text-center dark:border-white/15">
+          <h2 className="font-semibold text-slate-900 dark:text-white">No characters match your search</h2>
+          <p className="mt-2 text-sm text-slate-500">Try a name or a detail from the description.</p>
+          <button onClick={() => { setQuery(""); setPage(1); }} className="mt-4 rounded-xl bg-action px-4 py-2 text-sm font-semibold text-action-foreground hover:bg-action-hover">Clear search</button>
         </div>
       ) : (
         <div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useDialogFocus } from "@/hooks/useDialogFocus";
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { HelpCircle, Loader2, X } from "lucide-react";
@@ -46,6 +47,8 @@ const ConformationMessagePopUp = ({
     }
   }, [isOpen]);
 
+  const dialogRef = useDialogFocus(isOpen && mounted, () => { if (!confirming) onClose(); });
+
   if (!mounted || (!isOpen && !show)) return null;
 
   return createPortal(
@@ -54,14 +57,14 @@ const ConformationMessagePopUp = ({
       <div className="absolute inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-md" onClick={() => !confirming && onClose()} />
 
       {/* Modal card */}
-      <div className={`
-        relative w-full sm:max-w-xl md:max-w-2xl overflow-hidden
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} className={`
+        relative max-h-[90dvh] overflow-y-auto w-full sm:max-w-xl md:max-w-2xl
         rounded-t-3xl sm:rounded-2xl
-        bg-white dark:bg-slate-800/95
+        bg-white dark:bg-surface
         backdrop-blur-xl
         shadow-2xl dark:shadow-slate-950/80
-        ring-1 ring-slate-200/80 dark:ring-slate-700/60
-        border-t-4 sm:border-t-4 ${isDestructive ? "border-t-red-500" : "border-t-violet-500"}
+        ring-1 ring-slate-200/80 dark:ring-border
+        border-t-4 sm:border-t-4 ${isDestructive ? "border-t-red-500" : "border-t-brand-500"}
         transition-all duration-300 ease-out transform
         ${isOpen ? "translate-y-0 sm:scale-100 sm:opacity-100" : "translate-y-full sm:translate-y-6 sm:scale-95 sm:opacity-0"}
         pb-safe sm:pb-0
@@ -71,7 +74,7 @@ const ConformationMessagePopUp = ({
             <div className={`w-12 h-12 sm:w-14 sm:h-14 flex-shrink-0 rounded-2xl flex items-center justify-center ring-1 ${
               isDestructive
                 ? "bg-red-50 dark:bg-red-500/15 ring-red-200 dark:ring-red-500/30 text-red-600 dark:text-red-400"
-                : "bg-violet-50 dark:bg-violet-500/15 ring-violet-200 dark:ring-violet-500/30 text-violet-600 dark:text-violet-400"
+                : "bg-brand-50 dark:bg-brand-500/15 ring-brand-200 dark:ring-brand-500/30 text-brand-600 dark:text-brand-400"
             }`}>
               <HelpCircle className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
@@ -104,7 +107,7 @@ const ConformationMessagePopUp = ({
             className={`flex items-center gap-2 px-5 py-2.5 text-sm sm:text-base font-semibold text-white rounded-lg shadow-md transition-all active:scale-95 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed ${
               isDestructive
                 ? "bg-red-600 hover:bg-red-500 shadow-red-500/20 dark:shadow-red-500/10"
-                : "bg-violet-600 hover:bg-violet-500 shadow-violet-500/20 dark:shadow-violet-500/10"
+                : "bg-action hover:bg-action-hover dark:text-action-foreground shadow-brand-500/20 dark:shadow-none"
             }`}
           >
             {confirming && <Loader2 className="w-4 h-4 animate-spin" />}

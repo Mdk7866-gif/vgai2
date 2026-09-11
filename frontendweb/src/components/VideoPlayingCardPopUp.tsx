@@ -68,7 +68,9 @@ export default function VideoPlayingCardPopUp({ isOpen, onClose, videoUrl, filen
       >
         <button
           onClick={handleDownload}
-          className={`p-2.5 text-white border transition-all active:scale-90 rounded-sm ${
+          disabled={downloadStatus === "loading"}
+          aria-label="Download animation"
+          className={`p-2.5 text-white border transition-all active:scale-90 rounded-xl ${
             downloadStatus === "done"
               ? "bg-emerald-600/90 hover:bg-emerald-600 border-emerald-500"
               : "bg-zinc-900/90 hover:bg-zinc-800 border-zinc-700"
@@ -85,7 +87,8 @@ export default function VideoPlayingCardPopUp({ isOpen, onClose, videoUrl, filen
         </button>
         <button
           onClick={onClose}
-          className="p-2.5 bg-white text-black hover:bg-zinc-100 border border-white transition-all active:scale-90 font-bold rounded-sm"
+          aria-label="Close animation preview"
+          className="min-h-11 min-w-11 p-2.5 bg-white text-black hover:bg-zinc-100 border border-white transition-all active:scale-90 font-bold rounded-xl"
           title="Close"
         >
           <X className="h-4 w-4" />
@@ -94,7 +97,7 @@ export default function VideoPlayingCardPopUp({ isOpen, onClose, videoUrl, filen
 
       {loading && (
         <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-black/90 pointer-events-none">
-          <Loader2 className="h-10 w-10 animate-spin text-indigo-400 mb-2" />
+          <Loader2 className="h-10 w-10 animate-spin text-brand-400 mb-2" />
           <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Loading...</p>
         </div>
       )}

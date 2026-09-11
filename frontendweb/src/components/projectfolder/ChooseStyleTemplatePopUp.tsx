@@ -151,7 +151,7 @@ export const ChooseStyleTemplatePopUp = ({
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="absolute inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-md" onClick={onClose} />
 
-      <div className="relative w-full sm:max-w-lg lg:max-w-2xl overflow-hidden rounded-t-3xl sm:rounded-2xl bg-white dark:bg-slate-800/95 shadow-2xl dark:shadow-slate-950/80 ring-1 ring-slate-200/80 dark:ring-slate-700/60 max-h-[90vh] flex flex-col">
+      <div className="relative w-full sm:max-w-lg lg:max-w-2xl overflow-hidden rounded-t-3xl sm:rounded-3xl bg-white dark:bg-surface shadow-2xl dark:shadow-slate-950/80 ring-1 ring-slate-200/80 dark:ring-border max-h-[90vh] flex flex-col">
         <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700/60 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Style Template</h2>
           <button
@@ -174,14 +174,14 @@ export const ChooseStyleTemplatePopUp = ({
               <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2.5">
                 Currently applied to this project
               </h3>
-              <div className="flex items-start gap-3 p-4 rounded-xl border-2 border-indigo-500 bg-indigo-50/60 dark:bg-indigo-500/10">
-                <div className="w-9 h-9 flex-shrink-0 rounded-xl bg-violet-50 dark:bg-violet-500/10 border border-violet-100 dark:border-violet-500/30 text-violet-600 dark:text-violet-400 flex items-center justify-center">
+              <div className="flex items-start gap-3 p-4 rounded-xl border-2 border-brand-500 bg-brand-50/60 dark:bg-brand-500/10">
+                <div className="w-9 h-9 flex-shrink-0 rounded-xl bg-brand-50 dark:bg-brand-500/10 border border-brand-100 dark:border-brand-500/30 text-brand-600 dark:text-brand-400 flex items-center justify-center">
                   <Palette className="w-4.5 h-4.5" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="font-semibold text-[15px] text-slate-900 dark:text-slate-100 truncate">{snapshotName}</p>
-                    <span className="flex-shrink-0 px-2 py-0.5 rounded-full text-[11px] font-medium bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/30">
+                    <span className="flex-shrink-0 px-2 py-0.5 rounded-full text-[11px] font-medium bg-brand-50 dark:bg-brand-500/10 text-brand-600 dark:text-brand-400 border border-brand-100 dark:border-brand-500/30">
                       {project.snapshot_styletemplate_image_aspect_ratio === "9:16" ? "9:16 · Reels" : "16:9 · Long Video"}
                     </span>
                   </div>
@@ -199,13 +199,13 @@ export const ChooseStyleTemplatePopUp = ({
                   <button
                     type="button"
                     onClick={() => setEditSnapshotOpen(true)}
-                    className="mt-2 flex items-center gap-1.5 text-[12px] font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 cursor-pointer"
+                    className="mt-2 flex items-center gap-1.5 text-[12px] font-semibold text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 cursor-pointer"
                   >
                     <Pencil className="w-3.5 h-3.5" />
                     View / Edit for this project
                   </button>
                 </div>
-                <Check className="w-4 h-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0 mt-1" />
+                <Check className="w-4 h-4 text-brand-600 dark:text-brand-400 flex-shrink-0 mt-1" />
               </div>
             </div>
           )}
@@ -217,7 +217,7 @@ export const ChooseStyleTemplatePopUp = ({
             <div className="flex flex-col gap-3">
             {loading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />
+              <Loader2 className="w-5 h-5 animate-spin text-brand-500" />
             </div>
           ) : templates.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-center gap-2 py-10 bg-slate-50 dark:bg-slate-900/40 border border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
@@ -236,17 +236,17 @@ export const ChooseStyleTemplatePopUp = ({
                   disabled={isImporting}
                   className={`text-left flex items-start gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer disabled:cursor-wait ${
                     isCurrent
-                      ? "border-indigo-500 bg-indigo-50/60 dark:bg-indigo-500/10"
-                      : "border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-500/50"
+                      ? "border-brand-500 bg-brand-50/60 dark:bg-brand-500/10"
+                      : "border-slate-200 dark:border-slate-700 hover:border-brand-300 dark:hover:border-brand-500/50"
                   }`}
                 >
-                  <div className="w-9 h-9 flex-shrink-0 rounded-xl bg-violet-50 dark:bg-violet-500/10 border border-violet-100 dark:border-violet-500/30 text-violet-600 dark:text-violet-400 flex items-center justify-center">
+                  <div className="w-9 h-9 flex-shrink-0 rounded-xl bg-brand-50 dark:bg-brand-500/10 border border-brand-100 dark:border-brand-500/30 text-brand-600 dark:text-brand-400 flex items-center justify-center">
                     <Palette className="w-4.5 h-4.5" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="font-semibold text-[15px] text-slate-900 dark:text-slate-100 truncate">{t.name}</p>
-                      <span className="flex-shrink-0 px-2 py-0.5 rounded-full text-[11px] font-medium bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/30">
+                      <span className="flex-shrink-0 px-2 py-0.5 rounded-full text-[11px] font-medium bg-brand-50 dark:bg-brand-500/10 text-brand-600 dark:text-brand-400 border border-brand-100 dark:border-brand-500/30">
                         {t.image_aspect_ratio === "9:16" ? "9:16 · Reels" : "16:9 · Long Video"}
                       </span>
                     </div>
@@ -256,9 +256,9 @@ export const ChooseStyleTemplatePopUp = ({
                   </div>
                   <div className="flex-shrink-0 pt-1">
                     {isImporting ? (
-                      <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
+                      <Loader2 className="w-4 h-4 animate-spin text-brand-500" />
                     ) : isCurrent ? (
-                      <Check className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                      <Check className="w-4 h-4 text-brand-600 dark:text-brand-400" />
                     ) : null}
                   </div>
                 </button>

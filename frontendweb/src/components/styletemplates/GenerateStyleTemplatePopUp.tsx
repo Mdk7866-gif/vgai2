@@ -40,7 +40,7 @@ interface GenerateStyleTemplatePopUpProps {
 }
 
 const inputClass =
-  "w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 transition-all";
+  "w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-400 transition-all";
 
 const labelClass = "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5";
 
@@ -173,10 +173,10 @@ export const GenerateStyleTemplatePopUp = ({
         onClick={() => !busy && onClose()}
       />
 
-      <div className="relative w-full sm:max-w-lg lg:max-w-2xl overflow-hidden rounded-t-3xl sm:rounded-2xl bg-white dark:bg-slate-800/95 shadow-2xl dark:shadow-slate-950/80 ring-1 ring-slate-200/80 dark:ring-slate-700/60 max-h-[90vh] flex flex-col">
+      <div className="relative w-full sm:max-w-lg lg:max-w-2xl overflow-hidden rounded-t-3xl sm:rounded-3xl bg-white dark:bg-surface shadow-2xl dark:shadow-slate-950/80 ring-1 ring-slate-200/80 dark:ring-border max-h-[90vh] flex flex-col">
         <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700/60 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-indigo-500" />
+            <Sparkles className="w-5 h-5 text-brand-500" />
             <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
               Generate Style Template
             </h2>
@@ -194,7 +194,7 @@ export const GenerateStyleTemplatePopUp = ({
         <div className="px-6 py-5 overflow-y-auto flex flex-col gap-5 min-h-[280px]">
           {generating ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-4 py-16">
-              <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
+              <Loader2 className="w-10 h-10 animate-spin text-brand-500" />
               <div className="text-center">
                 <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
                   Generating your style template…
@@ -247,7 +247,7 @@ export const GenerateStyleTemplatePopUp = ({
                       aria-pressed={aspectRatio === opt.value}
                       className={`px-4 py-2.5 rounded-xl border text-sm font-semibold text-center transition-all cursor-pointer ${
                         aspectRatio === opt.value
-                          ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 ring-2 ring-indigo-500/30"
+                          ? "border-brand-500 bg-brand-50 dark:bg-brand-500/10 text-brand-700 dark:text-brand-300 ring-2 ring-brand-500/30"
                           : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-slate-600 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-600"
                       }`}
                     >
@@ -276,7 +276,7 @@ export const GenerateStyleTemplatePopUp = ({
             </form>
           ) : (
             <div className="flex flex-col gap-4">
-              <span className="self-start inline-block px-2.5 py-1 rounded-full text-[11px] font-medium bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/30">
+              <span className="self-start inline-block px-2.5 py-1 rounded-full text-[11px] font-medium bg-brand-50 dark:bg-brand-500/10 text-brand-600 dark:text-brand-400 border border-brand-100 dark:border-brand-500/30">
                 {aspectRatio === "9:16" ? "9:16 · Reels" : "16:9 · Long Video"}
               </span>
 
@@ -366,11 +366,11 @@ export const GenerateStyleTemplatePopUp = ({
               type="submit"
               form="generate-style-template-form"
               disabled={loadingBalance || insufficientCredits}
-              className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg shadow-md shadow-indigo-200 dark:shadow-indigo-900/40 transition-all active:scale-95 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-action-foreground bg-action hover:bg-action-hover rounded-lg shadow-md shadow-brand-200 dark:shadow-brand-900/40 transition-all active:scale-95 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <Sparkles className="w-4 h-4" />
               Generate
-              <span className="flex items-center gap-1 pl-2 ml-0.5 border-l border-white/30 text-indigo-100">
+              <span className="flex items-center gap-1 pl-2 ml-0.5 border-l border-white/30 text-brand-100 dark:border-current/20 dark:text-action-foreground">
                 <CreditCoinIcon className="w-3.5 h-3.5" />
                 {totalCreditCost}
               </span>

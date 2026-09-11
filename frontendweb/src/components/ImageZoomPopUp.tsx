@@ -315,7 +315,7 @@ export default function ImageZoomPopUp({ isOpen, onClose, imageUrl, alt = "Image
             {/* ── Loading Overlay ── */}
             {loading && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-black/90">
-                    <Loader2 className="h-10 w-10 animate-spin text-indigo-400 mb-2" />
+                    <Loader2 className="h-10 w-10 animate-spin text-brand-400 mb-2" />
                     <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Loading...</p>
                 </div>
             )}

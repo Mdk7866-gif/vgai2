@@ -15,7 +15,7 @@ const DESCRIPTION_MAX = 5000;
 const MAX_SCREENSHOT_BYTES = 10 * 1024 * 1024;
 
 const inputClass =
-  "w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 transition";
+  "w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-400 transition";
 
 const labelClass = "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5";
 
@@ -114,7 +114,7 @@ export default function ContactPage() {
             setIssueDescription("");
             setSubmitted(false);
           }}
-          className="mt-2 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 cursor-pointer"
+          className="mt-2 text-sm font-medium text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 cursor-pointer"
         >
           Send another message
         </button>
@@ -123,10 +123,11 @@ export default function ContactPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-2xl flex flex-col gap-8 pb-16 animate-in fade-in duration-500">
-      <div>
+    <div className="mx-auto w-full max-w-3xl flex flex-col gap-8 pb-16 animate-in fade-in duration-500">
+      <div className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-border dark:bg-surface sm:p-8">
+        <p className="eyebrow mb-4">We’re here to help</p>
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 flex-shrink-0 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+          <div className="w-11 h-11 flex-shrink-0 rounded-xl bg-brand-50 dark:bg-brand-500/10 border border-brand-100 dark:border-brand-500/30 text-brand-600 dark:text-brand-400 flex items-center justify-center">
             <LifeBuoy className="w-5 h-5" />
           </div>
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 dark:text-white">
@@ -139,9 +140,10 @@ export default function ContactPage() {
         </p>
       </div>
 
+      <p className="text-sm leading-6 text-slate-500 dark:text-slate-400">No login required. Please don’t include passwords, API keys, or payment card details.</p>
       <form
         onSubmit={handleSubmit}
-        className="flex flex-col gap-5 bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-6"
+        className="flex flex-col gap-5 bg-white dark:bg-surface border border-slate-200 dark:border-border rounded-3xl p-6 sm:p-8"
       >
         <div>
           <label htmlFor="contact-name" className={labelClass}>
@@ -149,6 +151,7 @@ export default function ContactPage() {
           </label>
           <input
             id="contact-name"
+            autoComplete="name"
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -224,7 +227,7 @@ export default function ContactPage() {
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 hover:border-indigo-400 hover:text-indigo-500 transition cursor-pointer text-sm font-medium"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 hover:border-brand-400 hover:text-brand-500 transition cursor-pointer text-sm font-medium"
             >
               <ImagePlus className="w-4 h-4" />
               Attach a screenshot
@@ -238,7 +241,7 @@ export default function ContactPage() {
         <button
           type="submit"
           disabled={submitting}
-          className="mt-1 flex items-center justify-center gap-2 w-full sm:w-auto sm:self-start bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2.5 rounded-xl font-medium shadow-md shadow-indigo-200 dark:shadow-indigo-900/40 transition active:scale-95 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+          className="mt-1 flex items-center justify-center gap-2 w-full sm:w-auto sm:self-start bg-action hover:bg-action-hover text-action-foreground px-6 py-2.5 rounded-xl font-medium shadow-md shadow-brand-200 dark:shadow-brand-900/40 transition active:scale-95 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           {submitting ? "Sending…" : "Send message"}

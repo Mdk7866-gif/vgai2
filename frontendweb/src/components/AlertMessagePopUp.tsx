@@ -1,5 +1,6 @@
 "use client";
 
+import { useDialogFocus } from "@/hooks/useDialogFocus";
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { AlertCircle, X, CheckCircle2, Info, AlertTriangle } from "lucide-react";
@@ -38,6 +39,8 @@ const AlertMessagePopUp = ({
       return () => clearTimeout(timer);
     }
   }, [isOpen]);
+
+  const dialogRef = useDialogFocus(isOpen && mounted, onClose);
 
   if (!mounted || (!isOpen && !show)) return null;
 
@@ -85,13 +88,13 @@ const AlertMessagePopUp = ({
       <div className="absolute inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-md" onClick={onClose} />
 
       {/* Modal card */}
-      <div className={`
-        relative w-full sm:max-w-xl md:max-w-2xl overflow-hidden
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} className={`
+        relative max-h-[90dvh] overflow-y-auto w-full sm:max-w-xl md:max-w-2xl
         rounded-t-3xl sm:rounded-2xl
-        bg-white dark:bg-slate-800/95
+        bg-white dark:bg-surface
         backdrop-blur-xl
         shadow-2xl dark:shadow-slate-950/80
-        ring-1 ring-slate-200/80 dark:ring-slate-700/60
+        ring-1 ring-slate-200/80 dark:ring-border
         border-t-4 sm:border-t-4 ${Config.topBorder}
         transition-all duration-300 ease-out transform
         ${isOpen ? "translate-y-0 sm:scale-100 sm:opacity-100" : "translate-y-full sm:translate-y-6 sm:scale-95 sm:opacity-0"}

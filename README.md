@@ -1,5 +1,9 @@
 # vgAI — Project Summary & Architecture Guide
 
+Home project thumbnail frames use the standard 16:9 video ratio (`aspect-video`) with `object-cover`, including real generated thumbnails and the empty-state frame, so cards remain visually consistent with the production workflow.
+
+Consistency convention: all app/component brand accents use the shared `brand-*` Tailwind scale; use `bg-action text-action-foreground hover:bg-action-hover` for primary actions and `surface`/`border` for panels. These tokens preserve the light violet and dark lavender/charcoal treatment across form dialogs, tabs, cards, generators and checkout entry points. Semantic warning/error/success/credit colors and black media-preview backgrounds intentionally remain distinct. Pagination uses larger bordered controls with result announcements, toggles support an explicit accessible label, and the access-revoked dialog traps focus while retaining acknowledgement-only dismissal. ThemeProvider validates stored values, syncs other-tab changes, follows OS changes when no preference is saved, and still toggles when storage is blocked. AuthContext, CreditBalanceContext and ProjectsContext are data providers, not visual components; their business behavior remains unchanged.
+
 A production-grade AI studio SaaS designed for **AI faceless video creators** and long-form storytelling channels (educational, financial, historical, story-based content, etc.). Instead of generating an entire video in a single uneditable click, **vgAI** gives creators an organized, granular workspace to go from script → scenes → media assets, with full control at every step, for both **long-form videos** and **short-form videos** (YouTube Shorts style).
 
 > **Documentation maintenance:** Feature work is not complete until this README and the repository's `AGENTS.md` and `CLAUDE.md` reflect any material behavior or architecture changes. Cross-application and shared-schema changes must be documented in the matching files in the sibling `vgai2admin` repository too.
@@ -56,12 +60,20 @@ Credits are **reserved before the AI provider is called**, not deducted after it
 | `/profile` | Account, balance, payment & usage history |
 | `/contact` | Support form — name, email or mobile, issue description, optional screenshot |
 | `/privacy-policy` | Static privacy policy (13 sections, no backend) |
-| `/about` | *Placeholder — "coming soon"* |
+| `/about` | Product introduction and studio/support links |
 | `/login` | Google login only, via Supabase Auth |
 
 ---
 
 ## 4. Navigation
+
+Dark mode now uses neutral charcoal backgrounds, raised surfaces, readable slate text and lavender accents across pages, controls, tables and portaled dialogs; light mode is largely preserved. Profile, Contact, Login, privacy navigation, generation controls and payment/library dialogs share the visual system. Reduced motion is respected. Shared login/alert/confirmation/account dialogs support focus cycling, Escape and focus restoration; mobile navigation keeps background chrome inert while open. The privacy table of contents is available on mobile, and scene editor/media columns stack until extra-large screens.
+
+UX continuation: Characters and Style Templates share `LibrarySearch.tsx` with name/description search, live result counts, and clear/reset empty states; style search combines with the existing aspect-ratio filter before pagination. The shell includes a skip-to-content link; opening mobile navigation focuses Close, Escape from the sidebar closes it, closing restores trigger focus, and resizing to desktop closes the mobile state. The menu trigger exposes expanded/controls state and the theme button names its target theme. The project workspace has a matching header, a labeled script field explaining existing save-on-blur behavior, and a clearer Voiceover settings label (no TTS functionality added).
+
+The script studio uses a three-step workflow guide and matching violet light/dark styling. Liked Projects supports client-side name search before pagination with result counts and a clear-search empty state. Library/project cards use coordinated rounded surfaces; character sheets display uncropped and open through keyboard-accessible preview buttons, and project unlike buttons sit outside navigation links. The About page is a real product introduction rather than a coming-soon stub.
+
+The refreshed studio shell uses violet-accented active navigation and an Overview shortcut. Project names are keyboard-operable buttons, with a separate Rename control (double-click remains supported). Characters and Style Templates use coordinated light/dark gradient headers and wrapping action groups for narrow screens. Home has an interactive three-step explanation and real project shortcuts, without simulated generation progress or sample statistics.
 
 **Navbar**: Home, Profile, Logout.
 
@@ -74,9 +86,11 @@ Credits are **reserved before the AI provider is called**, not deducted after it
 
 ## 5. Page-by-Page Features
 
-### `/` — invite-only access requests
+### `/` — product home and invite-only access requests
 
-`HomePageAllowOnlyTheseUserAccessCard.tsx` uses `AuthContext`'s resolved user and public access mode to choose the correct panel. Its request form renders only for a **signed-out** visitor while mode is `allowed_only`; signed-in users and all visitors in `allowed_all` see a welcome panel instead. The form accepts the Google-account email plus an optional description of what the visitor plans to create, and submits without requiring authentication to `POST /access-requests/`. One normalized email has one `user_access_requests` row: pending/approved submissions are returned idempotently, while a denied request may be submitted again and becomes pending. The admin reviews these in vgai2admin's `/useraccessrequest`; approval adds the email to the existing `access_control_list` allowed list. Admins may permanently delete approved/denied request history afterward; deleting an approved request deliberately does not remove its separate allow-list entry. Migration `vgai2admin/migration/002_user_access_requests.sql` is applied to the shared Supabase project.
+Home quickly explains what vgAI does: turn scripts into scene-by-scene images and animations, then download those assets for assembly in an external video editor. New visitors can select three workflow steps to learn the process; returning users see their newest project and a searchable project grid with real thumbnails, six-at-a-time expansion, and empty/loading states. Create opens a real project without triggering paid generation. An invite-only visitor sees Request access as the primary action. Repeated marketing sections, the duplicate welcome panel, and the artificial 2.5-second first-visit splash are removed.
+
+`HomePageAllowOnlyTheseUserAccessCard.tsx` uses `AuthContext`'s resolved user and public access mode to choose the correct panel. Its request form renders only for a **signed-out** visitor while mode is `allowed_only`; Home uses its own hero/dashboard for signed-in users and open-access visitors, so the standalone welcome branch of this component is not mounted there. The form accepts the Google-account email plus an optional description of what the visitor plans to create, and submits without requiring authentication to `POST /access-requests/`. One normalized email has one `user_access_requests` row: pending/approved submissions are returned idempotently, while a denied request may be submitted again and becomes pending. The admin reviews these in vgai2admin's `/useraccessrequest`; approval adds the email to the existing `access_control_list` allowed list. Admins may permanently delete approved/denied request history afterward; deleting an approved request deliberately does not remove its separate allow-list entry. Migration `vgai2admin/migration/002_user_access_requests.sql` is applied to the shared Supabase project.
 
 ### `/characters`
 

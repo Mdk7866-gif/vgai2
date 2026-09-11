@@ -24,18 +24,20 @@ export const CharacterCard = ({
   const [zoomOpen, setZoomOpen] = useState(false);
 
   return (
-    <div className="group bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl overflow-hidden shadow-sm hover:shadow-lg dark:hover:shadow-slate-900/50 hover:-translate-y-0.5 transition-all duration-200">
+    <div className="group bg-white dark:bg-surface border border-slate-200/80 dark:border-white/10 rounded-3xl overflow-hidden shadow-sm hover:border-brand-300 dark:hover:border-brand-400/40 hover:shadow-xl hover:shadow-brand-950/10 motion-safe:hover:-translate-y-1 transition-all duration-200">
       <div
         className="relative w-full aspect-video bg-slate-100 dark:bg-slate-900 cursor-zoom-in"
-        onClick={() => setZoomOpen(true)}
+
       >
+        <button type="button" onClick={() => setZoomOpen(true)} aria-label={`Preview ${character.name} character sheet`} className="absolute inset-0 cursor-zoom-in">
         <Image
           src={character.character_sheet_url}
           alt={character.name}
           fill
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-          className="object-cover"
+          className="object-contain p-2"
         />
+        </button>
 
         <button
           onClick={(e) => {
@@ -65,7 +67,7 @@ export const CharacterCard = ({
               onEdit(character);
             }}
             aria-label={`Edit ${character.name}`}
-            className="p-2 rounded-full bg-white/90 dark:bg-slate-800/90 text-slate-600 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 shadow-sm hover:shadow transition-all cursor-pointer"
+            className="p-2 rounded-full bg-white/90 dark:bg-slate-800/90 text-slate-600 dark:text-slate-200 hover:text-brand-600 dark:hover:text-brand-400 shadow-sm hover:shadow transition-all cursor-pointer"
           >
             <Pencil className="w-3.5 h-3.5" />
           </button>
@@ -89,7 +91,7 @@ export const CharacterCard = ({
         alt={character.name}
       />
 
-      <div className="p-4">
+      <div className="p-5">
         <h3 className="font-semibold text-[15px] text-slate-900 dark:text-slate-100 truncate">
           {character.name}
         </h3>

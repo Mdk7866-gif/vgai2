@@ -1,5 +1,6 @@
 "use client";
 
+import { useDialogFocus } from "@/hooks/useDialogFocus";
 import React, { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { User, Menu, Sun, Moon, LogOut, UserCircle, ShieldCheck, ShieldQuestion } from "lucide-react";
@@ -8,18 +9,21 @@ import CreditCoinIcon from "./CreditCoinIcon";
 import { useTheme } from "./ThemeProvider";
 import { useAuth } from "@/context/AuthContext";
 import { useCreditBalance } from "@/context/CreditBalanceContext";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 
 interface NavbarProps {
   onMenuClick?: () => void;
+  mobileMenuOpen?: boolean;
 }
 
-export const Navbar = ({ onMenuClick }: NavbarProps) => {
+export const Navbar = ({ onMenuClick, mobileMenuOpen = false }: NavbarProps) => {
   const { theme, toggleTheme } = useTheme();
   const { user, signOut, openLoginModal, loading: authLoading, accessMode } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const accountDialogRef = useDialogFocus(isMenuOpen, () => setIsMenuOpen(false));
   const [avatarFailed, setAvatarFailed] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, right: 0 });
   const avatarButtonRef = useRef<HTMLButtonElement>(null);
@@ -40,11 +44,13 @@ export const Navbar = ({ onMenuClick }: NavbarProps) => {
   };
 
   return (
-    <nav className="h-16 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md flex items-center justify-between px-4 md:px-6 sticky top-0 z-30 shadow-sm shadow-slate-100/50 dark:shadow-slate-950/20">
+    <nav className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200/80 bg-white/70 px-4 shadow-sm shadow-slate-900/[.03] backdrop-blur-xl dark:border-white/[.07] dark:bg-background/95 dark:shadow-black/20 md:px-6">
       <div className="flex items-center gap-3 md:hidden">
         <button
           onClick={onMenuClick}
           aria-label="Open menu"
+          aria-expanded={mobileMenuOpen}
+          aria-controls="studio-navigation"
           className="p-2 -ml-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
         >
           <Menu className="w-5 h-5" />
@@ -52,17 +58,17 @@ export const Navbar = ({ onMenuClick }: NavbarProps) => {
         <Logo />
       </div>
       
-      <div className="hidden md:flex items-center gap-6 text-[15px] font-medium text-slate-600 dark:text-slate-300">
-        <Link href="/" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Home</Link>
-        <Link href="/about" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">About</Link>
-        <Link href="/contact" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Contact</Link>
+      <div className="hidden items-center gap-1 rounded-full border border-slate-200/80 bg-white/65 p-1 text-sm font-medium text-slate-600 shadow-sm dark:border-white/[.07] dark:bg-white/[.035] dark:text-slate-300 md:flex">
+        <Link href="/" aria-current={pathname === "/" ? "page" : undefined} className="aria-[current=page]:bg-brand-100 aria-[current=page]:text-brand-800 dark:aria-[current=page]:bg-brand-400/15 dark:aria-[current=page]:text-brand-200 rounded-full px-4 py-1.5 transition-colors hover:bg-brand-50 hover:text-brand-700 dark:hover:bg-brand-400/10 dark:hover:text-brand-300">Home</Link>
+        <Link href="/about" aria-current={pathname === "/about" ? "page" : undefined} className="aria-[current=page]:bg-brand-100 aria-[current=page]:text-brand-800 dark:aria-[current=page]:bg-brand-400/15 dark:aria-[current=page]:text-brand-200 rounded-full px-4 py-1.5 transition-colors hover:bg-brand-50 hover:text-brand-700 dark:hover:bg-brand-400/10 dark:hover:text-brand-300">About</Link>
+        <Link href="/contact" aria-current={pathname === "/contact" ? "page" : undefined} className="aria-[current=page]:bg-brand-100 aria-[current=page]:text-brand-800 dark:aria-[current=page]:bg-brand-400/15 dark:aria-[current=page]:text-brand-200 rounded-full px-4 py-1.5 transition-colors hover:bg-brand-50 hover:text-brand-700 dark:hover:bg-brand-400/10 dark:hover:text-brand-300">Contact</Link>
       </div>
       
       <div className="flex items-center gap-2 md:gap-4">
         <button 
           onClick={toggleTheme}
-          className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all relative group cursor-pointer"
-          aria-label="Toggle theme"
+          className="group relative cursor-pointer rounded-full border border-transparent p-2 text-slate-500 transition hover:border-slate-200 hover:bg-white hover:text-brand-700 hover:shadow-sm dark:text-slate-400 dark:hover:border-white/10 dark:hover:bg-white/[.06] dark:hover:text-brand-300"
+          aria-label={theme === "light" ? "Switch to dark theme" : "Switch to light theme"}
         >
           {theme === "light" ? (
             <Moon className="w-5 h-5 transition-transform duration-300 group-hover:rotate-12" />
@@ -93,7 +99,7 @@ export const Navbar = ({ onMenuClick }: NavbarProps) => {
         ) : !user ? (
           <button
             onClick={openLoginModal}
-            className="ml-2 flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-sm transition-all active:scale-95 cursor-pointer"
+            className="ml-2 flex cursor-pointer items-center gap-2 rounded-xl bg-action px-4 py-2 text-sm font-semibold text-action-foreground shadow-sm transition hover:bg-action-hover active:scale-95"
           >
             Login
           </button>
@@ -115,6 +121,9 @@ export const Navbar = ({ onMenuClick }: NavbarProps) => {
             onClick={() => setIsMenuOpen((open) => !open)}
             className="w-8 h-8 md:w-9 md:h-9 ml-2 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 font-medium shadow-sm hover:shadow transition-shadow cursor-pointer overflow-hidden"
             aria-label="Account menu"
+            aria-expanded={isMenuOpen}
+            aria-haspopup="dialog"
+            aria-controls="account-menu"
           >
             {avatarUrl && !avatarFailed ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -135,6 +144,12 @@ export const Navbar = ({ onMenuClick }: NavbarProps) => {
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setIsMenuOpen(false)} />
                 <div
+                  ref={accountDialogRef}
+                  id="account-menu"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label="Account menu"
+                  tabIndex={-1}
                   className="fixed w-56 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg z-50 overflow-hidden"
                   style={{ top: menuPosition.top, right: menuPosition.right }}
                 >

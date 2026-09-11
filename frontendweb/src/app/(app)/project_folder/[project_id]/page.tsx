@@ -693,7 +693,7 @@ export default function ProjectFolderPage() {
         {Array.from({ length: 2 }).map((_, index) => (
           <div
             key={index}
-            className="rounded-2xl border border-slate-200 dark:border-slate-700/80 overflow-hidden"
+            className="rounded-2xl border border-slate-200 dark:border-border overflow-hidden"
           >
             <div className="h-11 border-b border-slate-100 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/60" />
             <div className="p-4 h-64 bg-slate-100 dark:bg-slate-700/40" />
@@ -714,7 +714,8 @@ export default function ProjectFolderPage() {
   return (
     <div className="flex flex-col gap-6 pb-16 animate-in fade-in duration-500">
       {/* Header */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-3 rounded-3xl border border-brand-200/60 bg-gradient-to-r from-white to-brand-50 p-6 dark:border-white/10 dark:from-surface dark:to-slate-900">
+        <p className="eyebrow w-full">Production workspace</p>
         {nameEditing ? (
           <>
             <input
@@ -728,17 +729,17 @@ export default function ProjectFolderPage() {
               onBlur={saveName}
               disabled={savingName}
               aria-label="Project name"
-              className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-white bg-transparent border-b-2 border-indigo-400 focus:outline-none"
+              className="text-2xl md:text-3xl font-bold tracking-tight min-w-0 max-w-full text-slate-900 dark:text-white bg-transparent border-b-2 border-brand-400 focus:outline-none"
             />
-            {savingName && <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />}
+            {savingName && <Loader2 className="w-4 h-4 animate-spin text-brand-500" />}
           </>
         ) : (
           <>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">{project.name}</h1>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight break-words min-w-0 text-slate-900 dark:text-white">{project.name}</h1>
             <button
               onClick={startNameEditing}
               aria-label="Rename project"
-              className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all cursor-pointer"
+              className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all cursor-pointer"
             >
               <Pencil className="w-4 h-4" />
             </button>
@@ -750,36 +751,39 @@ export default function ProjectFolderPage() {
       <div className="flex flex-col lg:flex-row gap-4">
         <div className="flex-1 flex flex-col gap-1.5 min-w-0">
           <div className="flex items-center justify-between">
-            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Script</label>
+            <label htmlFor="project-script" className="text-sm font-medium text-slate-700 dark:text-slate-300">Your script</label>
             <span className="text-xs text-slate-400 dark:text-slate-500">
               {savingScript ? "Saving…" : `${wordCount} words`}
             </span>
           </div>
+          <p id="script-save-help" className="text-xs leading-5 text-slate-500 dark:text-slate-400">Changes save when you leave this field. Refine your script before generating scenes.</p>
           <textarea
+            id="project-script"
+            aria-describedby="script-save-help"
             value={scriptDraft}
             onChange={(e) => setScriptDraft(e.target.value)}
             onBlur={handleScriptBlur}
             placeholder="Paste your script here…"
             rows={16}
-            className="w-full flex-1 min-h-[320px] px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 transition-all resize-none leading-relaxed"
+            className="w-full flex-1 min-h-[320px] px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-400 transition-all resize-none leading-relaxed"
           />
         </div>
 
         <div className="lg:w-64 flex-shrink-0 flex flex-col gap-2.5">
           <button
             onClick={() => requireAuth() && setCharactersPopupOpen(true)}
-            className="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/70 hover:border-indigo-300 dark:hover:border-indigo-500/50 transition-all cursor-pointer text-left"
+            className="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-surface hover:border-brand-300 dark:hover:border-brand-500/50 transition-all cursor-pointer text-left"
           >
-            <Users className="w-4.5 h-4.5 text-indigo-500 flex-shrink-0" />
+            <Users className="w-4.5 h-4.5 text-brand-500 flex-shrink-0" />
             <span className="flex-1 min-w-0 text-[13.5px] font-medium text-slate-700 dark:text-slate-200">Characters</span>
             <span className="text-xs text-slate-400 dark:text-slate-500 flex-shrink-0">{projectCharacters.length}</span>
           </button>
 
           <button
             onClick={() => requireAuth() && setStyleTemplatePopupOpen(true)}
-            className="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/70 hover:border-indigo-300 dark:hover:border-indigo-500/50 transition-all cursor-pointer text-left"
+            className="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-surface hover:border-brand-300 dark:hover:border-brand-500/50 transition-all cursor-pointer text-left"
           >
-            <Palette className="w-4.5 h-4.5 text-violet-500 flex-shrink-0" />
+            <Palette className="w-4.5 h-4.5 text-brand-500 flex-shrink-0" />
             <span className="flex-1 min-w-0 text-[13.5px] font-medium text-slate-700 dark:text-slate-200 truncate">
               {project.snapshot_styletemplate_name ?? "Style Template"}
             </span>
@@ -787,15 +791,15 @@ export default function ProjectFolderPage() {
 
           <button
             onClick={() => requireAuth() && setVoiceoverPopupOpen(true)}
-            className="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/70 hover:border-indigo-300 dark:hover:border-indigo-500/50 transition-all cursor-pointer text-left"
+            className="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-surface hover:border-brand-300 dark:hover:border-brand-500/50 transition-all cursor-pointer text-left"
           >
             <Mic className="w-4.5 h-4.5 text-emerald-500 flex-shrink-0" />
-            <span className="flex-1 min-w-0 text-[13.5px] font-medium text-slate-700 dark:text-slate-200">Voiceover</span>
+            <span className="flex-1 min-w-0 text-[13.5px] font-medium text-slate-700 dark:text-slate-200">Voiceover settings</span>
           </button>
 
           <button
             onClick={() => requireAuth() && setAdvancedSettingsPopupOpen(true)}
-            className="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/70 hover:border-indigo-300 dark:hover:border-indigo-500/50 transition-all cursor-pointer text-left"
+            className="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-surface hover:border-brand-300 dark:hover:border-brand-500/50 transition-all cursor-pointer text-left"
           >
             <Settings className="w-4.5 h-4.5 text-slate-500 flex-shrink-0" />
             <span className="flex-1 min-w-0 text-[13.5px] font-medium text-slate-700 dark:text-slate-200">Advanced Settings</span>
@@ -812,7 +816,7 @@ export default function ProjectFolderPage() {
         <button
           onClick={handleGenerateScenesAutomatic}
           disabled={!canGenerateAutomatic}
-          className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl shadow-md shadow-indigo-200 dark:shadow-indigo-900/40 transition-all active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-action-foreground bg-action hover:bg-action-hover rounded-xl shadow-md shadow-brand-200 dark:shadow-brand-900/40 transition-all active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {generatingScenes ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
           Generate Scenes (Automatic)
@@ -865,7 +869,7 @@ export default function ProjectFolderPage() {
             onClick={handleGenerateAllImagesAutomatic}
             disabled={!!bulkImageProgress || pendingImageScenes.length === 0}
             title={pendingImageScenes.length === 0 ? "All scene images are already generated" : undefined}
-            className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl shadow-md shadow-indigo-200 dark:shadow-indigo-900/40 transition-all active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-action-foreground bg-action hover:bg-action-hover rounded-xl shadow-md shadow-brand-200 dark:shadow-brand-900/40 transition-all active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {bulkImageProgress ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
             Generate All Images (Automatic)
@@ -956,10 +960,10 @@ export default function ProjectFolderPage() {
       )}
 
       {bulkImageProgress && (
-        <div className="rounded-xl border border-indigo-100 dark:border-indigo-500/30 bg-indigo-50/70 dark:bg-indigo-500/10 px-4 py-3 flex flex-col gap-2">
+        <div className="rounded-xl border border-brand-100 dark:border-brand-500/30 bg-brand-50/70 dark:bg-brand-500/10 px-4 py-3 flex flex-col gap-2">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex flex-col gap-0.5">
-              <span className="flex items-center gap-2 text-[13px] font-medium text-indigo-700 dark:text-indigo-300">
+              <span className="flex items-center gap-2 text-[13px] font-medium text-brand-700 dark:text-brand-300">
                 <Loader2 className="w-4 h-4 animate-spin" />
                 {bulkImageProgress.startAlready + bulkImageProgress.completed}/{bulkImageProgress.totalScenes} images
                 generated
@@ -970,7 +974,7 @@ export default function ProjectFolderPage() {
                   <span className="text-slate-500 dark:text-slate-400">· {bulkImageProgress.cancelled} cancelled</span>
                 )}
               </span>
-              <span className="text-[12px] text-indigo-600/80 dark:text-indigo-400/80 pl-6">
+              <span className="text-[12px] text-brand-600/80 dark:text-brand-400/80 pl-6">
                 {bulkImageProgress.stopping
                   ? "Stopping — cancelling images in progress…"
                   : bulkImageProgress.pausingUntil
@@ -986,9 +990,9 @@ export default function ProjectFolderPage() {
               {bulkImageProgress.stopping ? "Stopping…" : "Stop"}
             </button>
           </div>
-          <div className="h-1.5 rounded-full bg-indigo-100 dark:bg-indigo-950/50 overflow-hidden">
+          <div className="h-1.5 rounded-full bg-brand-100 dark:bg-brand-950/50 overflow-hidden">
             <div
-              className="h-full bg-indigo-600 transition-all duration-300"
+              className="h-full bg-brand-600 transition-all duration-300"
               style={{
                 width: `${Math.min(
                   100,

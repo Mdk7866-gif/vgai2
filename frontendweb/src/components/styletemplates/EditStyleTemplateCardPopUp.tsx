@@ -76,7 +76,7 @@ const countWords = (text: string) => {
 };
 
 const inputClass =
-  "w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 transition-all";
+  "w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-400 transition-all";
 
 const labelClass = "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5";
 
@@ -258,7 +258,7 @@ export const EditStyleTemplateCardPopUp = ({
 
       <form
         onSubmit={handleSubmit}
-        className="relative w-full sm:max-w-lg lg:max-w-2xl overflow-hidden rounded-t-3xl sm:rounded-2xl bg-white dark:bg-slate-800/95 shadow-2xl dark:shadow-slate-950/80 ring-1 ring-slate-200/80 dark:ring-slate-700/60 max-h-[90vh] flex flex-col"
+        className="relative w-full sm:max-w-lg lg:max-w-2xl overflow-hidden rounded-t-3xl sm:rounded-3xl bg-white dark:bg-surface shadow-2xl dark:shadow-slate-950/80 ring-1 ring-slate-200/80 dark:ring-border max-h-[90vh] flex flex-col"
       >
         <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700/60 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
@@ -276,7 +276,7 @@ export const EditStyleTemplateCardPopUp = ({
 
         <div className="px-6 py-5 overflow-y-auto flex flex-col gap-5">
           {isProjectScope && (
-            <p className="px-3.5 py-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/30 text-[12.5px] text-indigo-700 dark:text-indigo-300 leading-relaxed">
+            <p className="px-3.5 py-2.5 rounded-xl bg-brand-50 dark:bg-brand-500/10 border border-brand-100 dark:border-brand-500/30 text-[12.5px] text-brand-700 dark:text-brand-300 leading-relaxed">
               You&apos;re editing this project&apos;s own copy — changes apply only here, not to the style
               template in your library or any other project that imported it.
             </p>
@@ -361,7 +361,7 @@ export const EditStyleTemplateCardPopUp = ({
                   aria-pressed={aspectRatio === opt.value}
                   className={`px-4 py-2.5 rounded-xl border text-sm font-semibold text-center transition-all cursor-pointer ${
                     aspectRatio === opt.value
-                      ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 ring-2 ring-indigo-500/30"
+                      ? "border-brand-500 bg-brand-50 dark:bg-brand-500/10 text-brand-700 dark:text-brand-300 ring-2 ring-brand-500/30"
                       : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-slate-600 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-600"
                   }`}
                 >
@@ -385,7 +385,7 @@ export const EditStyleTemplateCardPopUp = ({
             <button
               type="button"
               onClick={() => setShowAdvanced((v) => !v)}
-              className="mt-4 flex items-center gap-1.5 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 cursor-pointer"
+              className="mt-4 flex items-center gap-1.5 text-sm font-medium text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 cursor-pointer"
             >
               {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               Advanced Settings
@@ -459,7 +459,7 @@ export const EditStyleTemplateCardPopUp = ({
                       onClick={() => demoImageInputRef.current?.click()}
                       disabled={uploadingDemoImage || generatingDemoImage}
                       aria-label={demoImageUrl ? "Replace demo image" : "Upload demo image"}
-                      className="relative w-28 h-20 flex-shrink-0 rounded-xl overflow-hidden border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/60 text-slate-400 dark:text-slate-500 hover:border-indigo-400 hover:text-indigo-500 flex items-center justify-center transition-all cursor-pointer disabled:cursor-not-allowed"
+                      className="relative w-28 h-20 flex-shrink-0 rounded-xl overflow-hidden border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/60 text-slate-400 dark:text-slate-500 hover:border-brand-400 hover:text-brand-500 flex items-center justify-center transition-all cursor-pointer disabled:cursor-not-allowed"
                     >
                       {uploadingDemoImage || generatingDemoImage ? (
                         <Loader2 className="w-5 h-5 animate-spin" />
@@ -483,7 +483,7 @@ export const EditStyleTemplateCardPopUp = ({
                             generatingDemoImage ||
                             (balance !== null && balance < GENERATE_DEMO_IMAGE_CREDIT_COST)
                           }
-                          className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                          className="flex items-center gap-1.5 text-xs font-medium text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                         >
                           {generatingDemoImage ? (
                             <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -608,7 +608,7 @@ export const EditStyleTemplateCardPopUp = ({
           <button
             type="submit"
             disabled={submitting || anyFieldOverLimit}
-            className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg shadow-md shadow-indigo-200 dark:shadow-indigo-900/40 transition-all active:scale-95 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-action-foreground bg-action hover:bg-action-hover rounded-lg shadow-md shadow-brand-200 dark:shadow-brand-900/40 transition-all active:scale-95 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
             {mode === "create" ? "Add Style Template" : "Save Changes"}

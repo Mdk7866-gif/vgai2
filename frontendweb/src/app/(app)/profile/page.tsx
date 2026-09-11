@@ -108,7 +108,7 @@ export default function ProfilePage() {
             name: profile?.name ?? undefined,
             email: profile?.email,
           },
-          theme: { color: "#4f46e5" },
+          theme: { color: "#6d28d9" },
           handler: (response) => {
             authFetch("/payments/verify", {
               method: "POST",
@@ -152,9 +152,10 @@ export default function ProfilePage() {
 
   return (
     <div className="flex flex-col gap-8 pb-16 animate-in fade-in duration-500">
-      <div>
+      <div className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-border dark:bg-surface sm:p-8">
+        <p className="eyebrow mb-3">Your account</p>
         <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 dark:text-white">
-          Profile
+          Account & credits
         </h1>
         <p className="mt-2 text-slate-500 dark:text-slate-400 text-[15px] max-w-xl leading-relaxed">
           Your account, credit balance, and where your credits have gone.
@@ -162,8 +163,8 @@ export default function ProfilePage() {
       </div>
 
       {!authLoading && !user ? (
-        <div className="flex flex-col items-center justify-center text-center gap-3 py-20 bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl">
-          <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center">
+        <div className="flex flex-col items-center justify-center text-center gap-3 py-20 bg-white dark:bg-surface border border-slate-200 dark:border-border rounded-2xl">
+          <div className="w-12 h-12 bg-brand-50 dark:bg-brand-500/10 border border-brand-100 dark:border-brand-500/30 text-brand-600 dark:text-brand-400 rounded-xl flex items-center justify-center">
             <UserIcon className="w-6 h-6" />
           </div>
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Login to view your profile</h2>
@@ -172,7 +173,7 @@ export default function ProfilePage() {
           </p>
           <button
             onClick={() => requireAuth()}
-            className="mt-2 flex items-center gap-2 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 cursor-pointer"
+            className="mt-2 flex items-center gap-2 text-sm font-medium text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 cursor-pointer"
           >
             <LogIn className="w-4 h-4" />
             Login
@@ -183,16 +184,16 @@ export default function ProfilePage() {
            two render at an identical height and the swap shifts nothing. Also
            covers the auth-loading window, which would otherwise flash the
            logged-out prompt before the session resolves. */
-        <div className="bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center gap-6 animate-pulse">
+        <div className="bg-white dark:bg-surface border border-slate-200 dark:border-border rounded-2xl p-6 sm:p-8 flex flex-col xl:flex-row items-start xl:items-center gap-6 animate-pulse">
           <div className="w-20 h-20 rounded-full bg-slate-100 dark:bg-slate-700/50 flex-shrink-0" />
           <div className="flex-1 min-w-0 w-full flex flex-col gap-2.5">
             <div className="h-5 w-40 max-w-full rounded bg-slate-100 dark:bg-slate-700/50" />
             <div className="h-4 w-56 max-w-full rounded bg-slate-100 dark:bg-slate-700/50" />
           </div>
-          <div className="h-[65px] w-full sm:w-[282px] rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700/80 flex-shrink-0" />
+          <div className="h-[65px] w-full sm:w-[282px] rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-border flex-shrink-0" />
         </div>
       ) : (
-        <div className="bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center gap-6">
+        <div className="bg-white dark:bg-surface border border-slate-200 dark:border-border rounded-2xl p-6 sm:p-8 flex flex-col xl:flex-row items-start xl:items-center gap-6">
           <div className="w-20 h-20 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-400 overflow-hidden flex-shrink-0">
             {avatarUrl && !avatarFailed ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -215,7 +216,7 @@ export default function ProfilePage() {
             <p className="text-sm text-slate-500 dark:text-slate-400 truncate">{profile.email}</p>
           </div>
 
-          <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700/80 rounded-xl px-4 py-3">
+          <div className="flex flex-wrap items-center gap-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-border rounded-xl px-4 py-3">
             <div className="flex items-center gap-2">
               <CreditCoinIcon className="w-5 h-5" />
               <div>
@@ -227,7 +228,7 @@ export default function ProfilePage() {
             </div>
             <button
               onClick={handleAddCreditsClick}
-              className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-2 rounded-lg text-sm font-medium shadow-sm transition-all active:scale-95 cursor-pointer"
+              className="flex items-center gap-1.5 bg-action hover:bg-action-hover text-action-foreground px-3.5 py-2 rounded-lg text-sm font-medium shadow-sm transition-all active:scale-95 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               Add Credits
@@ -240,6 +241,7 @@ export default function ProfilePage() {
           tying it to the profile fetch would unmount the card on every refetch,
           throwing away both the selected tab and its cached data. It renders its
           own loading state. */}
+      {user && <p className="rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm leading-6 text-slate-600 dark:border-border dark:bg-surface dark:text-slate-300">Credits are reserved when generation starts. Cancelling a generation does not refund its credits; provider failures are refunded automatically.</p>}
       {user && <PaymentAndUsageHistoryTabCard key={`history-${historyKey}`} />}
 
       <AddCreditsPopUp

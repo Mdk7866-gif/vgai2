@@ -50,15 +50,15 @@ export const StyleTemplateCard = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl overflow-hidden shadow-sm hover:shadow-lg dark:hover:shadow-slate-900/50 hover:-translate-y-0.5 transition-all duration-200">
+    <div className="flex flex-col h-full bg-white dark:bg-surface border border-slate-200/80 dark:border-white/10 rounded-3xl overflow-hidden shadow-sm hover:border-brand-300 dark:hover:border-brand-400/40 hover:shadow-xl hover:shadow-brand-950/10 motion-safe:hover:-translate-y-1 transition-all duration-200">
       {/* Header — name/actions row, then a badge row that is always exactly one
           line tall (best_for is `invisible`-collapsed rather than omitted when
           absent) so every card's media box below starts at the same y no matter
           how much header content a given template has. */}
       <div className="p-3.5 pb-2.5 border-b border-slate-100 dark:border-slate-700/60 flex flex-col gap-2">
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 flex-shrink-0 rounded-xl bg-violet-50 dark:bg-violet-500/10 border border-violet-100 dark:border-violet-500/30 text-violet-600 dark:text-violet-400 flex items-center justify-center">
+            <div className="w-8 h-8 flex-shrink-0 rounded-xl bg-brand-50 dark:bg-brand-500/10 border border-brand-100 dark:border-brand-500/30 text-brand-600 dark:text-brand-400 flex items-center justify-center">
               <Palette className="w-4 h-4" />
             </div>
             <h3 className="font-semibold text-[14px] text-slate-900 dark:text-slate-100 truncate">
@@ -87,7 +87,7 @@ export const StyleTemplateCard = ({
             <button
               onClick={() => onEdit(template)}
               aria-label={`Edit ${template.name}`}
-              className="p-2 rounded-full bg-slate-50 dark:bg-slate-900/60 text-slate-500 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 shadow-sm hover:shadow transition-all cursor-pointer"
+              className="p-2 rounded-full bg-slate-50 dark:bg-slate-900/60 text-slate-500 dark:text-slate-300 hover:text-brand-600 dark:hover:text-brand-400 shadow-sm hover:shadow transition-all cursor-pointer"
             >
               <Pencil className="w-3.5 h-3.5" />
             </button>
@@ -102,7 +102,7 @@ export const StyleTemplateCard = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/30">
+          <span className="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium bg-brand-50 dark:bg-brand-500/10 text-brand-600 dark:text-brand-400 border border-brand-100 dark:border-brand-500/30">
             {isPortrait ? "9:16 · Reels" : "16:9 · Long Video"}
           </span>
 
@@ -130,7 +130,7 @@ export const StyleTemplateCard = ({
             template.best_for ? "text-slate-500 dark:text-slate-400" : "invisible"
           }`}
         >
-          <Sparkles className="w-3.5 h-3.5 flex-shrink-0 text-violet-500 dark:text-violet-400" />
+          <Sparkles className="w-3.5 h-3.5 flex-shrink-0 text-brand-500 dark:text-brand-400" />
           <span className="truncate" title={template.best_for ?? undefined}>
             <span className="font-medium text-slate-600 dark:text-slate-300">Best for: </span>
             {template.best_for || "—"}

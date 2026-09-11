@@ -51,8 +51,8 @@ function OptionCard({
       onClick={onClick}
       className={`text-left flex items-start justify-between gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer ${
         selected
-          ? "border-indigo-500 bg-indigo-50/60 dark:bg-indigo-500/10"
-          : "border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-500/50"
+          ? "border-brand-500 bg-brand-50/60 dark:bg-brand-500/10"
+          : "border-slate-200 dark:border-slate-700 hover:border-brand-300 dark:hover:border-brand-500/50"
       }`}
     >
       <div className="min-w-0">
@@ -61,7 +61,7 @@ function OptionCard({
       </div>
       <div className="flex-shrink-0 flex items-center gap-2">
         {badge}
-        {selected && <Check className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />}
+        {selected && <Check className="w-4 h-4 text-brand-600 dark:text-brand-400" />}
       </div>
     </button>
   );
@@ -111,10 +111,10 @@ export const AdvancedSettingsPopUp = ({
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="absolute inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-md" onClick={() => !saving && onClose()} />
 
-      <div className="relative w-full sm:max-w-lg overflow-hidden rounded-t-3xl sm:rounded-2xl bg-white dark:bg-slate-800/95 shadow-2xl dark:shadow-slate-950/80 ring-1 ring-slate-200/80 dark:ring-slate-700/60 max-h-[90vh] flex flex-col">
+      <div className="relative w-full sm:max-w-lg overflow-hidden rounded-t-3xl sm:rounded-3xl bg-white dark:bg-surface shadow-2xl dark:shadow-slate-950/80 ring-1 ring-slate-200/80 dark:ring-border max-h-[90vh] flex flex-col">
         <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700/60 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 flex-shrink-0 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+            <div className="w-9 h-9 flex-shrink-0 rounded-xl bg-brand-50 dark:bg-brand-500/10 border border-brand-100 dark:border-brand-500/30 text-brand-600 dark:text-brand-400 flex items-center justify-center">
               <Settings className="w-4.5 h-4.5" />
             </div>
             <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Advanced Settings</h2>
@@ -206,7 +206,7 @@ export const AdvancedSettingsPopUp = ({
           <button
             onClick={handleSave}
             disabled={saving}
-            className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg shadow-md shadow-indigo-200 dark:shadow-indigo-900/40 transition-all active:scale-95 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-action-foreground bg-action hover:bg-action-hover rounded-lg shadow-md shadow-brand-200 dark:shadow-brand-900/40 transition-all active:scale-95 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Save Settings

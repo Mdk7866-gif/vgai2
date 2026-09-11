@@ -52,7 +52,7 @@ interface SceneCardProps {
 type PromptTab = "image" | "animation";
 
 const textareaClass =
-  "w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 transition-all resize-none";
+  "w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-400 transition-all resize-none";
 
 export const SceneCard = ({
   scene,
@@ -533,21 +533,21 @@ export const SceneCard = ({
   const tabButtonClass = (active: boolean) =>
     `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12.5px] font-semibold transition-all cursor-pointer ${
       active
-        ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm"
+        ? "bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-400 shadow-sm"
         : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
     }`;
 
   const iconCopyButtonClass =
-    "p-1.5 rounded-lg text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700/70 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed";
+    "p-1.5 rounded-lg text-slate-400 dark:text-slate-500 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-slate-100 dark:hover:bg-slate-700/70 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed";
 
   const labeledCopyButtonClass =
-    "flex items-center gap-1 px-2 py-1 rounded-lg text-[11.5px] font-medium text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700/70 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed";
+    "flex items-center gap-1 px-2 py-1 rounded-lg text-[11.5px] font-medium text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-slate-100 dark:hover:bg-slate-700/70 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed";
 
   return (
-    <div className="bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl overflow-hidden shadow-sm">
-      <div className="p-4 pb-3 flex items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-700/60">
+    <div className="bg-white dark:bg-surface border border-slate-200 dark:border-border rounded-2xl overflow-hidden shadow-sm">
+      <div className="p-4 pb-3 flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-700/60">
         <div className="flex items-center gap-2">
-          <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/30 tabular-nums">
+          <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-brand-50 dark:bg-brand-500/10 text-brand-600 dark:text-brand-400 border border-brand-100 dark:border-brand-500/30 tabular-nums">
             Scene #{scene.scene_number}
           </span>
           <button
@@ -555,7 +555,7 @@ export const SceneCard = ({
             onClick={openCharPopover}
             aria-label="Add or remove involved characters"
             title="Add or remove involved characters"
-            className="w-6 h-6 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-700/70 text-slate-500 dark:text-slate-300 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all cursor-pointer"
+            className="w-6 h-6 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-700/70 text-slate-500 dark:text-slate-300 hover:bg-brand-100 dark:hover:bg-brand-500/20 hover:text-brand-600 dark:hover:text-brand-400 transition-all cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
           </button>
@@ -567,7 +567,7 @@ export const SceneCard = ({
       </div>
 
       <div className="p-4 flex flex-col gap-3">
-        <div className={`grid grid-cols-1 gap-3 ${is916 ? "lg:grid-cols-[1fr_520px]" : "lg:grid-cols-[1fr_440px]"}`}>
+        <div className={`grid grid-cols-1 gap-3 ${is916 ? "xl:grid-cols-[minmax(0,1fr)_minmax(0,520px)]" : "xl:grid-cols-[minmax(0,1fr)_minmax(0,440px)]"}`}>
           {/* Left: characters + scene text + tabbed prompt editor + insert/delete controls */}
           <div className="flex flex-col gap-3 min-w-0">
             {scene.involved_characters.length > 0 && (
@@ -576,13 +576,13 @@ export const SceneCard = ({
                 {scene.involved_characters.map((c) => (
                   <span
                     key={c.id}
-                    className="flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full text-[11px] font-medium bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-500/30"
+                    className="flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full text-[11px] font-medium bg-brand-50 dark:bg-brand-500/10 text-brand-700 dark:text-brand-300 border border-brand-100 dark:border-brand-500/30"
                   >
                     {c.name}
                     <button
                       onClick={() => toggleCharacter(c.id)}
                       aria-label={`Remove ${c.name} from this scene`}
-                      className="p-0.5 rounded-full hover:bg-indigo-200/60 dark:hover:bg-indigo-500/30 cursor-pointer"
+                      className="p-0.5 rounded-full hover:bg-brand-200/60 dark:hover:bg-brand-500/30 cursor-pointer"
                     >
                       <X className="w-2.5 h-2.5" />
                     </button>
@@ -669,7 +669,7 @@ export const SceneCard = ({
                 <button
                   onClick={() => handleInsert("above")}
                   disabled={inserting !== null}
-                  className="flex items-center gap-1 px-2.5 py-1.5 text-[12px] font-medium text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700/70 rounded-lg transition-all cursor-pointer disabled:opacity-60"
+                  className="flex items-center gap-1 px-2.5 py-1.5 text-[12px] font-medium text-slate-500 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-slate-100 dark:hover:bg-slate-700/70 rounded-lg transition-all cursor-pointer disabled:opacity-60"
                 >
                   {inserting === "above" ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -681,7 +681,7 @@ export const SceneCard = ({
                 <button
                   onClick={() => handleInsert("below")}
                   disabled={inserting !== null}
-                  className="flex items-center gap-1 px-2.5 py-1.5 text-[12px] font-medium text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700/70 rounded-lg transition-all cursor-pointer disabled:opacity-60"
+                  className="flex items-center gap-1 px-2.5 py-1.5 text-[12px] font-medium text-slate-500 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-slate-100 dark:hover:bg-slate-700/70 rounded-lg transition-all cursor-pointer disabled:opacity-60"
                 >
                   {inserting === "below" ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -729,7 +729,7 @@ export const SceneCard = ({
                             ? `Rewrites the image & animation prompts with AI (+${PROMPT_REWRITE_CREDIT_COST} credit) and generates a fresh image from them`
                             : undefined
                         }
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 rounded-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-semibold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-500/10 hover:bg-brand-100 dark:hover:bg-brand-500/20 rounded-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Sparkles className="w-3.5 h-3.5" />
                         {scene.generated_image_url ? "Regenerate" : "Generate"}
@@ -741,7 +741,7 @@ export const SceneCard = ({
                         }}
                         disabled={uploadingImage}
                         title="Upload an image you generated elsewhere"
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-semibold text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 bg-slate-100 dark:bg-slate-900/60 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-semibold text-slate-500 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 bg-slate-100 dark:bg-slate-900/60 hover:bg-brand-50 dark:hover:bg-brand-500/10 rounded-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {uploadingImage ? (
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -771,7 +771,7 @@ export const SceneCard = ({
                   scene.generated_image_url ? "cursor-zoom-in" : ""
                 } ${
                   imageDragOver
-                    ? "border-dashed border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10"
+                    ? "border-dashed border-brand-500 bg-brand-50 dark:bg-brand-500/10"
                     : "border-slate-200 dark:border-slate-700/60"
                 }`}
               >
@@ -819,7 +819,7 @@ export const SceneCard = ({
                     </button>
                   </>
                 ) : imageDragOver ? (
-                  <span className="flex flex-col items-center gap-1 text-indigo-500 dark:text-indigo-400 text-[11px] font-medium px-2 text-center">
+                  <span className="flex flex-col items-center gap-1 text-brand-500 dark:text-brand-400 text-[11px] font-medium px-2 text-center">
                     <Upload className="w-6 h-6" />
                     Drop image here
                   </span>
@@ -852,7 +852,7 @@ export const SceneCard = ({
                           !scene.generated_image_url || !animationPrompt.trim() || uploadingAnimation || syncingAnimation
                         }
                         title={!scene.generated_image_url ? "Generate the scene's image first" : undefined}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-semibold text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-500/10 hover:bg-violet-100 dark:hover:bg-violet-500/20 rounded-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-semibold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-500/10 hover:bg-brand-100 dark:hover:bg-brand-500/20 rounded-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Sparkles className="w-3.5 h-3.5" />
                         {scene.generated_animation_url ? "Regenerate" : "Generate"}
@@ -861,7 +861,7 @@ export const SceneCard = ({
                         onClick={() => animationFileInputRef.current?.click()}
                         disabled={uploadingAnimation}
                         title="Upload an animation you generated elsewhere"
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-semibold text-slate-500 dark:text-slate-400 hover:text-violet-600 dark:hover:text-violet-400 bg-slate-100 dark:bg-slate-900/60 hover:bg-violet-50 dark:hover:bg-violet-500/10 rounded-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-semibold text-slate-500 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 bg-slate-100 dark:bg-slate-900/60 hover:bg-brand-50 dark:hover:bg-brand-500/10 rounded-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {uploadingAnimation ? (
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -891,7 +891,7 @@ export const SceneCard = ({
                   scene.generated_animation_url ? "cursor-pointer" : ""
                 } ${
                   animationDragOver
-                    ? "border-dashed border-violet-500 bg-violet-50 dark:bg-violet-500/10"
+                    ? "border-dashed border-brand-500 bg-brand-50 dark:bg-brand-500/10"
                     : "border-slate-200 dark:border-slate-700/60"
                 }`}
               >
@@ -939,7 +939,7 @@ export const SceneCard = ({
                     </button>
                   </>
                 ) : animationDragOver ? (
-                  <span className="flex flex-col items-center gap-1 text-violet-500 dark:text-violet-400 text-[11px] font-medium px-2 text-center">
+                  <span className="flex flex-col items-center gap-1 text-brand-500 dark:text-brand-400 text-[11px] font-medium px-2 text-center">
                     <Upload className="w-6 h-6" />
                     Drop video here
                   </span>
@@ -1031,7 +1031,7 @@ export const SceneCard = ({
                       <span
                         className={`w-4 h-4 flex-shrink-0 rounded flex items-center justify-center border ${
                           involved
-                            ? "bg-indigo-600 border-indigo-600 text-white"
+                            ? "bg-brand-600 border-brand-600 text-white"
                             : "border-slate-300 dark:border-slate-600"
                         }`}
                       >

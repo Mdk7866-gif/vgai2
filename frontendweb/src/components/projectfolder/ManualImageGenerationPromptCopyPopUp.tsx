@@ -108,7 +108,7 @@ export const ManualImageGenerationPromptCopyPopUp = ({
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="absolute inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-md" onClick={handleClose} />
 
-      <div className="relative w-full sm:max-w-2xl overflow-hidden rounded-t-3xl sm:rounded-2xl bg-white dark:bg-slate-800/95 shadow-2xl dark:shadow-slate-950/80 ring-1 ring-slate-200/80 dark:ring-slate-700/60 max-h-[90vh] flex flex-col">
+      <div className="relative w-full sm:max-w-2xl overflow-hidden rounded-t-3xl sm:rounded-3xl bg-white dark:bg-surface shadow-2xl dark:shadow-slate-950/80 ring-1 ring-slate-200/80 dark:ring-border max-h-[90vh] flex flex-col">
         <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700/60 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 flex-shrink-0 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
@@ -133,7 +133,7 @@ export const ManualImageGenerationPromptCopyPopUp = ({
                 href="https://meta.ai"
                 target="_blank"
                 rel="noreferrer"
-                className="text-indigo-600 dark:text-indigo-400 hover:underline"
+                className="text-brand-600 dark:text-brand-400 hover:underline"
               >
                 meta.ai
               </a>
@@ -194,7 +194,7 @@ export const ManualImageGenerationPromptCopyPopUp = ({
                         )}
                       </span>
                     </button>
-                    <div className="px-2.5 py-2 bg-white dark:bg-slate-800/70">
+                    <div className="px-2.5 py-2 bg-white dark:bg-surface">
                       <p className="text-[13px] font-medium text-slate-900 dark:text-slate-100 truncate">
                         {c.snapshot_name}
                       </p>
@@ -232,7 +232,7 @@ export const ManualImageGenerationPromptCopyPopUp = ({
                   }}
                   className={`px-2.5 py-1 rounded-md text-[11px] font-bold border transition-colors cursor-pointer ${
                     batchSize === size
-                      ? "bg-indigo-600 border-indigo-600 text-white"
+                      ? "bg-brand-600 border-brand-600 text-white"
                       : "bg-white dark:bg-slate-900/60 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60"
                   }`}
                 >
@@ -259,7 +259,7 @@ export const ManualImageGenerationPromptCopyPopUp = ({
                           ? "bg-emerald-50 dark:bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/40 text-emerald-700 dark:text-emerald-400"
                           : status === "failed"
                           ? "bg-red-50 dark:bg-red-500/10 border-red-300 dark:border-red-500/40 text-red-700 dark:text-red-400"
-                          : "bg-white dark:bg-slate-900/60 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:border-indigo-300 dark:hover:border-indigo-500/50 hover:text-indigo-700 dark:hover:text-indigo-400"
+                          : "bg-white dark:bg-slate-900/60 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:border-brand-300 dark:hover:border-brand-500/50 hover:text-brand-700 dark:hover:text-brand-400"
                       }`}
                     >
                       {status === "copied" ? (

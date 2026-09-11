@@ -41,7 +41,7 @@ const countWords = (text: string) => {
 };
 
 const inputClass =
-  "w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 transition-all";
+  "w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-400 transition-all";
 
 const labelClass = "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5";
 
@@ -420,8 +420,9 @@ export default function GenerateScriptPage() {
 
   return (
     <div className="flex flex-col gap-8 pb-16 animate-in fade-in duration-500">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+      <div className="relative flex flex-col items-start justify-between gap-6 rounded-3xl border border-brand-200/60 bg-gradient-to-br from-white via-brand-50/70 to-cyan-50/60 p-6 shadow-sm dark:border-white/10 dark:from-surface dark:via-surface dark:to-slate-900 lg:p-8">
         <div>
+          <p className="eyebrow mb-3">The script studio</p>
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 dark:text-white">
             Generate Script
           </h1>
@@ -435,7 +436,7 @@ export default function GenerateScriptPage() {
               if (!requireAuth()) return;
               setTemplatesPopupOpen(true);
             }}
-            className="flex items-center gap-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-indigo-600 dark:text-indigo-400 px-5 py-2.5 rounded-xl font-medium shadow-sm transition-all active:scale-95 cursor-pointer ring-1 ring-indigo-200 dark:ring-indigo-500/40"
+            className="flex items-center gap-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-brand-600 dark:text-brand-400 px-5 py-2.5 rounded-xl font-medium shadow-sm transition-all active:scale-95 cursor-pointer ring-1 ring-brand-200 dark:ring-brand-500/40"
           >
             <Layers className="w-5 h-5" />
             <span>My Templates</span>
@@ -443,9 +444,22 @@ export default function GenerateScriptPage() {
         </div>
       </div>
 
+      <ol aria-label="Script creation workflow" className="grid gap-3 sm:grid-cols-3">
+        {[
+          ["01", "Define your brief", "Choose an audience, format, and creative direction."],
+          ["02", "Explore the topics", "Research ideas, then choose a topic to develop."],
+          ["03", "Make it your own", "Edit your script and import it into a project."],
+        ].map(([number, title, copy]) => (
+          <li key={number} className="flex gap-3 rounded-2xl border border-slate-200/80 bg-white/70 p-4 dark:border-white/10 dark:bg-white/[.03]">
+            <span className="text-sm font-semibold text-brand-500">{number}</span>
+            <div><h2 className="text-sm font-semibold text-slate-900 dark:text-white">{title}</h2><p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">{copy}</p></div>
+          </li>
+        ))}
+      </ol>
+
       {!authLoading && !user ? (
-        <div className="flex flex-col items-center justify-center text-center gap-3 py-20 bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl">
-          <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center">
+        <div className="flex flex-col items-center justify-center text-center gap-3 py-20 bg-white dark:bg-surface border border-slate-200 dark:border-border rounded-2xl">
+          <div className="w-12 h-12 bg-brand-50 dark:bg-brand-500/10 border border-brand-100 dark:border-brand-500/30 text-brand-600 dark:text-brand-400 rounded-xl flex items-center justify-center">
             <FileText className="w-6 h-6" />
           </div>
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Login to generate scripts</h2>
@@ -454,7 +468,7 @@ export default function GenerateScriptPage() {
           </p>
           <button
             onClick={() => requireAuth()}
-            className="mt-2 flex items-center gap-2 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 cursor-pointer"
+            className="mt-2 flex items-center gap-2 text-sm font-medium text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 cursor-pointer"
           >
             <LogIn className="w-4 h-4" />
             Login
@@ -462,7 +476,7 @@ export default function GenerateScriptPage() {
         </div>
       ) : (
         <>
-          <div className="bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-5 sm:p-6 flex flex-col gap-5">
+          <div className="bg-white dark:bg-surface border border-slate-200 dark:border-border rounded-3xl p-5 sm:p-8 flex flex-col gap-5 shadow-sm">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="gs-category" className={labelClass}>
@@ -551,9 +565,9 @@ export default function GenerateScriptPage() {
                             setCountryQuery(c);
                             setCountryOpen(false);
                           }}
-                          className={`w-full text-left px-3.5 py-2 text-sm cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-500/10 ${
+                          className={`w-full text-left px-3.5 py-2 text-sm cursor-pointer hover:bg-brand-50 dark:hover:bg-brand-500/10 ${
                             c === targetCountry
-                              ? "text-indigo-600 dark:text-indigo-400 font-medium"
+                              ? "text-brand-600 dark:text-brand-400 font-medium"
                               : "text-slate-700 dark:text-slate-200"
                           }`}
                         >
@@ -578,7 +592,7 @@ export default function GenerateScriptPage() {
                       aria-pressed={contentType === opt.value}
                       className={`px-4 py-2.5 rounded-xl border text-sm font-semibold text-center transition-all cursor-pointer ${
                         contentType === opt.value
-                          ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 ring-2 ring-indigo-500/30"
+                          ? "border-brand-500 bg-brand-50 dark:bg-brand-500/10 text-brand-700 dark:text-brand-300 ring-2 ring-brand-500/30"
                           : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-slate-600 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-600"
                       }`}
                     >
@@ -658,11 +672,11 @@ export default function GenerateScriptPage() {
                 type="button"
                 onClick={handleResearch}
                 disabled={researching || !formValid || insufficientForResearch}
-                className="flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg shadow-md shadow-indigo-200 dark:shadow-indigo-900/40 transition-all active:scale-95 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                className="flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold text-action-foreground bg-action hover:bg-action-hover rounded-lg shadow-md shadow-brand-200 dark:shadow-brand-900/40 transition-all active:scale-95 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {researching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                 {researching ? "Researching…" : "Get Top 10 Viral Topics"}
-                <span className="flex items-center gap-1 pl-2 ml-0.5 border-l border-white/30 text-indigo-100">
+                <span className="flex items-center gap-1 pl-2 ml-0.5 border-l border-white/30 text-brand-100 dark:border-current/20 dark:text-action-foreground">
                   <CreditCoinIcon className="w-3.5 h-3.5" />
                   {TOPIC_RESEARCH_CREDIT_COST}
                 </span>
@@ -681,7 +695,7 @@ export default function GenerateScriptPage() {
 
           {researching ? (
             <div className="flex flex-col items-center justify-center gap-3 py-16">
-              <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+              <Loader2 className="w-8 h-8 animate-spin text-brand-500" />
               <p className="text-sm text-slate-500 dark:text-slate-400">
                 Researching the web for trending topics — this can take up to 20 seconds.
               </p>

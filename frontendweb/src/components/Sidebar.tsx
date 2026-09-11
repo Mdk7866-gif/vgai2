@@ -3,7 +3,7 @@
 import React, { useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Users, LayoutTemplate, Sparkles, Heart, FolderKanban, Folder, LogIn, X, Plus, Trash2, Check, Loader2 } from "lucide-react";
+import { Users, LayoutTemplate, Sparkles, Heart, FolderKanban, Folder, House, Pencil, LogIn, X, Plus, Trash2, Check, Loader2 } from "lucide-react";
 import Logo from "./Logo";
 import { useAuth } from "@/context/AuthContext";
 import { useProjects, type ProjectListItem } from "@/context/ProjectsContext";
@@ -23,6 +23,7 @@ interface SidebarProps {
 }
 
 const libraryItems = [
+    { icon: House, label: "Overview", href: "/" },
     { icon: Users, label: "Characters", href: "/characters" },
     { icon: LayoutTemplate, label: "Style Templates", href: "/style_templates" },
     { icon: Sparkles, label: "Generate Scripts", href: "/generate_script" },
@@ -137,7 +138,7 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
     };
 
     return (
-        <aside className="w-[280px] md:w-72 lg:w-80 border-r border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-900 flex flex-col h-full shadow-2xl md:shadow-none transition-colors duration-200">
+        <aside className="w-[280px] md:w-64 lg:w-72 border-r border-slate-200/80 dark:border-white/[.07] bg-white/90 dark:bg-background flex flex-col h-full shadow-2xl md:shadow-none transition-colors duration-200">
             <div className="h-16 flex items-center justify-between px-6 border-b border-slate-100 dark:border-slate-800">
                 <Logo />
                 <button
@@ -153,7 +154,7 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
                 {/* Library */}
                 <div>
                     <div className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3 px-3">
-                        Library
+                        Your studio
                     </div>
                     <div className="flex flex-col gap-1">
                         {libraryItems.map((item) => {
@@ -162,13 +163,14 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
                                 <Link
                                     key={item.href}
                                     href={item.href}
+                                    aria-current={active ? "page" : undefined}
                                     onClick={onClose}
                                     className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${active
-                                        ? "bg-indigo-50 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 font-medium ring-1 ring-indigo-100 dark:ring-indigo-500/30"
+                                        ? "bg-brand-50 dark:bg-brand-500/15 text-brand-700 dark:text-brand-300 font-medium ring-1 ring-brand-100 dark:ring-brand-500/30"
                                         : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/70 hover:text-slate-900 dark:hover:text-slate-100"
                                         }`}
                                 >
-                                    <item.icon className={`w-[18px] h-[18px] ${active ? "text-indigo-600 dark:text-indigo-300" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors"}`} />
+                                    <item.icon className={`w-[18px] h-[18px] ${active ? "text-brand-600 dark:text-brand-300" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors"}`} />
                                     <span className="text-[14px]">{item.label}</span>
                                 </Link>
                             );
@@ -193,7 +195,7 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
                             {[0, 1, 2].map((i) => (
                                 <div
                                     key={i}
-                                    className="h-9 rounded-xl bg-slate-100 dark:bg-slate-800/70 animate-pulse"
+                                    className="h-9 rounded-xl bg-slate-100 dark:bg-surface animate-pulse"
                                 />
                             ))}
                         </div>
@@ -204,7 +206,7 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
                             </p>
                             <button
                                 onClick={openLoginModal}
-                                className="mt-3 inline-flex items-center gap-1.5 text-[13px] font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 cursor-pointer"
+                                className="mt-3 inline-flex items-center gap-1.5 text-[13px] font-medium text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 cursor-pointer"
                             >
                                 <LogIn className="w-3.5 h-3.5" />
                                 Login
@@ -215,7 +217,7 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
                             <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide flex flex-col gap-1 mb-3">
                                 {loading ? (
                                     <div className="flex items-center justify-center py-6">
-                                        <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
+                                        <Loader2 className="w-4 h-4 animate-spin text-brand-500" />
                                     </div>
                                 ) : projects.length === 0 ? (
                                     <div className="mx-1 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 p-4 text-center">
@@ -230,7 +232,7 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
                                                 key={project.id}
                                                 title={`Created ${formatCreatedDate(project.created_at)}`}
                                                 className={`group flex items-center gap-1 px-2 py-1.5 rounded-xl transition-all ${active
-                                                    ? "bg-indigo-50 dark:bg-indigo-500/15 ring-1 ring-indigo-100 dark:ring-indigo-500/30"
+                                                    ? "bg-brand-50 dark:bg-brand-500/15 ring-1 ring-brand-100 dark:ring-brand-500/30"
                                                     : "hover:bg-slate-50 dark:hover:bg-slate-800/70"
                                                     }`}
                                             >
@@ -247,10 +249,11 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
                                                             onBlur={() => saveRename(project.id)}
                                                             disabled={renaming}
                                                             aria-label="Project name"
-                                                            className="flex-1 min-w-0 px-2 py-1 text-[13px] rounded-lg border border-indigo-300 dark:border-indigo-500/50 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                                                            className="flex-1 min-w-0 px-2 py-1 text-[13px] rounded-lg border border-brand-300 dark:border-brand-500/50 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
                                                         />
                                                         <button
                                                             onMouseDown={(e) => e.preventDefault()}
+                                                            aria-label="Save project name"
                                                             onClick={() => saveRename(project.id)}
                                                             disabled={renaming}
                                                             className="p-1.5 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 rounded-lg cursor-pointer disabled:opacity-60"
@@ -261,16 +264,19 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
                                                 ) : (
                                                     <>
                                                         <Folder className="w-3.5 h-3.5 flex-shrink-0 text-amber-500 fill-amber-400/70" />
-                                                        <span
+                                                        <button
+                                                            type="button"
+                                                            aria-current={active ? "page" : undefined}
                                                             onClick={() => handleNameClick(project)}
                                                             onDoubleClick={() => handleNameDoubleClick(project)}
-                                                            className={`flex-1 min-w-0 px-1 py-1 text-[13.5px] truncate cursor-pointer select-none ${active
-                                                                ? "text-indigo-700 dark:text-indigo-300 font-medium"
+                                                            className={`flex-1 min-w-0 px-1 py-1 text-[13.5px] text-left truncate cursor-pointer select-none ${active
+                                                                ? "text-brand-700 dark:text-brand-300 font-medium"
                                                                 : "text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-100"
                                                                 }`}
                                                         >
                                                             {project.name}
-                                                        </span>
+                                                        </button>
+                                                        <button type="button" onClick={() => startEditing(project)} aria-label={`Rename ${project.name}`} className="rounded-lg p-1.5 text-slate-400 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-500/10 dark:hover:text-brand-300"><Pencil className="h-3.5 w-3.5" /></button>
                                                         <button
                                                             onClick={() => handleToggleLike(project)}
                                                             disabled={likingId === project.id}
@@ -308,12 +314,12 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
                                     onKeyDown={(e) => e.key === "Enter" && handleCreate()}
                                     placeholder="New project name"
                                     aria-label="New project name"
-                                    className="flex-1 min-w-0 px-3 py-2 text-[13px] rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 transition-all"
+                                    className="flex-1 min-w-0 px-3 py-2 text-[13px] rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-400 transition-all"
                                 />
                                 <button
                                     onClick={handleCreate}
                                     disabled={creating || !newProjectName.trim()}
-                                    className="flex items-center gap-1 px-3 py-2 text-[13px] font-medium text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl shadow-sm transition-all active:scale-95 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed flex-shrink-0"
+                                    className="flex items-center gap-1 px-3 py-2 text-[13px] font-medium text-action-foreground bg-action hover:bg-action-hover rounded-xl shadow-sm transition-all active:scale-95 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed flex-shrink-0"
                                 >
                                     {creating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
                                     Create

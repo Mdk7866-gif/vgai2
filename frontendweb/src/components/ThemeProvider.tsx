@@ -15,35 +15,38 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
-    // Initialize theme from localStorage or system setting
-    const savedTheme = localStorage.getItem("theme") as Theme | null;
-    const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const initialTheme = savedTheme || (systemPrefersDark ? "dark" : "light");
-    
-    // Defer state update to prevent synchronous setState inside effect warning
-    const timer = setTimeout(() => {
-      setTheme(initialTheme);
-    }, 0);
-    
-    // Apply class on load
-    if (initialTheme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-    
-    return () => clearTimeout(timer);
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const readPreference = (): Theme | null => {
+      try {
+        const value = localStorage.getItem("theme");
+        return value === "light" || value === "dark" ? value : null;
+      } catch { return null; }
+    };
+    const apply = (next: Theme) => {
+      document.documentElement.classList.toggle("dark", next === "dark");
+      setTheme(next);
+    };
+    const resolve = () => readPreference() ?? (media.matches ? "dark" : "light");
+    const timer = setTimeout(() => apply(resolve()), 0);
+    const onSystemChange = () => { if (!readPreference()) apply(resolve()); };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === "theme" || event.key === null) apply(resolve());
+    };
+    media.addEventListener("change", onSystemChange);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      clearTimeout(timer);
+      media.removeEventListener("change", onSystemChange);
+      window.removeEventListener("storage", onStorage);
+    };
   }, []);
 
   const toggleTheme = () => {
-    const nextTheme = theme === "light" ? "dark" : "light";
+    const nextTheme: Theme = document.documentElement.classList.contains("dark") ? "light" : "dark";
     setTheme(nextTheme);
-    localStorage.setItem("theme", nextTheme);
-    
-    if (nextTheme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
+    document.documentElement.classList.toggle("dark", nextTheme === "dark");
+    try { localStorage.setItem("theme", nextTheme); } catch {
+      // The visible theme still works when storage is unavailable.
     }
   };
 

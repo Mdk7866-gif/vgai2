@@ -58,10 +58,10 @@ export const DefaultCharacterCardPopUp = ({
           {/* h-[85vh], not max-h — a fixed height keeps the popup the same size
               regardless of how many cards the catalog currently holds, with
               only the card grid below scrolling internally. */}
-          <div className="relative w-full sm:max-w-6xl overflow-hidden rounded-t-3xl sm:rounded-2xl bg-white dark:bg-slate-800/95 shadow-2xl dark:shadow-slate-950/80 ring-1 ring-slate-200/80 dark:ring-slate-700/60 h-[85vh] flex flex-col">
+          <div className="relative w-full sm:max-w-6xl overflow-hidden rounded-t-3xl sm:rounded-3xl bg-white dark:bg-surface shadow-2xl dark:shadow-slate-950/80 ring-1 ring-slate-200/80 dark:ring-border h-[85vh] flex flex-col">
             <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700/60 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 flex-shrink-0 rounded-xl bg-violet-50 dark:bg-violet-500/10 border border-violet-100 dark:border-violet-500/30 text-violet-600 dark:text-violet-400 flex items-center justify-center">
+                <div className="w-10 h-10 flex-shrink-0 rounded-xl bg-brand-50 dark:bg-brand-500/10 border border-brand-100 dark:border-brand-500/30 text-brand-600 dark:text-brand-400 flex items-center justify-center">
                   <Users className="w-5 h-5" />
                 </div>
                 <div className="min-w-0">
@@ -99,7 +99,7 @@ export const DefaultCharacterCardPopUp = ({
                     return (
                       <div
                         key={character.slug}
-                        className="flex flex-col h-full bg-white dark:bg-slate-800/70 border border-violet-200/70 dark:border-violet-500/30 rounded-2xl overflow-hidden shadow-sm hover:shadow-lg dark:hover:shadow-slate-900/50 transition-all duration-200"
+                        className="flex flex-col h-full bg-white dark:bg-surface border border-brand-200/70 dark:border-brand-500/30 rounded-2xl overflow-hidden shadow-sm hover:shadow-lg dark:hover:shadow-slate-900/50 transition-all duration-200"
                       >
                         <button
                           type="button"
@@ -112,7 +112,7 @@ export const DefaultCharacterCardPopUp = ({
                           aria-label={`View full character sheet for ${character.name}`}
                           className="group relative w-full aspect-video bg-slate-100 dark:bg-slate-900/60 overflow-hidden cursor-zoom-in"
                         >
-                          <span className="absolute top-2 left-2 z-10 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-violet-600/90 text-white shadow-sm">
+                          <span className="absolute top-2 left-2 z-10 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-brand-600/90 text-white shadow-sm">
                             <Users className="w-3 h-3" />
                             Starter
                           </span>
@@ -135,7 +135,7 @@ export const DefaultCharacterCardPopUp = ({
                           />
                           {!imageLoaded && (
                             <div className="absolute inset-0 flex items-center justify-center bg-slate-100 dark:bg-slate-900/60">
-                              <Loader2 className="w-6 h-6 text-violet-400 dark:text-violet-500 animate-spin" />
+                              <Loader2 className="w-6 h-6 text-brand-400 dark:text-brand-500 animate-spin" />
                             </div>
                           )}
                           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
@@ -153,7 +153,7 @@ export const DefaultCharacterCardPopUp = ({
 
                           {character.best_for && (
                             <div className="flex items-start gap-1.5 text-[12px] text-slate-500 dark:text-slate-400">
-                              <Sparkles className="w-3.5 h-3.5 mt-px flex-shrink-0 text-violet-500 dark:text-violet-400" />
+                              <Sparkles className="w-3.5 h-3.5 mt-px flex-shrink-0 text-brand-500 dark:text-brand-400" />
                               <span className="line-clamp-2">
                                 <span className="font-medium text-slate-600 dark:text-slate-300">Best for: </span>
                                 {character.best_for}
@@ -173,7 +173,7 @@ export const DefaultCharacterCardPopUp = ({
                             className={`mt-auto flex items-center justify-center gap-1.5 w-full px-3 py-2 rounded-xl text-[13px] font-semibold shadow-sm transition-all active:scale-95 cursor-pointer disabled:cursor-not-allowed disabled:opacity-70 ${
                               imported
                                 ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-200 dark:ring-emerald-500/30"
-                                : "bg-white dark:bg-slate-900/60 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-200 dark:ring-indigo-500/40 hover:bg-indigo-50 dark:hover:bg-indigo-500/10"
+                                : "bg-white dark:bg-slate-900/60 text-brand-600 dark:text-brand-400 ring-1 ring-brand-200 dark:ring-brand-500/40 hover:bg-brand-50 dark:hover:bg-brand-500/10"
                             }`}
                           >
                             {importing ? (

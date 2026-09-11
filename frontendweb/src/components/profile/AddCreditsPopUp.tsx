@@ -94,7 +94,7 @@ export const AddCreditsPopUp = ({
 
       <form
         onSubmit={handleSubmit}
-        className="relative w-full sm:max-w-lg overflow-hidden rounded-t-3xl sm:rounded-2xl bg-white dark:bg-slate-800/95 shadow-2xl dark:shadow-slate-950/80 ring-1 ring-slate-200/80 dark:ring-slate-700/60"
+        className="relative w-full sm:max-w-lg overflow-hidden rounded-t-3xl sm:rounded-3xl bg-white dark:bg-surface shadow-2xl dark:shadow-slate-950/80 ring-1 ring-slate-200/80 dark:ring-border"
       >
         <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700/60 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
@@ -112,16 +112,17 @@ export const AddCreditsPopUp = ({
         </div>
 
         <div className="px-6 py-5 flex flex-col gap-5">
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 min-[400px]:grid-cols-4 gap-2">
             {PRESET_USD.map((amount) => (
               <button
                 key={amount}
                 type="button"
                 onClick={() => setAmountInput(String(amount))}
+                aria-pressed={amountInput === String(amount)}
                 className={`py-2 rounded-xl text-sm font-medium border transition-all cursor-pointer ${
                   amountInput === String(amount)
-                    ? "bg-indigo-600 border-indigo-600 text-white shadow-sm"
-                    : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-indigo-300 dark:hover:border-indigo-500/50"
+                    ? "bg-brand-600 border-brand-600 text-white shadow-sm"
+                    : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-brand-300 dark:hover:border-brand-500/50"
                 }`}
               >
                 ${amount}
@@ -133,7 +134,7 @@ export const AddCreditsPopUp = ({
             <label htmlFor="credits-amount" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
               Or enter a custom amount (USD)
             </label>
-            <div className="flex items-center w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 focus-within:ring-2 focus-within:ring-indigo-500/50 focus-within:border-indigo-400 transition-all">
+            <div className="flex items-center w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 focus-within:ring-2 focus-within:ring-brand-500/50 focus-within:border-brand-400 transition-all">
               <span className="pl-3.5 text-slate-400 dark:text-slate-500 select-none">$</span>
               <input
                 id="credits-amount"
@@ -189,7 +190,7 @@ export const AddCreditsPopUp = ({
           <button
             type="submit"
             disabled={submitting}
-            className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg shadow-md shadow-indigo-200 dark:shadow-indigo-900/40 transition-all active:scale-95 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-action-foreground bg-action hover:bg-action-hover rounded-lg shadow-md shadow-brand-200 dark:shadow-brand-900/40 transition-all active:scale-95 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
             Proceed to Pay

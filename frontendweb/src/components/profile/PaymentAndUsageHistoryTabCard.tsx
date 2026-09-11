@@ -391,7 +391,7 @@ export const PaymentAndUsageHistoryTabCard = () => {
                   {record.project_exists ? (
                     <Link
                       href={`/project_folder/${record.project_id}`}
-                      className="truncate font-medium text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline"
+                      className="truncate font-medium text-slate-700 dark:text-slate-200 hover:text-brand-600 dark:hover:text-brand-400 hover:underline"
                     >
                       {record.project_name}
                     </Link>
@@ -441,23 +441,24 @@ export const PaymentAndUsageHistoryTabCard = () => {
 
   return (
     <>
-      <div className="bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl overflow-hidden">
-        <div className="flex border-b border-slate-200 dark:border-slate-700/80">
+      <div className="bg-white dark:bg-surface border border-slate-200 dark:border-border rounded-2xl overflow-hidden">
+        <div className="flex flex-wrap border-b border-slate-200 dark:border-border">
           {TABS.map(({ id, label, Icon }) => (
             <button
               key={id}
               type="button"
               onClick={() => setTab(id)}
+              aria-pressed={tab === id}
               className={`relative flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 sm:px-7 py-3.5 text-sm font-medium transition-colors cursor-pointer ${
                 tab === id
-                  ? "text-indigo-600 dark:text-indigo-400"
+                  ? "text-brand-600 dark:text-brand-400"
                   : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
               }`}
             >
               <Icon className="w-4 h-4" />
               {label}
               {tab === id && (
-                <span className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-indigo-600 dark:bg-indigo-400" />
+                <span className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-brand-600 dark:bg-brand-400" />
               )}
             </button>
           ))}
@@ -472,7 +473,7 @@ export const PaymentAndUsageHistoryTabCard = () => {
               <button
                 type="button"
                 onClick={() => setErrors((prev) => ({ ...prev, [tab]: undefined }))}
-                className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 cursor-pointer"
+                className="text-sm font-medium text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 cursor-pointer"
               >
                 Try again
               </button>

@@ -1,133 +1,154 @@
 "use client";
 
-import React, { useState } from "react";
-import AlertMessagePopUp from "@/components/AlertMessagePopUp";
-import ConformationMessagePopUp from "@/components/ConformationMessagePopUp";
-import ImageZoomPopUp from "@/components/ImageZoomPopUp";
-import { Plus, Play, Sparkles, Image as ImageIcon, HelpCircle, AlertCircle } from "lucide-react";
+import { useRef, useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ArrowRight, BookOpenText, Clapperboard, Download, FolderOpen, Loader2, Palette, Plus, Users } from "lucide-react";
 import HomePageAllowOnlyTheseUserAccessCard from "@/components/HomePageAllowOnlyTheseUserAccessCard";
+import AlertMessagePopUp from "@/components/AlertMessagePopUp";
+import LibrarySearch from "@/components/LibrarySearch";
+import { useAuth } from "@/context/AuthContext";
+import { useProjects } from "@/context/ProjectsContext";
+
+const steps = [
+  { title: "Start with a script", icon: BookOpenText, heading: "Your story is the starting point.", copy: "Paste your own script into a project, or use the script studio to research topics and write one.", detail: "For explainers, stories, documentaries, and short-form videos." },
+  { title: "Create each scene", icon: Clapperboard, heading: "Turn words into visual scenes.", copy: "Split the script into scenes. Choose reusable characters and a visual style, then generate images and animations.", detail: "Edit prompts, regenerate a scene, or upload your own media." },
+  { title: "Download your assets", icon: Download, heading: "Ready for your video editor.", copy: "Download scene images, animations, and the thumbnail. Assemble the final video in your preferred editing software.", detail: "vgAI creates the assets — it does not export a finished edited video." },
+];
 
 export default function Home() {
-  const [showAlert, setShowAlert] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [showImageZoom, setShowImageZoom] = useState(false);
+  const router = useRouter();
+  const { user, requireAuth, accessMode, loading: authLoading } = useAuth();
+  const { projects, loading, createProject } = useProjects();
+  const [creating, setCreating] = useState(false);
+  const creatingRef = useRef(false);
+  const [alert, setAlert] = useState<string | null>(null);
+  const [step, setStep] = useState(0);
+  const [query, setQuery] = useState("");
+  const [visibleCount, setVisibleCount] = useState(6);
+  const fullName = user?.user_metadata?.full_name;
+  const firstName = typeof fullName === "string" ? fullName.trim().split(/\s+/)[0] : "";
+  const returning = Boolean(user && projects.length);
+  const inviteOnly = !authLoading && !user && accessMode === "allowed_only";
+  const newestFirst = [...projects].sort((left, right) => Date.parse(right.created_at) - Date.parse(left.created_at));
+  const newest = newestFirst[0];
+  const filtered = newestFirst.filter((project) => project.name.toLowerCase().includes(query.trim().toLowerCase()));
+  const activeStep = steps[step];
+  const StepIcon = activeStep.icon;
+
+  const createNewProject = async () => {
+    if (creatingRef.current || !requireAuth()) return;
+    creatingRef.current = true;
+    setCreating(true);
+    try {
+      const project = await createProject(`Untitled project ${projects.length + 1}`);
+      router.push(`/project_folder/${project.id}`);
+    } catch (error) {
+      setAlert(error instanceof Error ? error.message : "Could not create the project. Please try again.");
+    } finally {
+      creatingRef.current = false;
+      setCreating(false);
+    }
+  };
 
   return (
-    <div className="flex flex-col gap-10 pb-16 animate-in fade-in duration-500">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+    <div className="home-page space-y-8 pb-12">
+      <section className="home-intro grid items-center gap-8 rounded-[2rem] border border-slate-200/80 bg-white p-6 sm:p-9 xl:grid-cols-[1.1fr_1fr] xl:p-12 dark:border-white/10 dark:bg-surface">
         <div>
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 dark:text-white">
-            Welcome to vgAI
+          <p className="eyebrow">{returning ? "Your video studio" : "Script → scenes → video assets"}</p>
+          <h1 className="mt-4 max-w-2xl text-balance text-4xl font-semibold leading-[1.08] tracking-[-.045em] text-slate-950 sm:text-5xl dark:text-white">
+            {returning ? `Welcome back${firstName ? `, ${firstName}` : ""}.` : <>Turn your script into <span className="text-brand-600 dark:text-brand-300">images & animations.</span></>}
           </h1>
-          <p className="mt-2 text-slate-500 dark:text-slate-400 text-[15px] max-w-xl leading-relaxed">
-            Create a project, paste your script, and let AI generate a fully structured scene-by-scene workflow.
+          <p className="mt-5 max-w-xl text-base leading-7 text-slate-600 dark:text-slate-300">
+            {returning ? "Continue a project below, or start a new story. Your characters and visual styles are ready to reuse." : "vgAI helps video creators break a script into scenes, generate matching visuals, and download the assets for editing. You stay in control of every scene."}
           </p>
-        </div>
-        <button className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 dark:hover:bg-indigo-500 text-white px-5 py-2.5 rounded-xl font-medium shadow-md shadow-indigo-200 dark:shadow-indigo-900/40 transition-all active:scale-95 w-full sm:w-auto justify-center cursor-pointer ring-1 ring-indigo-700 dark:ring-indigo-500">
-          <Plus className="w-5 h-5" />
-          <span>New Project</span>
-        </button>
-      </div>
-
-      <HomePageAllowOnlyTheseUserAccessCard />
-
-      {/* Feature highlight */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        {/* Card 1 */}
-        <div className="group bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 p-7 rounded-2xl shadow-sm hover:shadow-lg dark:hover:shadow-slate-900/50 hover:-translate-y-0.5 transition-all duration-200 backdrop-blur-sm">
-          <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center mb-5 group-hover:scale-105 transition-transform duration-200">
-            <Sparkles className="w-6 h-6" />
+          <div className="mt-7 flex flex-wrap gap-3">
+            {inviteOnly ? (
+              <a href="#request-access" className="studio-primary">Request access <ArrowRight className="h-4 w-4" /></a>
+            ) : (
+              <button onClick={createNewProject} disabled={creating || authLoading} className="studio-primary">
+                {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                {creating ? "Creating project…" : returning ? "New project" : "Start with my script"}
+              </button>
+            )}
+            <Link href="/generate_script" className="studio-secondary"><BookOpenText className="h-4 w-4" />{returning ? "Script studio" : "Help me write a script"}</Link>
           </div>
-          <h3 className="font-semibold text-[17px] text-slate-900 dark:text-slate-100">AI Scene Breakdown</h3>
-          <p className="mt-2.5 text-slate-500 dark:text-slate-400 text-[14px] leading-relaxed">
-            Automatically analyze long scripts and break them into a scene-by-scene structure for easy editing.
-          </p>
+          <p className="mt-4 text-xs leading-5 text-slate-500 dark:text-slate-400">{inviteOnly ? "Browse the tools now. An approved Google account is required to create." : "Creating a project does not spend credits. Generation costs are shown before you start."}</p>
         </div>
-
-        {/* Card 2 */}
-        <div className="group bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 p-7 rounded-2xl shadow-sm hover:shadow-lg dark:hover:shadow-slate-900/50 hover:-translate-y-0.5 transition-all duration-200 backdrop-blur-sm">
-          <div className="w-12 h-12 bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/30 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center mb-5 group-hover:scale-105 transition-transform duration-200">
-            <Play className="w-6 h-6 ml-1" />
+        {!returning ? (
+          <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 sm:p-6 dark:border-white/10 dark:bg-slate-900">
+            <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">How it works · select a step</p>
+            <div className="grid grid-cols-3 gap-2" aria-label="Explore the workflow">
+              {steps.map((item, index) => (
+                <button key={item.title} type="button" aria-pressed={step === index} aria-controls="workflow-detail" onClick={() => setStep(index)} className={`rounded-xl border px-2 py-3 text-left transition ${step === index ? "border-brand-300 bg-brand-50 text-brand-800 dark:border-brand-400/40 dark:bg-brand-400/10 dark:text-brand-200" : "border-transparent text-slate-500 hover:bg-white dark:text-slate-400 dark:hover:bg-white/5"}`}>
+                  <span className="mb-2 block text-xs font-semibold">0{index + 1}</span><span className="text-xs font-semibold leading-5 sm:text-sm">{item.title}</span>
+                </button>
+              ))}
+            </div>
+            <div id="workflow-detail" aria-live="polite" aria-atomic="true" className="min-h-64 pt-6">
+              <StepIcon aria-hidden="true" className="mb-4 h-8 w-8 text-brand-500 dark:text-brand-300" />
+              <h2 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-white">{activeStep.heading}</h2>
+              <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">{activeStep.copy}</p>
+              <p className="mt-4 border-t border-slate-200 pt-4 text-xs leading-5 text-slate-500 dark:border-white/10 dark:text-slate-400">{activeStep.detail}</p>
+            </div>
           </div>
-          <h3 className="font-semibold text-[17px] text-slate-900 dark:text-slate-100">Multi-Modal Generation</h3>
-          <p className="mt-2.5 text-slate-500 dark:text-slate-400 text-[14px] leading-relaxed">
-            Generate image prompts, animations, and voiceovers for each scene to bring your script to life.
-          </p>
-        </div>
-
-        {/* Card 3 */}
-        <div className="group bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 p-7 rounded-2xl shadow-sm hover:shadow-lg dark:hover:shadow-slate-900/50 hover:-translate-y-0.5 transition-all duration-200 backdrop-blur-sm">
-          <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400 rounded-xl flex items-center justify-center mb-5 group-hover:scale-105 transition-transform duration-200">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        ) : (
+          <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6 dark:border-white/10 dark:bg-slate-900">
+            <FolderOpen className="h-8 w-8 text-brand-500 dark:text-brand-300" />
+            <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">Your newest project</p>
+            <h2 className="mt-2 truncate text-xl font-semibold text-slate-900 dark:text-white">{newest?.name}</h2>
+            {newest && <Link href={`/project_folder/${newest.id}`} className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-brand-600 dark:text-brand-300">Open project <ArrowRight className="h-4 w-4" /></Link>}
           </div>
-          <h3 className="font-semibold text-[17px] text-slate-900 dark:text-slate-100">Reusable Assets</h3>
-          <p className="mt-2.5 text-slate-500 dark:text-slate-400 text-[14px] leading-relaxed">
-            Store consistent characters and prompt templates to ensure visual continuity across future projects.
-          </p>
-        </div>
-      </div>
+        )}
+      </section>
 
-      {/* Component Testing Section */}
-      <div className="bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl overflow-hidden shadow-sm hover:shadow-md dark:hover:shadow-slate-900/40 transition-shadow backdrop-blur-sm">
-        <div className="p-6 border-b border-slate-100 dark:border-slate-700/60">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Interactive Components</h2>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Test the newly created responsive UI modals with dummy data.</p>
-        </div>
-        <div className="p-6 grid grid-cols-1 sm:grid-cols-3 gap-4 bg-slate-50 dark:bg-slate-900/30">
-          <button 
-            onClick={() => setShowAlert(true)}
-            className="flex items-center justify-center gap-2 px-4 py-3 bg-white dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600/60 rounded-xl shadow-sm hover:border-indigo-300 dark:hover:border-indigo-500/50 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all font-medium text-slate-700 dark:text-slate-200 active:scale-95 cursor-pointer"
-          >
-            <AlertCircle className="w-4 h-4 text-slate-400 dark:text-slate-400" />
-            Alert Modal
-          </button>
-          
-          <button 
-            onClick={() => setShowConfirm(true)}
-            className="flex items-center justify-center gap-2 px-4 py-3 bg-white dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600/60 rounded-xl shadow-sm hover:border-indigo-300 dark:hover:border-indigo-500/50 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all font-medium text-slate-700 dark:text-slate-200 active:scale-95 cursor-pointer"
-          >
-            <HelpCircle className="w-4 h-4 text-slate-400 dark:text-slate-400" />
-            Confirmation Modal
-          </button>
-          
-          <button 
-            onClick={() => setShowImageZoom(true)}
-            className="flex items-center justify-center gap-2 px-4 py-3 bg-white dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600/60 rounded-xl shadow-sm hover:border-indigo-300 dark:hover:border-indigo-500/50 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all font-medium text-slate-700 dark:text-slate-200 active:scale-95 cursor-pointer"
-          >
-            <ImageIcon className="w-4 h-4 text-slate-400 dark:text-slate-400" />
-            Image Zoom
-          </button>
-        </div>
-      </div>
+      {inviteOnly && <div id="request-access" className="scroll-mt-6"><HomePageAllowOnlyTheseUserAccessCard /></div>}
 
-      {/* Popups */}
-      <AlertMessagePopUp 
-        isOpen={showAlert} 
-        onClose={() => setShowAlert(false)} 
-        title="Scene Breakdown Complete" 
-        message="Your script has been successfully analyzed and broken down into 12 editable scenes. You can now start assigning characters and generating prompts."
-        type="success"
-      />
-      
-      <ConformationMessagePopUp 
-        isOpen={showConfirm} 
-        onClose={() => setShowConfirm(false)} 
-        onConfirm={() => { console.log("Confirmed"); setShowConfirm(false); }}
-        title="Delete Scene" 
-        message="Are you sure you want to delete this scene? This action cannot be undone and you will lose any generated prompts and images associated with it."
-        confirmText="Delete"
-        cancelText="Cancel"
-        isDestructive={true}
-      />
-      
-      <ImageZoomPopUp 
-        isOpen={showImageZoom} 
-        onClose={() => setShowImageZoom(false)} 
-        imageUrl="https://res.cloudinary.com/ddya4o2yl/image/upload/v1760289936/WhatsApp_Image_2025-10-12_at_23.01.18_ea645293_xgycdn.jpg"
-        alt="Dummy generated scene image"
-      />
+      {(user || authLoading) && (
+        <section id="your-projects" className="scroll-mt-6 space-y-5" aria-busy={loading || authLoading}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Your projects</h2>
+            <Link href="/liked_projects" className="text-sm font-medium text-brand-600 dark:text-brand-300">Liked projects →</Link>
+          </div>
+          {!loading && !authLoading && projects.length > 0 && <LibrarySearch value={query} onChange={(value) => { setQuery(value); setVisibleCount(6); }} label="Search your projects" count={filtered.length} />}
+          {loading || authLoading ? (
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{[0, 1, 2].map((item) => <div key={item} className="h-48 animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-800" />)}</div>
+          ) : projects.length === 0 ? (
+            <div className="rounded-3xl border border-dashed border-slate-300 p-8 text-center dark:border-white/15">
+              <h3 className="font-semibold text-slate-900 dark:text-white">Your first video starts with a script.</h3>
+              <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500 dark:text-slate-400">Create a project, paste your script, and choose a visual style. You can edit everything as you go.</p>
+              <button onClick={createNewProject} disabled={creating} className="studio-primary mt-5"><Plus className="h-4 w-4" />Create a project</button>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-center dark:border-white/15"><p className="text-slate-600 dark:text-slate-300">No projects match your search.</p><button onClick={() => setQuery("")} className="mt-3 text-sm font-semibold text-brand-600 dark:text-brand-300">Clear search</button></div>
+          ) : (
+            <>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {filtered.slice(0, visibleCount).map((project) => (
+                  <Link key={project.id} href={`/project_folder/${project.id}`} className="group overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:border-brand-300 hover:shadow-lg dark:border-white/10 dark:bg-surface dark:hover:border-brand-400/40">
+                    <div className="relative flex aspect-video items-center justify-center bg-gradient-to-br from-brand-50 to-slate-100 dark:from-brand-400/10 dark:to-slate-900">
+                      {project.thumbnail_image_url ? <Image src={project.thumbnail_image_url} alt="" fill sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw" className="object-cover" /> : <Clapperboard className="h-8 w-8 text-brand-400" />}
+                    </div>
+                    <div className="flex items-center gap-3 p-5"><div className="min-w-0 flex-1"><h3 className="truncate font-semibold text-slate-900 dark:text-white">{project.name}</h3><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Open workspace</p></div><ArrowRight className="h-4 w-4 text-brand-500 transition group-hover:translate-x-1" /></div>
+                  </Link>
+                ))}
+              </div>
+              {visibleCount < filtered.length && <button onClick={() => setVisibleCount((count) => count + 6)} className="studio-secondary">Show more projects</button>}
+            </>
+          )}
+        </section>
+      )}
+
+      <section aria-label="Reusable creative libraries" className="grid gap-4 sm:grid-cols-2">
+        {[{ href: "/characters", icon: Users, title: "Keep your characters consistent", copy: "Browse starter characters or build your own reusable cast." }, { href: "/style_templates", icon: Palette, title: "Choose the look of your video", copy: "Explore starter styles, from cinematic to illustrated." }].map(({ href, icon: Icon, title, copy }) => (
+          <Link key={href} href={href} className="group flex items-start gap-4 rounded-2xl border border-slate-200 bg-white p-5 transition hover:border-brand-300 dark:border-white/10 dark:bg-surface dark:hover:border-brand-400/40">
+            <span className="rounded-xl bg-brand-50 p-3 text-brand-600 dark:bg-brand-400/10 dark:text-brand-300"><Icon className="h-5 w-5" /></span>
+            <div><h2 className="text-sm font-semibold text-slate-900 dark:text-white">{title}</h2><p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">{copy}</p></div>
+          </Link>
+        ))}
+      </section>
+      <AlertMessagePopUp isOpen={Boolean(alert)} onClose={() => setAlert(null)} title="Could not create project" message={alert ?? ""} type="error" />
     </div>
   );
 }
-
-

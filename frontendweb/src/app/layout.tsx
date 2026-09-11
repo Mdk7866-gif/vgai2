@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import SplashScreen from "@/components/SplashScreen";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/context/AuthContext";
 import { CreditBalanceProvider } from "@/context/CreditBalanceContext";
@@ -54,10 +53,6 @@ export default function RootLayout({
                     document.documentElement.classList.remove('dark');
                   }
                   
-                  var hasVisited = sessionStorage.getItem('vgai_has_visited');
-                  if (hasVisited) {
-                    document.documentElement.classList.add('hide-splash');
-                  }
                 } catch (e) {}
               })()
             `,
@@ -67,7 +62,6 @@ export default function RootLayout({
           <AuthProvider>
             <CreditBalanceProvider>
               <ProjectsProvider>
-                <SplashScreen />
                 {children}
                 <LoginModal />
                 <AccessRevokedModal />

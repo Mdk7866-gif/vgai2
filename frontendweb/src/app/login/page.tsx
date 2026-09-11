@@ -2,6 +2,7 @@
 
 import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Logo from "@/components/Logo";
 import { useAuth } from "@/context/AuthContext";
 
@@ -17,15 +18,15 @@ export default function LoginPage() {
 
   if (loading || user) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-[#fcfcfc] dark:bg-slate-950">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-indigo-600 dark:border-slate-700 dark:border-t-indigo-400" />
+      <div className="flex min-h-dvh w-full items-center justify-center bg-background">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-brand-600 dark:border-slate-700 dark:border-t-brand-400" />
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen w-full items-center justify-center bg-[#fcfcfc] dark:bg-slate-950 px-4">
-      <div className="w-full max-w-sm bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl shadow-sm p-8 flex flex-col items-center gap-6">
+    <div className="flex min-h-dvh w-full items-center justify-center bg-background px-4">
+      <div className="w-full max-w-md bg-white dark:bg-surface border border-slate-200 dark:border-border rounded-3xl shadow-xl shadow-brand-950/5 p-8 sm:p-10 flex flex-col items-center gap-6">
         <Logo />
 
         <div className="text-center">
@@ -33,7 +34,7 @@ export default function LoginPage() {
             Sign in to vgAI
           </h1>
           <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
-            Your AI-powered video production workspace.
+            Save your scripts, build reusable characters, and create scene-by-scene visuals.
           </p>
         </div>
 
@@ -61,6 +62,8 @@ export default function LoginPage() {
           </svg>
           Continue with Google
         </button>
+        <Link href="/" className="text-sm font-medium text-brand-600 hover:underline dark:text-brand-300">Keep exploring without signing in</Link>
+        <p className="text-center text-xs leading-5 text-slate-500 dark:text-slate-400">Learn how we handle your information in our <Link href="/privacy-policy" className="underline underline-offset-4">Privacy Policy</Link>.</p>
       </div>
     </div>
   );

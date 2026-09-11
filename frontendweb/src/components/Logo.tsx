@@ -9,19 +9,19 @@ export const Logo = ({ className = "" }: { className?: string }) => {
         viewBox="0 0 32 32"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
-        className="text-purple-600 dark:text-purple-400"
+        className="text-brand-600 dark:text-brand-400"
       >
-        <rect width="32" height="32" rx="8" fill="currentColor" fillOpacity="0.15" />
+        <rect width="32" height="32" rx="9" fill="currentColor" />
         <path
           d="M10 10L16 22L22 10"
-          stroke="currentColor"
+          stroke="white"
           strokeWidth="3"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
-        <circle cx="16" cy="16" r="3" fill="currentColor" />
+        <circle cx="16" cy="16" r="2.5" fill="white" />
       </svg>
-      <span className="font-bold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-blue-500 dark:from-purple-400 dark:to-blue-400">
+      <span className="text-xl font-bold tracking-[-.04em] text-slate-950 dark:text-white">
         vgAI
       </span>
     </div>

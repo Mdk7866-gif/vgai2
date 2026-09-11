@@ -34,7 +34,7 @@ const characterLine = (c: GeneratedScript["characters"][number]) => {
 };
 
 const inputClass =
-  "w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 transition-all";
+  "w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-400 transition-all";
 
 export const GeneratedScriptCard = ({
   generated,
@@ -70,7 +70,7 @@ export const GeneratedScriptCard = ({
   };
 
   return (
-    <div className="bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-2xl overflow-hidden shadow-sm">
+    <div className="bg-white dark:bg-surface border border-slate-200 dark:border-border rounded-2xl overflow-hidden shadow-sm">
       <div className="p-4 pb-3 flex items-start justify-between gap-3 border-b border-slate-100 dark:border-slate-700/60">
         <div className="flex items-center gap-3 min-w-0 flex-1">
           <div className="w-9 h-9 flex-shrink-0 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
@@ -120,7 +120,7 @@ export const GeneratedScriptCard = ({
             <button
               type="button"
               onClick={() => setExpanded((v) => !v)}
-              className="self-start flex items-center gap-1 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 cursor-pointer -mt-2"
+              className="self-start flex items-center gap-1 text-xs font-medium text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 cursor-pointer -mt-2"
             >
               {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
               {expanded ? "Collapse script" : "Expand script"}
@@ -141,7 +141,7 @@ export const GeneratedScriptCard = ({
                 {generated.characters.map((c, i) => (
                   <span
                     key={`${c.name}-${i}`}
-                    className="px-2.5 py-1 rounded-full text-[12px] font-medium bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-500/30"
+                    className="px-2.5 py-1 rounded-full text-[12px] font-medium bg-brand-50 dark:bg-brand-500/10 text-brand-700 dark:text-brand-300 border border-brand-100 dark:border-brand-500/30"
                   >
                     {characterLine(c)}
                   </span>
@@ -178,7 +178,7 @@ export const GeneratedScriptCard = ({
               <button
                 type="button"
                 onClick={() => onImport(generated)}
-                className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg shadow-md shadow-indigo-200 dark:shadow-indigo-900/40 transition-all active:scale-95 cursor-pointer"
+                className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-action-foreground bg-action hover:bg-action-hover rounded-lg shadow-md shadow-brand-200 dark:shadow-brand-900/40 transition-all active:scale-95 cursor-pointer"
               >
                 <FolderInput className="w-4 h-4" />
                 Import

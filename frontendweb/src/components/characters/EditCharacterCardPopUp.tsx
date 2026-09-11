@@ -125,7 +125,7 @@ export const EditCharacterCardPopUp = ({
 
       <form
         onSubmit={handleSubmit}
-        className="relative w-full sm:max-w-lg lg:max-w-3xl xl:max-w-4xl overflow-hidden rounded-t-3xl sm:rounded-2xl bg-white dark:bg-slate-800/95 shadow-2xl dark:shadow-slate-950/80 ring-1 ring-slate-200/80 dark:ring-slate-700/60 max-h-[90vh] flex flex-col"
+        className="relative w-full sm:max-w-lg lg:max-w-3xl xl:max-w-4xl overflow-hidden rounded-t-3xl sm:rounded-3xl bg-white dark:bg-surface shadow-2xl dark:shadow-slate-950/80 ring-1 ring-slate-200/80 dark:ring-border max-h-[90vh] flex flex-col"
       >
         <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700/60 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
@@ -142,7 +142,7 @@ export const EditCharacterCardPopUp = ({
         </div>
 
         {isProjectScope && (
-          <p className="mx-6 mt-5 px-3.5 py-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/30 text-[12.5px] text-indigo-700 dark:text-indigo-300 leading-relaxed">
+          <p className="mx-6 mt-5 px-3.5 py-2.5 rounded-xl bg-brand-50 dark:bg-brand-500/10 border border-brand-100 dark:border-brand-500/30 text-[12.5px] text-brand-700 dark:text-brand-300 leading-relaxed">
             You&apos;re editing this project&apos;s own copy — changes apply only here, not to the character in
             your library or any other project that imported it.
           </p>
@@ -170,8 +170,8 @@ export const EditCharacterCardPopUp = ({
                 onDrop={handleDrop}
                 className={`relative w-full aspect-video rounded-xl border-2 border-dashed overflow-hidden flex items-center justify-center transition-colors cursor-pointer ${
                   isDraggingOver
-                    ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10"
-                    : "border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/40 hover:border-indigo-400 dark:hover:border-indigo-500"
+                    ? "border-brand-500 bg-brand-50 dark:bg-brand-500/10"
+                    : "border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/40 hover:border-brand-400 dark:hover:border-brand-500"
                 }`}
               >
                 {previewUrl ? (
@@ -185,7 +185,7 @@ export const EditCharacterCardPopUp = ({
                 {previewUrl && (
                   <span
                     className={`absolute inset-0 bg-black/0 hover:bg-black/40 flex items-center justify-center text-white text-sm font-medium opacity-0 hover:opacity-100 transition-all ${
-                      isDraggingOver ? "bg-indigo-900/40 opacity-100" : ""
+                      isDraggingOver ? "bg-brand-900/40 opacity-100" : ""
                     }`}
                   >
                     {isDraggingOver ? "Drop to replace" : "Change image"}
@@ -204,7 +204,7 @@ export const EditCharacterCardPopUp = ({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Nick, 30, male"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 transition-all"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-400 transition-all"
               />
             </div>
 
@@ -236,7 +236,7 @@ export const EditCharacterCardPopUp = ({
               className={`w-full flex-1 min-h-[180px] lg:min-h-[260px] px-3.5 py-2.5 rounded-xl border bg-white dark:bg-slate-900/60 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 transition-all resize-none ${
                 overWordLimit
                   ? "border-red-300 dark:border-red-500/60 focus:ring-red-500/50 focus:border-red-400"
-                  : "border-slate-200 dark:border-slate-700 focus:ring-indigo-500/50 focus:border-indigo-400"
+                  : "border-slate-200 dark:border-slate-700 focus:ring-brand-500/50 focus:border-brand-400"
               }`}
             />
           </div>
@@ -257,7 +257,7 @@ export const EditCharacterCardPopUp = ({
           <button
             type="submit"
             disabled={submitting}
-            className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg shadow-md shadow-indigo-200 dark:shadow-indigo-900/40 transition-all active:scale-95 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-action-foreground bg-action hover:bg-action-hover rounded-lg shadow-md shadow-brand-200 dark:shadow-brand-900/40 transition-all active:scale-95 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
             {mode === "create" ? "Add Character" : "Save Changes"}
