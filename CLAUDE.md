@@ -33,11 +33,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `backend/` — FastAPI + uv Python backend
 - `frontendweb/` — Next.js (App Router) + Tailwind frontend
 - `vgaidatabase.dbml` — canonical database schema (Postgres/Supabase)
-- `vgaidatabase.sql` — the DDL for a fresh install, including the credit-accounting functions. Kept **byte-identical** to `vgai2admin/vgaidatabase.sql` as a readable snapshot of the one shared schema; if you change either, sync the other.
+- `vgaidatabase.sql` — the **sole canonical runnable DDL snapshot** for the shared vgAI/vgai2admin Supabase database, including the credit-accounting functions. The admin repo deliberately has no duplicate copy; whenever an admin-side migration changes the shared schema, update this file and `vgaidatabase.dbml` too.
 - `migration/` — incremental migrations for an existing DB, each run **by hand** in the Supabase SQL Editor (neither backend can execute DDL — they hold the Supabase REST service-role key, not a Postgres connection string). Both files here are already applied:
   - `migration/vgaidatabase_migration_credits.sql` — generation tokens + the atomic credit functions; the backend 500s on every paid endpoint until it's applied
   - `migration/vgaidatabase_migration_styletemplate_extras.sql` — adds `style_templates.best_for` / `.demo_image_url`; both nullable, so an un-migrated DB degrades to those fields reading null rather than erroring
-  - Note the **sibling repo's `vgai2admin/migration/` is the primary home for new migrations** (numbered, idempotent, with an applied checklist in its own `migration/README.md`) — the shared tables it added (`access_control_list`, `access_system_settings`, `admin_credit_grants`, `default_style_templates`, `default_characters`, `contact_submissions`) live there, not here. Put a new schema change there unless it is genuinely vgAI-only.
+  - Note the **sibling repo's `vgai2admin/migration/` is the primary home for new migrations** (numbered, idempotent, with an applied checklist in its own `migration/README.md`) — the shared tables it added (`access_control_list`, `access_system_settings`, `admin_credit_grants`, `default_style_templates`, `default_characters`, `contact_submissions`, `user_access_requests`) live there, not here. Put a new schema change there unless it is genuinely vgAI-only.
 - `README.md` — full product/feature spec, routes, page-by-page behavior
 - **Deployment (AWS EC2 + Docker + nginx + Let's Encrypt)** — planned and written, not yet deployed:
   - `awsdeployment.md` — the end-to-end runbook (instance sizing, security group, DNS, certificate issuance, build/start, post-deploy dashboard changes, day-2 ops, troubleshooting). **Read this before touching any deployment question.**
