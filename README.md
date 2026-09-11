@@ -2,6 +2,8 @@
 
 A production-grade AI studio SaaS designed for **AI faceless video creators** and long-form storytelling channels (educational, financial, historical, story-based content, etc.). Instead of generating an entire video in a single uneditable click, **vgAI** gives creators an organized, granular workspace to go from script → scenes → media assets, with full control at every step, for both **long-form videos** and **short-form videos** (YouTube Shorts style).
 
+> **Documentation maintenance:** Feature work is not complete until this README and the repository's `AGENTS.md` and `CLAUDE.md` reflect any material behavior or architecture changes. Cross-application and shared-schema changes must be documented in the matching files in the sibling `vgai2admin` repository too.
+
 ---
 
 ## 1. Product Vision
