@@ -5,6 +5,7 @@ import AlertMessagePopUp from "@/components/AlertMessagePopUp";
 import ConformationMessagePopUp from "@/components/ConformationMessagePopUp";
 import ImageZoomPopUp from "@/components/ImageZoomPopUp";
 import { Plus, Play, Sparkles, Image as ImageIcon, HelpCircle, AlertCircle } from "lucide-react";
+import HomePageAllowOnlyTheseUserAccessCard from "@/components/HomePageAllowOnlyTheseUserAccessCard";
 
 export default function Home() {
   const [showAlert, setShowAlert] = useState(false);
@@ -27,6 +28,8 @@ export default function Home() {
           <span>New Project</span>
         </button>
       </div>
+
+      <HomePageAllowOnlyTheseUserAccessCard />
 
       {/* Feature highlight */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">

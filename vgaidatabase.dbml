@@ -388,6 +388,22 @@ Table access_system_settings {
   updated_at timestamp [not null, default: `now()`]
 }
 
+Table user_access_requests {
+  id uuid [pk, default: `gen_random_uuid()`]
+  email varchar(320) [not null, unique]
+  purpose text
+  // DDL check: pending / approved / denied.
+  status varchar(20) [not null, default: 'pending']
+  requested_at timestamp [not null, default: `now()`]
+  reviewed_at timestamp
+  updated_at timestamp [not null, default: `now()`]
+
+  indexes {
+    (status, requested_at) [name: 'idx_user_access_requests_status']
+    requested_at [name: 'idx_user_access_requests_requested']
+  }
+}
+
 Table admin_credit_grants {
   id uuid [pk, default: `gen_random_uuid()`]
 

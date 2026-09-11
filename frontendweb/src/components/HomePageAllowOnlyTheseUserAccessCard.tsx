@@ -1,0 +1,108 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { CheckCircle2, Clock3, Loader2, Mail, ShieldCheck } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { authFetch } from "@/lib/api";
+
+type SubmitResponse = {
+  status: "pending" | "approved" | "denied";
+  message: string;
+};
+
+export default function HomePageAllowOnlyTheseUserAccessCard() {
+  const { accessMode, user } = useAuth();
+  const [email, setEmail] = useState("");
+  const [purpose, setPurpose] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<SubmitResponse | null>(null);
+
+  useEffect(() => {
+    if (user?.email) setEmail(user.email);
+  }, [user?.email]);
+
+  // AuthContext already fetches the public /users/access_status endpoint.
+  // Rendering from that shared value avoids a second mode request on Home.
+  if (accessMode !== "allowed_only") return null;
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!email.trim()) {
+      setError("Enter the Google account email you want to use with vgAI.");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    setResult(null);
+    try {
+      const response = await authFetch("/access-requests/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), purpose: purpose.trim() || null }),
+      });
+      setResult((await response.json()) as SubmitResponse);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not submit your request. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <section className="relative overflow-hidden rounded-3xl border border-indigo-200/80 bg-gradient-to-br from-indigo-50 via-white to-violet-50 p-6 shadow-sm dark:border-indigo-500/25 dark:from-indigo-950/45 dark:via-slate-900/80 dark:to-violet-950/35 sm:p-8">
+      <div className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-indigo-300/20 blur-3xl dark:bg-indigo-500/10" />
+      <div className="relative grid gap-7 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+        <div>
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-white/70 px-3 py-1.5 text-xs font-semibold text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-300">
+            <ShieldCheck className="h-3.5 w-3.5" />
+            vgAI is currently invite-only
+          </div>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+            Request early access
+          </h2>
+          <p className="mt-3 max-w-lg text-sm leading-6 text-slate-600 dark:text-slate-300">
+            Tell us which Google account you&apos;ll use. We review each request and add approved emails to the access list.
+          </p>
+          <div className="mt-5 flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
+            <Clock3 className="h-4 w-4 text-indigo-500" />
+            You can submit again later if a previous request was denied.
+          </div>
+        </div>
+
+        {result ? (
+          <div className="rounded-2xl border border-emerald-200 bg-white/85 p-6 shadow-sm dark:border-emerald-500/25 dark:bg-slate-900/75">
+            <CheckCircle2 className="h-9 w-9 text-emerald-500" />
+            <h3 className="mt-4 text-lg font-semibold text-slate-900 dark:text-white">
+              {result.status === "approved" ? "You’re already approved" : "Request received"}
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{result.message}</p>
+            {result.status === "approved" && (
+              <p className="mt-3 text-xs font-medium text-emerald-700 dark:text-emerald-300">Sign in using this exact Google email.</p>
+            )}
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="rounded-2xl border border-white/80 bg-white/85 p-5 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-900/75 sm:p-6">
+            <label htmlFor="access-request-email" className="block text-sm font-semibold text-slate-800 dark:text-slate-100">Google account email</label>
+            <div className="relative mt-2">
+              <Mail className="pointer-events-none absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+              <input id="access-request-email" type="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3.5 text-sm text-slate-900 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-950/60 dark:text-white" />
+            </div>
+
+            <label htmlFor="access-request-purpose" className="mt-4 block text-sm font-semibold text-slate-800 dark:text-slate-100">
+              What will you create? <span className="font-normal text-slate-400">(optional)</span>
+            </label>
+            <textarea id="access-request-purpose" value={purpose} onChange={(event) => setPurpose(event.target.value)} maxLength={1000} rows={4} placeholder="For example: history documentaries, educational Shorts, animated stories…" className="mt-2 w-full resize-none rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-950/60 dark:text-white" />
+            <div className="mt-1 text-right text-[11px] tabular-nums text-slate-400">{purpose.length}/1000</div>
+
+            {error && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
+            <button type="submit" disabled={submitting} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-200 transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60 dark:shadow-indigo-950/50">
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+              {submitting ? "Submitting…" : "Request access"}
+            </button>
+          </form>
+        )}
+      </div>
+    </section>
+  );
+}

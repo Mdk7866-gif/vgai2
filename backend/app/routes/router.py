@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from app.routes import users
+from app.routes.accessrequests import crud as accessrequests_crud
 from app.routes.characters import crud as characters_crud
 from app.routes.contact import crud as contact_crud
 from app.routes.characters import defaults as characters_defaults
@@ -22,6 +23,9 @@ from app.routes.project import animationgeneration
 api_router = APIRouter()
 
 api_router.include_router(users.router)
+# Public by design: users who need to request access cannot pass the normal
+# authenticated dependency while allowed_only mode excludes their email.
+api_router.include_router(accessrequests_crud.router)
 # Unauthenticated by design — see its module docstring for why the one action
 # a blocked/signed-out user must still be able to take isn't behind auth.
 api_router.include_router(contact_crud.router)

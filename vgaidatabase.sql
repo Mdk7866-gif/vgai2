@@ -377,6 +377,25 @@ create table access_system_settings (
 
 insert into access_system_settings (id, mode) values (1, 'allowed_all');
 
+-- Access requests submitted from vgAI's public home page while the site is in
+-- allowed_only mode. Approval also adds the email to access_control_list.
+create table user_access_requests (
+  id uuid primary key default gen_random_uuid(),
+  email varchar(320) not null unique,
+  purpose text,
+  status text not null default 'pending'
+    check (status in ('pending', 'approved', 'denied')),
+  requested_at timestamp not null default now(),
+  reviewed_at timestamp,
+  updated_at timestamp not null default now()
+);
+
+create index idx_user_access_requests_status
+  on user_access_requests (status, requested_at desc);
+
+create index idx_user_access_requests_requested
+  on user_access_requests (requested_at desc);
+
 -- Admin-granted free credits. Deliberately not extra credit_topups rows: that
 -- table requires a unique razorpay_order_id, so a grant would need a fabricated
 -- one polluting payment history and Razorpay reconciliation. Keeping them apart
@@ -668,6 +687,7 @@ alter table credit_topups enable row level security;
 -- with the service-role key, which bypasses RLS.
 alter table access_control_list enable row level security;
 alter table access_system_settings enable row level security;
+alter table user_access_requests enable row level security;
 alter table admin_credit_grants enable row level security;
 alter table default_style_templates enable row level security;
 alter table default_characters enable row level security;

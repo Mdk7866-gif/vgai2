@@ -47,7 +47,7 @@ Credits are **reserved before the AI provider is called**, not deducted after it
 
 | Route | Description |
 |---|---|
-| `/` | Home |
+| `/` | Home; while access mode is `allowed_only`, shows the public access-request form |
 | `/project_folder/{project_id}` | Dynamic project workspace (Next.js dynamic route) |
 | `/characters` | Character library |
 | `/style_templates` | Style template library |
@@ -73,6 +73,10 @@ Credits are **reserved before the AI provider is called**, not deducted after it
 ---
 
 ## 5. Page-by-Page Features
+
+### `/` — invite-only access requests
+
+`HomePageAllowOnlyTheseUserAccessCard.tsx` renders only when the public access mode from `AuthContext` is `allowed_only`. It accepts the Google-account email plus an optional description of what the visitor plans to create, and submits without requiring authentication to `POST /access-requests/`. One normalized email has one `user_access_requests` row: pending/approved submissions are returned idempotently, while a denied request may be submitted again and becomes pending. The admin reviews these in vgai2admin's `/useraccessrequest`; approval adds the email to the existing `access_control_list` allowed list. Migration `vgai2admin/migration/002_user_access_requests.sql` is applied to the shared Supabase project.
 
 ### `/characters`
 
