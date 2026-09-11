@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { CheckCircle2, Clock3, Loader2, Mail, ShieldCheck } from "lucide-react";
+import { useState } from "react";
+import { CheckCircle2, Clock3, Loader2, Mail, ShieldCheck, Sparkles } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { authFetch } from "@/lib/api";
 
@@ -11,20 +11,47 @@ type SubmitResponse = {
 };
 
 export default function HomePageAllowOnlyTheseUserAccessCard() {
-  const { accessMode, user } = useAuth();
+  const { accessMode, loading, user } = useAuth();
   const [email, setEmail] = useState("");
   const [purpose, setPurpose] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SubmitResponse | null>(null);
 
-  useEffect(() => {
-    if (user?.email) setEmail(user.email);
-  }, [user?.email]);
-
   // AuthContext already fetches the public /users/access_status endpoint.
   // Rendering from that shared value avoids a second mode request on Home.
-  if (accessMode !== "allowed_only") return null;
+  // A signed-out visitor needs the public mode before we know which panel is
+  // correct. A resolved signed-in user can be welcomed immediately.
+  if (loading || (!user && accessMode === null)) return null;
+
+  if (user || accessMode === "allowed_all") {
+    const fullName = user?.user_metadata?.full_name;
+    const firstName = typeof fullName === "string" ? fullName.trim().split(/\s+/)[0] : null;
+
+    return (
+      <section className="relative overflow-hidden rounded-3xl border border-indigo-200/80 bg-gradient-to-r from-indigo-50 via-white to-violet-50 p-6 shadow-sm dark:border-indigo-500/25 dark:from-indigo-950/45 dark:via-slate-900/80 dark:to-violet-950/35 sm:p-8">
+        <div className="pointer-events-none absolute -right-16 -top-20 h-52 w-52 rounded-full bg-violet-300/25 blur-3xl dark:bg-violet-500/10" />
+        <div className="relative flex items-start gap-4">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-md shadow-indigo-200 dark:shadow-indigo-950/50">
+            <Sparkles className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-indigo-600 dark:text-indigo-300">
+              {user ? "Your creative workspace" : "Open access"}
+            </div>
+            <h2 className="mt-1.5 text-xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-2xl">
+              {firstName ? `Welcome back, ${firstName}` : "Welcome to vgAI"}
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+              {user
+                ? "You’re all set. Start a new project or continue building with your saved characters and style templates."
+                : "vgAI is currently open to everyone. Explore the creative tools and sign in with Google when you’re ready to start building."}
+            </p>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();

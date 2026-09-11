@@ -16,7 +16,7 @@ It also has equivalent local OpenAI tooling for the shared `default_characters` 
 
 ## Invite-only access requests
 
-When `access_system_settings.mode = 'allowed_only'`, Home renders `HomePageAllowOnlyTheseUserAccessCard.tsx`, using `AuthContext.accessMode` from the existing public `GET /users/access_status` call. The unauthenticated `POST /access-requests/` route writes one normalized-email row to shared `user_access_requests`; a denied email can resubmit, while pending/approved requests are idempotent. vgai2admin's `/useraccessrequest` page approves (inserting into `access_control_list` as `allowed`) or denies. The schema in `vgai2admin/migration/002_user_access_requests.sql` is applied to the shared Supabase project.
+Home's `HomePageAllowOnlyTheseUserAccessCard.tsx` uses `AuthContext.accessMode` from the existing public `GET /users/access_status` call and waits for the state needed to choose the correct panel. The request form appears **only** when mode is `allowed_only` and the visitor is signed out; signed-in users and everyone in `allowed_all` see a welcome panel instead. The unauthenticated `POST /access-requests/` route writes one normalized-email row to shared `user_access_requests`; a denied email can resubmit, while pending/approved requests are idempotent. vgai2admin's `/useraccessrequest` page approves (inserting into `access_control_list` as `allowed`) or denies, and can permanently delete a reviewed request without altering the allowed list. The schema in `vgai2admin/migration/002_user_access_requests.sql` is applied to the shared Supabase project.
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
