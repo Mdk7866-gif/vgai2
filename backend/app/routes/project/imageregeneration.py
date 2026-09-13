@@ -20,7 +20,7 @@ from app.routes.project.imagegeneration import (
     _image_size_for,
     _model_quality_and_cost,
 )
-from app.openai_client import OPENAI_TEXT_MODEL
+from app.openai_client import OPENAI_TEXT_MODEL, OPENAI_TEXT_REASONING_EFFORT
 from app.routes.project.projectcrud import _get_owned_project
 from app.routes.project.scenesplitcommon import format_style_brief
 from app.schemas.scene import GenerateSceneImageRequest, GenerateSceneImageResponse, Scene
@@ -72,7 +72,12 @@ class _ImageAnimationPromptRewrite(BaseModel):
 
 
 def _rewrite_llm() -> ChatOpenAI:
-    return ChatOpenAI(model=OPENAI_TEXT_MODEL, api_key=settings.CHATGPT_PAID_API_KEY, temperature=0.8)
+    return ChatOpenAI(
+        model=OPENAI_TEXT_MODEL,
+        api_key=settings.CHATGPT_PAID_API_KEY,
+        temperature=0.8,
+        reasoning_effort=OPENAI_TEXT_REASONING_EFFORT,
+    )
 
 
 def _reference_urls_for_scene(scene_id: str) -> list[str]:

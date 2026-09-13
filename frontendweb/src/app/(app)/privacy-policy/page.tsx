@@ -220,18 +220,13 @@ export default function PrivacyPolicyPage() {
                   </tr>
                   <tr>
                     <td className="py-2 pr-4 align-top text-slate-800 dark:text-slate-100">OpenAI</td>
-                    <td className="py-2 pr-4 align-top">Character/style-template/scene image generation, some prompt rewriting</td>
+                    <td className="py-2 pr-4 align-top">Character/style-template generation, scene splitting, scene image generation, prompt rewriting</td>
                     <td className="py-2 align-top">Prompts, scripts, generated images</td>
                   </tr>
                   <tr>
                     <td className="py-2 pr-4 align-top text-slate-800 dark:text-slate-100">OpenRouter (Anthropic Claude, Perplexity, video models)</td>
                     <td className="py-2 pr-4 align-top">Script generation, topic research, scene splitting, animation generation</td>
                     <td className="py-2 align-top">Scripts, prompts, scene images used as animation reference frames</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2 pr-4 align-top text-slate-800 dark:text-slate-100">Google Gemini</td>
-                    <td className="py-2 pr-4 align-top">Higher-tier (&ldquo;Pro&rdquo;) scene splitting</td>
-                    <td className="py-2 align-top">Scripts, character/style-template data</td>
                   </tr>
                   <tr>
                     <td className="py-2 pr-4 align-top text-slate-800 dark:text-slate-100">Cloudinary</td>

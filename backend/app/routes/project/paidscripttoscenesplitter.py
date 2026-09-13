@@ -1,5 +1,3 @@
-import math
-
 from fastapi import APIRouter, Depends, HTTPException
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
@@ -8,12 +6,16 @@ from supabase_auth.types import User as SupabaseUser
 from app.auth import get_current_user
 from app.config import settings
 from app.credits import refund_project_credits, reserve_project_credits
-from app.gemini_client import GEMINI_PRO_TEXT_MODEL, get_gemini_chat_model
-from app.openai_client import OPENAI_TEXT_MODEL
+from app.openai_client import (
+    OPENAI_PRO_SCENE_SPLIT_MODEL,
+    OPENAI_PRO_SCENE_SPLIT_REASONING_EFFORT,
+    OPENAI_TEXT_MODEL,
+    OPENAI_TEXT_REASONING_EFFORT,
+)
 from app.routes.project.projectcrud import _get_owned_project
 from app.routes.project.scenesplitcommon import (
-    WORDS_PER_CREDIT_AUTO,
     SceneSplitDraft,
+    automatic_scene_split_cost,
     format_characters,
     format_style_brief,
     persist_scene_split,
@@ -53,9 +55,19 @@ SCENE_SPLIT_SYSTEM_MESSAGE = (
 
 async def _build_scene_split_draft(project: dict, characters: list[dict], script: str) -> SceneSplitDraft:
     if project["llm_model_id"] == "pro":
-        llm = get_gemini_chat_model(GEMINI_PRO_TEXT_MODEL, temperature=0.6)
+        llm = ChatOpenAI(
+            model=OPENAI_PRO_SCENE_SPLIT_MODEL,
+            api_key=settings.CHATGPT_PAID_API_KEY,
+            temperature=0.6,
+            reasoning_effort=OPENAI_PRO_SCENE_SPLIT_REASONING_EFFORT,
+        )
     else:
-        llm = ChatOpenAI(model=OPENAI_TEXT_MODEL, api_key=settings.CHATGPT_PAID_API_KEY, temperature=0.6)
+        llm = ChatOpenAI(
+            model=OPENAI_TEXT_MODEL,
+            api_key=settings.CHATGPT_PAID_API_KEY,
+            temperature=0.6,
+            reasoning_effort=OPENAI_TEXT_REASONING_EFFORT,
+        )
 
     structured_llm = llm.with_structured_output(SceneSplitDraft)
 
@@ -93,7 +105,7 @@ async def generate_scenes_automatic(
         raise HTTPException(status_code=400, detail="Import a style template before generating scenes.")
 
     word_count = len(script.split())
-    cost = math.ceil(word_count / WORDS_PER_CREDIT_AUTO)
+    cost = automatic_scene_split_cost(word_count, project.get("llm_model_id"))
 
     characters = (
         supabase.table("project_characters")

@@ -19,7 +19,7 @@ interface AdvancedSettingsPopUpProps {
 
 const LLM_OPTIONS: { id: LlmModelTier; label: string; description: string }[] = [
   { id: "base", label: "Base", description: "GPT-5.6 Luna — fast, cost-efficient scene splitting for most scripts." },
-  { id: "pro", label: "Pro", description: "Gemini 3 Pro — stronger reasoning for long or complex scripts." },
+  { id: "pro", label: "Pro", description: "GPT-5.6 Terra — stronger reasoning for long or complex scripts." },
 ];
 
 const IMAGE_OPTIONS: { id: ImageModelTier; label: string; description: string; cost: number }[] = [

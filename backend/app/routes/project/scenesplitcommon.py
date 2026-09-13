@@ -1,11 +1,12 @@
 """Shared scene-split types and persistence logic used by both the paid
-(LLM-driven, paidscripttoscenesplitter.py) and free (paste-from-gemini.com,
+(LLM-driven, paidscripttoscenesplitter.py) and free (paste-from-ChatGPT,
 freescripttoscenesplitter.py) "Generate Scenes" flows. The two differ only in
 how a SceneSplitDraft gets produced — one calls an LLM, the other parses a
 JSON blob the user pasted back — everything after that (replacing the
 project's scene batch, writing video metadata) is identical.
 """
 
+import math
 from typing import Any, cast
 
 from pydantic import BaseModel
@@ -13,11 +14,18 @@ from pydantic import BaseModel
 from app.cloudinary import delete_media
 from app.supabase import supabase
 
-# 1 credit per 10 words of script for the automatic (LLM) splitter; the manual
-# splitter (paste-from-gemini.com) is 1 credit per 100 words — no provider is
-# billed on that path, so it's priced 10x cheaper.
-WORDS_PER_CREDIT_AUTO = 10
-WORDS_PER_CREDIT_MANUAL = 100
+# Manual splitting is 1 credit per 200 script words. Automatic Base costs 2x
+# the manual rate (1 credit per 100 words); Automatic Pro costs exactly 3x the
+# Base credit cost. Keep the frontend mirrors in sync.
+WORDS_PER_CREDIT_MANUAL = 200
+WORDS_PER_CREDIT_AUTO_BASE = WORDS_PER_CREDIT_MANUAL // 2
+AUTOMATIC_PRO_COST_MULTIPLIER = 3
+
+
+def automatic_scene_split_cost(word_count: int, llm_model_id: str | None) -> int:
+    """Returns the authoritative tier-aware automatic scene-splitting cost."""
+    base_cost = math.ceil(word_count / WORDS_PER_CREDIT_AUTO_BASE)
+    return base_cost * AUTOMATIC_PRO_COST_MULTIPLIER if llm_model_id == "pro" else base_cost
 
 
 class SceneDraft(BaseModel):

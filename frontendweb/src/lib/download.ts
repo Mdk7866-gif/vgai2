@@ -65,7 +65,7 @@ const fetchImageAsPng = async (url: string): Promise<Blob> => {
 };
 
 /** Copies one or more hosted images to the clipboard as image/png, so they can
- * be pasted directly into gemini.com alongside the manual-scene-split prompt.
+ * be pasted directly into ChatGPT alongside the manual-scene-split prompt.
  * Each ClipboardItem is built from a Promise (not an already-resolved Blob) so
  * the fetch/convert work can happen after `navigator.clipboard.write` is called
  * — that call itself must stay synchronous within the click handler's call

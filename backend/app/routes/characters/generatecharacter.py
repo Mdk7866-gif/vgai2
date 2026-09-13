@@ -8,7 +8,13 @@ from supabase_auth.types import User as SupabaseUser
 from app.auth import get_current_user
 from app.config import settings
 from app.credits import refund_misc_credits, reserve_misc_credits
-from app.openai_client import OPENAI_IMAGE_BASE_MODEL, OPENAI_IMAGE_PRO_MODEL, OPENAI_TEXT_MODEL, openai_client
+from app.openai_client import (
+    OPENAI_IMAGE_BASE_MODEL,
+    OPENAI_IMAGE_PRO_MODEL,
+    OPENAI_TEXT_MODEL,
+    OPENAI_TEXT_REASONING_EFFORT,
+    openai_client,
+)
 from app.schemas.character import GenerateCharacterSheetResponse
 
 router = APIRouter(prefix="/characters", tags=["characters"])
@@ -54,7 +60,12 @@ async def _build_character_prompt(
     reference_bytes: bytes | None,
     reference_mime: str | None,
 ) -> str:
-    llm = ChatOpenAI(model=OPENAI_TEXT_MODEL, api_key=settings.CHATGPT_PAID_API_KEY, temperature=0.7)
+    llm = ChatOpenAI(
+        model=OPENAI_TEXT_MODEL,
+        api_key=settings.CHATGPT_PAID_API_KEY,
+        temperature=0.7,
+        reasoning_effort=OPENAI_TEXT_REASONING_EFFORT,
+    )
 
     content: list[dict] = [
         {"type": "text", "text": f"Character name: {name}\nDescription: {description}"}

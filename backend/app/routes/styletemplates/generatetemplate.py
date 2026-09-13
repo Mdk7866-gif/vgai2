@@ -8,7 +8,7 @@ from app.auth import get_current_user
 from app.cloudinary import upload_image_bytes
 from app.config import settings
 from app.credits import refund_misc_credits, reserve_misc_credits
-from app.openai_client import OPENAI_TEXT_MODEL, openai_client
+from app.openai_client import OPENAI_TEXT_MODEL, OPENAI_TEXT_REASONING_EFFORT, openai_client
 from app.schemas.styletemplate import GenerateStyleTemplateRequest, GenerateStyleTemplateResponse
 
 from .crud import (
@@ -106,7 +106,12 @@ def _truncate_words(text: str, max_words: int) -> str:
 async def _build_style_template_draft(
     template_name: str, description: str, aspect_ratio: str
 ) -> _StyleTemplateDraft:
-    llm = ChatOpenAI(model=OPENAI_TEXT_MODEL, api_key=settings.CHATGPT_PAID_API_KEY, temperature=0.7)
+    llm = ChatOpenAI(
+        model=OPENAI_TEXT_MODEL,
+        api_key=settings.CHATGPT_PAID_API_KEY,
+        temperature=0.7,
+        reasoning_effort=OPENAI_TEXT_REASONING_EFFORT,
+    )
     structured_llm = llm.with_structured_output(_StyleTemplateDraft)
 
     video_format_label = "Long-form video (16:9 landscape)" if aspect_ratio == "16:9" else "Shorts/Reels (9:16 vertical)"

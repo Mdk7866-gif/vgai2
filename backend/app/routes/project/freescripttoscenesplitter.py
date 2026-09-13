@@ -40,9 +40,9 @@ def _validate_manual_preconditions(project: dict) -> tuple[str, int]:
 
 
 def _parse_manual_response(raw: str) -> SceneSplitDraft:
-    """Parses the JSON the user pasted back from gemini.com, tolerating the same
+    """Parses the JSON the user pasted back from ChatGPT, tolerating the same
     markdown code-fence wrapping viralscripttopicresearch.py's Perplexity parser
-    guards against — Gemini's raw chat output isn't guaranteed to be bare JSON
+    guards against — a raw chat response isn't guaranteed to be bare JSON
     even when asked for it."""
     text = raw.strip()
     if text.startswith("```"):
@@ -81,7 +81,7 @@ async def generate_scenes_manual_charge(
     """Charges for manual scene-splitting the instant the "Generate Scenes
     (Manual)" trigger button is clicked, before GenerateScenesManualPopUp.tsx
     opens and reveals the copy-paste prompt. Without this, a user could open the
-    popup, copy the prompt, run it through gemini.com, and use the resulting
+    popup, copy the prompt, run it through ChatGPT, and use the resulting
     scene split entirely outside vgAI without ever pasting a result back or
     paying anything — charging on paste-back only works if the paste-back is
     guaranteed to happen, and it isn't. Mirrors imagegeneration.py's
@@ -101,7 +101,7 @@ async def generate_scenes_manual(
     current_user: SupabaseUser = Depends(get_current_user),
 ):
     """Free/manual counterpart to /generate_automatic. No LLM call happens here —
-    the user ran our prompt through gemini.com themselves and pastes back the
+    the user ran our prompt through ChatGPT themselves and pastes back the
     structured JSON response, which this endpoint validates and persists through
     the same path /generate_automatic uses. Charges nothing itself — the credits
     were already reserved by generate_manual_charge above the moment the popup

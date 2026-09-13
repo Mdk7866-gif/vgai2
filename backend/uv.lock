@@ -84,7 +84,6 @@ source = { editable = "." }
 dependencies = [
     { name = "cloudinary" },
     { name = "fastapi" },
-    { name = "langchain-google-genai" },
     { name = "langchain-openai" },
     { name = "langgraph" },
     { name = "openai" },
@@ -106,7 +105,6 @@ dev = [
 requires-dist = [
     { name = "cloudinary", specifier = ">=1.44.1" },
     { name = "fastapi", specifier = ">=0.129.0" },
-    { name = "langchain-google-genai", specifier = ">=4.3.2" },
     { name = "langchain-openai", specifier = ">=1.2.1" },
     { name = "langgraph", specifier = ">=1.2.0" },
     { name = "openai", specifier = ">=2.38.0" },

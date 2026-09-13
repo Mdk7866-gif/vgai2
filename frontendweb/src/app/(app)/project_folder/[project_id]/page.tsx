@@ -44,10 +44,12 @@ import type {
   GenerateScenesManualChargeResponse,
 } from "@/types/scene";
 
-const WORDS_PER_CREDIT_AUTO = 10;
-// Mirrors app/routes/project/scenesplitcommon.py's WORDS_PER_CREDIT_MANUAL —
-// 10x cheaper per word than automatic since no provider is billed.
-const WORDS_PER_CREDIT_MANUAL = 100;
+// Mirrors app/routes/project/scenesplitcommon.py. Manual is 1 credit per 200
+// words; Automatic Base is 2x and Automatic Pro is 20x the manual price.
+const WORDS_PER_CREDIT_MANUAL = 200;
+const WORDS_PER_CREDIT_AUTO_BASE = WORDS_PER_CREDIT_MANUAL / 2;
+const AUTOMATIC_PRO_COST_MULTIPLIER = 3;
+const BASE_GENERATION_SECONDS_PER_1000_WORDS = 30;
 // Mirrors app/routes/project/imagegeneration.py's SCENES_PER_CREDIT_MANUAL.
 const SCENES_PER_CREDIT_MANUAL = 5;
 
@@ -233,7 +235,16 @@ export default function ProjectFolderPage() {
   }, [projectId]);
 
   const wordCount = useMemo(() => countWords(scriptDraft), [scriptDraft]);
-  const automaticCost = Math.ceil(wordCount / WORDS_PER_CREDIT_AUTO) || 0;
+  const baseAutomaticCost = Math.ceil(wordCount / WORDS_PER_CREDIT_AUTO_BASE) || 0;
+  const isProSceneSplit = project?.llm_model_id === "pro";
+  const automaticCost = isProSceneSplit ? baseAutomaticCost * AUTOMATIC_PRO_COST_MULTIPLIER : baseAutomaticCost;
+  const estimatedAutomaticSeconds = Math.max(
+    BASE_GENERATION_SECONDS_PER_1000_WORDS,
+    Math.ceil(wordCount / 1000) * BASE_GENERATION_SECONDS_PER_1000_WORDS,
+  ) * (isProSceneSplit ? 2 : 1);
+  const estimatedAutomaticWait = estimatedAutomaticSeconds >= 60
+    ? `${Math.floor(estimatedAutomaticSeconds / 60)} minute${Math.floor(estimatedAutomaticSeconds / 60) === 1 ? "" : "s"}${estimatedAutomaticSeconds % 60 ? ` ${estimatedAutomaticSeconds % 60} seconds` : ""}`
+    : `${estimatedAutomaticSeconds} seconds`;
   const manualCost = Math.ceil(wordCount / WORDS_PER_CREDIT_MANUAL) || 0;
   const manualImageCost = Math.ceil(scenes.length / SCENES_PER_CREDIT_MANUAL) || 0;
   const hasStyleTemplate = !!project?.snapshot_styletemplate_name;
@@ -819,7 +830,7 @@ export default function ProjectFolderPage() {
           className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-action-foreground bg-action hover:bg-action-hover rounded-xl shadow-md shadow-brand-200 dark:shadow-brand-900/40 transition-all active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {generatingScenes ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-          Generate Scenes (Automatic)
+          {generatingScenes ? "Generating Scenes…" : "Generate Scenes (Automatic)"}
           {wordCount > 0 && (
             <span className="flex items-center gap-1 pl-2 ml-1 border-l border-white/30 text-white/90">
               <CreditCoinIcon className="w-3.5 h-3.5" />
@@ -827,6 +838,12 @@ export default function ProjectFolderPage() {
             </span>
           )}
         </button>
+
+        {generatingScenes && (
+          <p role="status" className="basis-full text-xs text-brand-700 dark:text-brand-300">
+            Generating scenes with {isProSceneSplit ? "Pro" : "Base"} model. This script usually takes about {estimatedAutomaticWait}; please wait.
+          </p>
+        )}
 
         <button
           onClick={handleOpenManualScenes}

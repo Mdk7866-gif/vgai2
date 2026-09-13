@@ -10,8 +10,8 @@ from app.openrouter_client import OPENROUTER_BASE_URL
 # cheaper/shorter 5s clip, "pro" a pricier/longer 6s clip (see
 # animationgeneration.py for the credit-cost pairing). Video-modality models on
 # OpenRouter (https://openrouter.ai/docs/guides/overview/multimodal/video-generation),
-# not Gemini/Veo directly — that raw-SDK path was removed in favor of routing
-# every provider through OpenRouter like the rest of the app's AI calls.
+# through OpenRouter's video API, rather than a direct provider SDK, so the
+# job submission and polling flow stays consistent with the rest of the app.
 ANIMATION_BASE_MODEL = "alibaba/wan-2.6"
 ANIMATION_PRO_MODEL = "google/veo-3.1-lite"
 ANIMATION_BASE_DURATION_SECONDS = 5
