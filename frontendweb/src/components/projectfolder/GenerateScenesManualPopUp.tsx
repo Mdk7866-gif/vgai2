@@ -21,6 +21,128 @@ const countWords = (text: string) => {
   return trimmed === "" ? 0 : trimmed.split(/\s+/).length;
 };
 
+type PreparedManualResponse = {
+  json: string;
+  repairedUnescapedQuotes: boolean;
+  discardedRepeatedResponse: boolean;
+};
+
+/** Gemini is asked for strict JSON, but a long response can still contain an
+ * unescaped quotation mark in narration or repeat the entire object. Repair
+ * only the unambiguous former case and retain the first complete object in the
+ * latter case. Unlike a generic JSON-repair package, this never silently
+ * truncates narration. The backend remains the authoritative schema validator. */
+function prepareManualResponse(raw: string): PreparedManualResponse {
+  let text = raw.trim();
+  if (text.startsWith("```")) {
+    text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+  }
+
+  try {
+    JSON.parse(text);
+    return { json: text, repairedUnescapedQuotes: false, discardedRepeatedResponse: false };
+  } catch {
+    // Continue with the narrow repair below.
+  }
+
+  let repaired = "";
+  let inString = false;
+  let escaped = false;
+  let repairedUnescapedQuotes = false;
+
+  const nextNonWhitespaceIndex = (from: number) => {
+    let index = from;
+    while (index < text.length && /\s/.test(text[index])) index += 1;
+    return index;
+  };
+
+  const quoteClosesString = (quoteIndex: number) => {
+    const nextIndex = nextNonWhitespaceIndex(quoteIndex + 1);
+    const next = text[nextIndex];
+    if (!next || next === ":" || next === "}" || next === "]") return true;
+    if (next !== ",") return false;
+
+    // A comma closes a string value only when it starts the next object key.
+    // Otherwise it is punctuation inside quoted narration.
+    const following = nextNonWhitespaceIndex(nextIndex + 1);
+    return /^"(?:\\.|[^"\\])*"\s*:/.test(text.slice(following));
+  };
+
+  for (let index = 0; index < text.length; index += 1) {
+    const character = text[index];
+    if (!inString) {
+      if (character === '"') inString = true;
+      repaired += character;
+      continue;
+    }
+
+    if (escaped) {
+      escaped = false;
+      repaired += character;
+      continue;
+    }
+    if (character === "\\") {
+      escaped = true;
+      repaired += character;
+      continue;
+    }
+    if (character === '"') {
+      if (quoteClosesString(index)) {
+        inString = false;
+        repaired += character;
+      } else {
+        repaired += '\\"';
+        repairedUnescapedQuotes = true;
+      }
+      continue;
+    }
+    repaired += character;
+  }
+
+  const objectStart = repaired.indexOf("{");
+  if (objectStart === -1) {
+    throw new Error("Gemini's response has no JSON object. Ask it to return the response again as JSON only.");
+  }
+
+  let depth = 0;
+  inString = false;
+  escaped = false;
+  let objectEnd = -1;
+  for (let index = objectStart; index < repaired.length; index += 1) {
+    const character = repaired[index];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (character === "\\") escaped = true;
+      else if (character === '"') inString = false;
+      continue;
+    }
+    if (character === '"') inString = true;
+    else if (character === "{") depth += 1;
+    else if (character === "}" && --depth === 0) {
+      objectEnd = index;
+      break;
+    }
+  }
+
+  if (objectEnd === -1) {
+    throw new Error("Gemini's response ends before its JSON object is complete. Ask it to generate the JSON again.");
+  }
+
+  const json = repaired.slice(objectStart, objectEnd + 1);
+  try {
+    JSON.parse(json);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "unknown JSON error";
+    throw new Error(`Gemini returned invalid JSON (${reason}). Ask it to regenerate one valid JSON object.`);
+  }
+
+  return {
+    json,
+    repairedUnescapedQuotes,
+    discardedRepeatedResponse: repaired.slice(objectEnd + 1).trim().startsWith("{"),
+  };
+}
+
 interface GenerateScenesManualPopUpProps {
   isOpen: boolean;
   onClose: () => void;
@@ -79,6 +201,8 @@ Rules:
 - scenes must cover the ENTIRE script below with no gaps or overlaps, scene_number sequential starting at 1.
 - Target roughly the given scene-density word count per scene when deciding how often to break into a new scene.
 - Follow the given YouTube prompts for metadata tone/format.
+- Return exactly ONE top-level JSON object, once only. Do not repeat or append a second response.
+- Before sending, ensure the response is valid JSON. Escape every double quote inside a text value as \`\\"\`.
 
 ${styleBrief}
 
@@ -104,6 +228,7 @@ export const GenerateScenesManualPopUp = ({
   const [copiedImageId, setCopiedImageId] = useState<string | null>(null);
   const [copyingImageId, setCopyingImageId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const prompt = useMemo(() => buildManualPrompt(project, projectCharacters), [project, projectCharacters]);
   const cost = Math.ceil(countWords(project.script ?? "") / WORDS_PER_CREDIT_MANUAL) || 0;
@@ -136,12 +261,27 @@ export const GenerateScenesManualPopUp = ({
     if (generating) return;
     setRawResponse("");
     setError(null);
+    setNotice(null);
     onClose();
   };
 
   const handleGenerate = async () => {
     if (!rawResponse.trim()) return;
     setError(null);
+    setNotice(null);
+
+    let preparedResponse: PreparedManualResponse;
+    try {
+      preparedResponse = prepareManualResponse(rawResponse);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gemini returned invalid JSON.");
+      return;
+    }
+
+    const repairs: string[] = [];
+    if (preparedResponse.repairedUnescapedQuotes) repairs.push("escaped quotation marks inside narration");
+    if (preparedResponse.discardedRepeatedResponse) repairs.push("used the first of two repeated responses");
+    if (repairs.length > 0) setNotice(`We fixed the pasted response: ${repairs.join(" and ")}.`);
 
     // Credits were already charged the instant this popup was opened (see
     // page.tsx's handleOpenManualScenes) — this step only parses/persists the
@@ -152,7 +292,7 @@ export const GenerateScenesManualPopUp = ({
       const res = await authFetch("/projects/scenes/generate_manual", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ project_id: project.id, raw_response: rawResponse }),
+        body: JSON.stringify({ project_id: project.id, raw_response: preparedResponse.json }),
       });
       const data: GenerateScenesResponse = await res.json();
       setBalance(data.credits_remaining);
@@ -319,6 +459,7 @@ export const GenerateScenesManualPopUp = ({
         </div>
 
         {error && <p className="px-6 pb-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
+        {notice && <p className="px-6 pb-2 text-sm text-emerald-700 dark:text-emerald-400">{notice}</p>}
 
         <div className="px-6 py-4 flex items-center justify-end gap-2.5 bg-slate-50/80 dark:bg-slate-900/40 border-t border-slate-100 dark:border-slate-700/50">
           <button
