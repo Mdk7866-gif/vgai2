@@ -4,7 +4,7 @@ Home project thumbnail frames use the standard 16:9 video ratio (`aspect-video`)
 
 ## Documentation maintenance — required completion work
 
-This repository is developed alongside the sibling `vgai2admin` portal. Whenever a change adds, removes, or materially changes a feature, user/admin behavior, route/API, schema, credit rule, provider integration, deployment setup, or established implementation convention, update the relevant documentation as part of the same task — not in a later cleanup. Keep `README.md`, `AGENTS.md`, and `CLAUDE.md` accurate in this repository and, when the change affects the other application or shared database, update the corresponding documents in `C:\Users\ASUS\OneDrive\Desktop\vgai2admin` too. This rule exists so a new chat in Codex, Claude Code, or Antigravity has reliable current context.
+This repository is developed alongside the sibling `vgai2admin` portal. Whenever a change adds, removes, or materially changes a feature, user/admin behavior, route/API, schema, credit rule, provider integration, deployment setup, or established implementation convention, update the relevant documentation as part of the same task — not in a later cleanup. Keep `README.md`, `AGENTS.md`, and the shared `PROJECT_CONTEXT.md` accurate in this repository and, when the change affects the other application or shared database, update the corresponding `README.md` and `AGENTS.md` in `C:\Users\ASUS\OneDrive\Desktop\vgai2admin` too. This rule exists so a new chat in Codex, Claude Code, or Antigravity has reliable current context.
 
 ## Repository scope
 

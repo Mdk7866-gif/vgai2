@@ -6,7 +6,7 @@ Consistency convention: all app/component brand accents use the shared `brand-*`
 
 A production-grade AI studio SaaS designed for **AI faceless video creators** and long-form storytelling channels (educational, financial, historical, story-based content, etc.). Instead of generating an entire video in a single uneditable click, **vgAI** gives creators an organized, granular workspace to go from script → scenes → media assets, with full control at every step, for both **long-form videos** and **short-form videos** (YouTube Shorts style).
 
-> **Documentation maintenance:** Feature work is not complete until this README and the repository's `AGENTS.md` and `CLAUDE.md` reflect any material behavior or architecture changes. Cross-application and shared-schema changes must be documented in the matching files in the sibling `vgai2admin` repository too.
+> **Documentation maintenance:** Feature work is not complete until this README, `AGENTS.md`, and the shared `PROJECT_CONTEXT.md` reflect any material behavior or architecture changes. Cross-application and shared-schema changes must be documented in the matching `README.md` and `AGENTS.md` files in the sibling `vgai2admin` repository too.
 
 ---
 
@@ -256,7 +256,7 @@ Google sign-in only, via **Supabase Auth**.
 
   > **Open question:** the UI collects USD but bills INR at a rate well above market, which reads as a bad conversion rather than as deliberate regional pricing. Standardizing on USD is the likely direction — most users aren't in India and every provider bill (OpenAI, OpenRouter, Cloudinary, ElevenLabs) is already in dollars, so USD pricing takes FX risk out of the margin entirely. It's gated on Razorpay international payments being approved on the account, needs a workable minimum charge (today's `MIN_CREDITS = 10` would become an unprocessable $0.10), and would leave `credit_topups` holding genuinely mixed currencies — at which point `/payments/history`'s single `total_amount_paid` sum stops being meaningful. Not decided yet.
 
-> **Note:** this document is the product *spec* — intended behavior. `CLAUDE.md` is the record of what is actually implemented, and is the one to trust where the two disagree. (Both were reconciled on the provider question: automatic scene splitting is `gpt-4o` on the `"base"` tier and Gemini on `"pro"` only, and the Characters/Style Templates generate flows are OpenAI, not Gemini as originally spec'd.)
+> **Note:** this document is the product *spec* — intended behavior. `AGENTS.md` is the record of what is actually implemented, and is the one to trust where the two disagree. (Both were reconciled on the provider question: automatic scene splitting is `gpt-4o` on the `"base"` tier and Gemini on `"pro"` only, and the Characters/Style Templates generate flows are OpenAI, not Gemini as originally spec'd.)
 
 ---
 
