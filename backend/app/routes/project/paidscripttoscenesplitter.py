@@ -9,6 +9,7 @@ from app.auth import get_current_user
 from app.config import settings
 from app.credits import refund_project_credits, reserve_project_credits
 from app.gemini_client import GEMINI_PRO_TEXT_MODEL, get_gemini_chat_model
+from app.openai_client import OPENAI_TEXT_MODEL
 from app.routes.project.projectcrud import _get_owned_project
 from app.routes.project.scenesplitcommon import (
     WORDS_PER_CREDIT_AUTO,
@@ -54,7 +55,7 @@ async def _build_scene_split_draft(project: dict, characters: list[dict], script
     if project["llm_model_id"] == "pro":
         llm = get_gemini_chat_model(GEMINI_PRO_TEXT_MODEL, temperature=0.6)
     else:
-        llm = ChatOpenAI(model="gpt-4o", api_key=settings.CHATGPT_PAID_API_KEY, temperature=0.6)
+        llm = ChatOpenAI(model=OPENAI_TEXT_MODEL, api_key=settings.CHATGPT_PAID_API_KEY, temperature=0.6)
 
     structured_llm = llm.with_structured_output(SceneSplitDraft)
 

@@ -8,17 +8,17 @@ from supabase_auth.types import User as SupabaseUser
 from app.auth import get_current_user
 from app.config import settings
 from app.credits import refund_misc_credits, reserve_misc_credits
-from app.openai_client import openai_client
+from app.openai_client import OPENAI_IMAGE_BASE_MODEL, OPENAI_IMAGE_PRO_MODEL, OPENAI_TEXT_MODEL, openai_client
 from app.schemas.character import GenerateCharacterSheetResponse
 
 router = APIRouter(prefix="/characters", tags=["characters"])
 
 # Miscellaneous-spend cost of one "Generate Character Sheet" attempt.
-# "Pro" uses gpt-image-2 at quality="high" instead of "low" and costs more.
+# "Pro" uses GPT Image 2.5 Sunburst; Base uses GPT Image 2.5 Flare.
 GENERATE_CREDIT_COST = 4
 GENERATE_PRO_CREDIT_COST = 20
 
-# gpt-image-2 requires both edges to be multiples of 16. 1792x1008 = 16*112 x 16*63,
+# GPT Image 2.5 requires both edges to be multiples of 16. 1792x1008 = 16*112 x 16*63,
 # and 112:63 reduces to exactly 16:9 (unlike the legacy 1792x1024 DALL-E-3 size, which is 1.75:1).
 SHEET_IMAGE_SIZE = "1792x1008"
 
@@ -54,7 +54,7 @@ async def _build_character_prompt(
     reference_bytes: bytes | None,
     reference_mime: str | None,
 ) -> str:
-    llm = ChatOpenAI(model="gpt-4o-mini", api_key=settings.CHATGPT_PAID_API_KEY, temperature=0.7)
+    llm = ChatOpenAI(model=OPENAI_TEXT_MODEL, api_key=settings.CHATGPT_PAID_API_KEY, temperature=0.7)
 
     content: list[dict] = [
         {"type": "text", "text": f"Character name: {name}\nDescription: {description}"}
@@ -87,7 +87,7 @@ async def _generate_sheet_image(
     try:
         if reference_bytes:
             result = await openai_client.images.edit(
-                model="gpt-image-2",
+            model=OPENAI_IMAGE_PRO_MODEL if quality == "high" else OPENAI_IMAGE_BASE_MODEL,
                 image=(reference_filename or "reference.png", reference_bytes, reference_mime or "image/png"),
                 prompt=prompt,
                 size=SHEET_IMAGE_SIZE,
@@ -95,7 +95,7 @@ async def _generate_sheet_image(
             )
         else:
             result = await openai_client.images.generate(
-                model="gpt-image-2",
+            model=OPENAI_IMAGE_PRO_MODEL if quality == "high" else OPENAI_IMAGE_BASE_MODEL,
                 prompt=prompt,
                 size=SHEET_IMAGE_SIZE,
                 quality=quality,
@@ -123,7 +123,8 @@ async def generate_character_sheet(
     user accepts it, the frontend re-submits it as a file to POST /characters/create,
     which does the actual Cloudinary upload + characters row insert.
 
-    `pro=true` generates at gpt-image-2 quality="high" instead of "low", for
+    `pro=true` generates with GPT Image 2.5 Sunburst at quality="high" instead
+    of GPT Image 2.5 Flare at quality="low", for
     GENERATE_PRO_CREDIT_COST credits instead of GENERATE_CREDIT_COST.
     """
     if openai_client is None:

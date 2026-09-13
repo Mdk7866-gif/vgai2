@@ -271,7 +271,7 @@ export const GenerateCharacterSheetPopUp = ({
                   <Toggle
                     checked={proMode}
                     onChange={setProMode}
-                    label={`Generate with Pro · higher quality, ${GENERATE_PRO_CREDIT_COST} credits`}
+                    label={`Generate with Pro · GPT Image 2.5 Sunburst, ${GENERATE_PRO_CREDIT_COST} credits`}
                   />
                 </div>
               </div>

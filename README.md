@@ -248,7 +248,7 @@ Google sign-in only, via **Supabase Auth**.
 - **Orchestration:** LangChain
 - **Database & Auth:** Supabase (Postgres + Row Level Security for multi-tenant isolation, Google OAuth)
 - **AI Integrations:**
-  - **OpenAI API** — character sheet generation end-to-end (prompt via `ChatOpenAI`, image via `gpt-image-2`), style template generation (`ChatOpenAI`, structured output), automatic scene splitting on the `"base"` tier (`gpt-4o`), scene image + thumbnail generation (`gpt-image-2`), and rewriting a scene's image/animation prompts before a Regenerate or an animation-prompt sync (`ChatOpenAI`, `gpt-4o-mini`, structured output).
+  - **OpenAI API** — text and structured output through LangChain `ChatOpenAI` (`gpt-5.6-luna`), plus image creation/editing through OpenAI's image API (`gpt-image-2.5-flare` for Base and `gpt-image-2.5-sunburst` for Pro).
   - **Gemini API** — automatic scene splitting on the `"pro"` tier only (`gemini-3-pro-preview`, structured output).
   - **No provider at all** — manual scene splitting (see §5) doesn't call any AI API; it validates and persists the JSON the user pastes back from their own gemini.com session, which is exactly why it's priced far below the automatic flow.
   - **OpenRouter** — gateway for **Perplexity** (viral topic research), **Claude** (script generation & "improvise" regeneration), and image-to-video **animation** (`alibaba/wan-2.6` on `"base"`, `google/veo-3.1-lite` on `"pro"`, via its long-running video-job API).
@@ -258,7 +258,36 @@ Google sign-in only, via **Supabase Auth**.
 
   > **Open question:** the UI collects USD but bills INR at a rate well above market, which reads as a bad conversion rather than as deliberate regional pricing. Standardizing on USD is the likely direction — most users aren't in India and every provider bill (OpenAI, OpenRouter, Cloudinary, ElevenLabs) is already in dollars, so USD pricing takes FX risk out of the margin entirely. It's gated on Razorpay international payments being approved on the account, needs a workable minimum charge (today's `MIN_CREDITS = 10` would become an unprocessable $0.10), and would leave `credit_topups` holding genuinely mixed currencies — at which point `/payments/history`'s single `total_amount_paid` sum stops being meaningful. Not decided yet.
 
-> **Note:** this document is the product *spec* — intended behavior. `AGENTS.md` is the record of what is actually implemented, and is the one to trust where the two disagree. (Both were reconciled on the provider question: automatic scene splitting is `gpt-4o` on the `"base"` tier and Gemini on `"pro"` only, and the Characters/Style Templates generate flows are OpenAI, not Gemini as originally spec'd.)
+> **Note:** this document is the product *spec* — intended behavior. `AGENTS.md` is the record of what is actually implemented, and is the one to trust where the two disagree. The model inventory below is the current implementation.
+
+### All AI model mapping
+
+**Text and structured output**
+
+- `gpt-5.6-luna` — OpenAI through LangChain `ChatOpenAI`; Base automatic scene splitting, character-prompt drafts, style-template drafts, and image/animation-prompt rewriting during scene regeneration.
+- `gemini-3-pro-preview` — Google Gemini through LangChain; Pro automatic scene splitting.
+- `perplexity/sonar-pro` — Perplexity through OpenRouter; viral-topic research.
+- `anthropic/claude-sonnet-5` — Anthropic Claude through OpenRouter; full script generation and feedback-driven “Improvise” rewrites.
+
+**Image generation**
+
+- `gpt-image-2.5-flare` — OpenAI Images API; Base scene images and thumbnails, Base character sheets, and all style-template demo images (`quality="low"`).
+- `gpt-image-2.5-sunburst` — OpenAI Images API; Pro scene images and thumbnails, and Pro character sheets (`quality="high"`).
+- Base and Pro image-generation credit prices remain 4 and 20 credits respectively.
+
+**Image-to-video animation**
+
+- `alibaba/wan-2.6` — OpenRouter Video API; Base animation generation.
+- `google/veo-3.1-lite` — OpenRouter Video API; Pro animation generation.
+
+**Configured, but not yet called**
+
+- `eleven_multilingual_v2`, `eleven_flash_v2_5`, and `eleven_turbo_v2_5` — ElevenLabs voice options saved in project settings. Voiceover generation is still intentionally unwired, so none of these models is called yet.
+
+**Manual workflows**
+
+- Manual scene splitting does not call a vgAI model: the creator runs the copied prompt in their own Gemini session at gemini.com and pastes the JSON result back.
+- Manual image generation does not call a vgAI model: the creator uses the copied prompts with their own Meta AI session.
 
 ---
 

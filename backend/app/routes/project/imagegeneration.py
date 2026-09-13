@@ -10,7 +10,7 @@ from supabase_auth.types import User as SupabaseUser
 from app.auth import get_current_user
 from app.cloudinary import delete_media, upload_image_bytes
 from app.credits import refund_project_credits, reserve_project_credits
-from app.openai_client import openai_client
+from app.openai_client import OPENAI_IMAGE_BASE_MODEL, OPENAI_IMAGE_PRO_MODEL, openai_client
 from app.routes.project.generatedscenecard import _finish_generation, _get_owned_scene, _start_generation
 from app.routes.project.projectcrud import _get_owned_project
 from app.schemas.scene import (
@@ -27,8 +27,8 @@ from app.supabase import supabase
 
 router = APIRouter(prefix="/projects/image", tags=["projects-image"])
 
-# "base" -> gpt-image-2 quality="low", "pro" -> quality="high" — same pattern as
-# characters/generatecharacter.py's GENERATE_CREDIT_COST/GENERATE_PRO_CREDIT_COST.
+# "base" -> GPT Image 2.5 Flare quality="low"; "pro" -> GPT Image 2.5
+# Sunburst quality="high". The credit tiers remain the established product prices.
 IMAGE_BASE_CREDIT_COST = 4
 IMAGE_PRO_CREDIT_COST = 20
 
@@ -40,7 +40,7 @@ IMAGE_PRO_CREDIT_COST = 20
 # reserved since this still tracks as real project-scoped usage.
 SCENES_PER_CREDIT_MANUAL = 5
 
-# gpt-image-2 requires both edges to be multiples of 16 — same reasoning as
+# GPT Image 2.5 requires both edges to be multiples of 16 — same reasoning as
 # characters/generatecharacter.py's SHEET_IMAGE_SIZE.
 IMAGE_SIZE_BY_ASPECT_RATIO = {"16:9": "1792x1008", "9:16": "1008x1792"}
 DEFAULT_IMAGE_SIZE = "1792x1008"
@@ -55,10 +55,10 @@ def _image_size_for(aspect_ratio: str | None) -> str:
     return IMAGE_SIZE_BY_ASPECT_RATIO.get(aspect_ratio or "", DEFAULT_IMAGE_SIZE)
 
 
-def _quality_and_cost(image_model_id: str) -> tuple[str, int]:
+def _model_quality_and_cost(image_model_id: str) -> tuple[str, str, int]:
     if image_model_id == "pro":
-        return "high", IMAGE_PRO_CREDIT_COST
-    return "low", IMAGE_BASE_CREDIT_COST
+        return OPENAI_IMAGE_PRO_MODEL, "high", IMAGE_PRO_CREDIT_COST
+    return OPENAI_IMAGE_BASE_MODEL, "low", IMAGE_BASE_CREDIT_COST
 
 
 async def _download(url: str) -> bytes:
@@ -68,7 +68,9 @@ async def _download(url: str) -> bytes:
         return response.content
 
 
-async def _generate_image_bytes(prompt: str, reference_urls: list[str], size: str, quality: str) -> bytes:
+async def _generate_image_bytes(
+    prompt: str, reference_urls: list[str], size: str, model: str, quality: str
+) -> bytes:
     """Generates one image, referencing character sheets via a multi-image edit
     call when any are given, or a plain generate call otherwise."""
     if openai_client is None:
@@ -80,11 +82,11 @@ async def _generate_image_bytes(prompt: str, reference_urls: list[str], size: st
                 (f"ref_{i}.png", await _download(url), "image/png") for i, url in enumerate(reference_urls)
             ]
             result = await openai_client.images.edit(
-                model="gpt-image-2", image=references, prompt=prompt, size=size, quality=quality
+                model=model, image=references, prompt=prompt, size=size, quality=quality
             )
         else:
             result = await openai_client.images.generate(
-                model="gpt-image-2", prompt=prompt, size=size, quality=quality
+                model=model, prompt=prompt, size=size, quality=quality
             )
     except HTTPException:
         raise
@@ -118,7 +120,7 @@ async def generate_scene_image(
     if not scene.get("scene_image_prompt"):
         raise HTTPException(status_code=400, detail="This scene has no image prompt yet.")
 
-    quality, cost = _quality_and_cost(project["image_model_id"])
+    model, quality, cost = _model_quality_and_cost(project["image_model_id"])
 
     links = (
         supabase.table("scene_characters")
@@ -150,7 +152,7 @@ async def generate_scene_image(
     token = _start_generation(scene["id"], "image")
 
     try:
-        image_bytes = await _generate_image_bytes(scene["scene_image_prompt"], reference_urls, size, quality)
+        image_bytes = await _generate_image_bytes(scene["scene_image_prompt"], reference_urls, size, model, quality)
     except HTTPException:
         _finish_generation(scene["id"], "image", token, {"image_status": "failed"})
         new_balance = refund_project_credits(current_user.id, project["id"], project["name"], "image", cost)
@@ -201,7 +203,7 @@ async def generate_thumbnail(
     if not project.get("thumbnail_prompt"):
         raise HTTPException(status_code=400, detail="Generate scenes first so a thumbnail prompt exists.")
 
-    quality, cost = _quality_and_cost(project["image_model_id"])
+    model, quality, cost = _model_quality_and_cost(project["image_model_id"])
 
     characters = (
         supabase.table("project_characters")
@@ -221,7 +223,7 @@ async def generate_thumbnail(
     supabase.table("projects").update({"thumbnail_generation_token": token}).eq("id", project["id"]).execute()
 
     try:
-        image_bytes = await _generate_image_bytes(project["thumbnail_prompt"], reference_urls, size, quality)
+        image_bytes = await _generate_image_bytes(project["thumbnail_prompt"], reference_urls, size, model, quality)
     except HTTPException:
         new_balance = refund_project_credits(current_user.id, project["id"], project["name"], "image", cost)
         raise

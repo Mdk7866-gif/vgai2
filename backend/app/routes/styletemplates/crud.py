@@ -6,7 +6,7 @@ from supabase_auth.types import User as SupabaseUser
 from app.auth import get_current_user
 from app.cloudinary import delete_media, upload_image, upload_image_bytes
 from app.credits import refund_misc_credits, reserve_misc_credits
-from app.openai_client import openai_client
+from app.openai_client import OPENAI_IMAGE_BASE_MODEL, openai_client
 from app.schemas.styletemplate import (
     GenerateDemoImageRequest,
     GenerateDemoImageResponse,
@@ -21,19 +21,19 @@ router = APIRouter(prefix="/styletemplates", tags=["styletemplates"])
 DEMO_IMAGE_FOLDER = "style_templates"
 
 # Flat cost of one "Generate" demo-image attempt from the Add/Edit Style
-# Template popup's Demo Image section -- gpt-image-2 at quality="low", same
+# Template popup's Demo Image section -- GPT Image 2.5 Flare at quality="low", same
 # tier/price point as characters/generatecharacter.py's base (non-pro)
 # character sheet generation.
 GENERATE_DEMO_IMAGE_CREDIT_COST = 4
 
-# gpt-image-2 requires both edges to be multiples of 16 (see the same note on
+# GPT Image 2.5 requires both edges to be multiples of 16 (see the same note on
 # characters/generatecharacter.py's SHEET_IMAGE_SIZE). 1792x1008 reduces to
 # exactly 16:9; its transpose, 1008x1792, is the 9:16 portrait counterpart.
 DEMO_IMAGE_SIZES: dict[str, str] = {"16:9": "1792x1008", "9:16": "1008x1792"}
 
 
 def _build_demo_image_prompt(image_prompt: str, best_for: str | None) -> str:
-    """Builds the gpt-image-2 prompt directly from the form's own fields --
+    """Builds the GPT Image 2.5 Flare prompt directly from the form's own fields --
     no separate LLM call to rewrite it first. `image_prompt` already *is* the
     art-style description (it's the same fragment used to generate every
     scene image in this style); `best_for` names the content niches the style
@@ -42,7 +42,7 @@ def _build_demo_image_prompt(image_prompt: str, best_for: str | None) -> str:
 
     The trailing safety clause is deliberate: a style whose own wording leans
     dark (horror, noir, true-crime, war) has a real chance of tripping
-    gpt-image-2's output moderation on the literal generated image even
+    GPT Image 2.5 Flare's output moderation on the literal generated image even
     though the *prompt itself* isn't rejected -- steering the model toward
     expressing mood through color/lighting/composition rather than graphic
     subject matter meaningfully cuts that down. _generate_demo_image_bytes()
@@ -63,7 +63,7 @@ def _build_demo_image_prompt(image_prompt: str, best_for: str | None) -> str:
 
 
 def _moderation_blocked(error: Exception) -> bool:
-    """True if `error` is gpt-image-2 rejecting the *output* it generated on
+    """True if `error` is GPT Image 2.5 Flare rejecting the *output* it generated on
     safety grounds (OpenAI's 400 `moderation_blocked` error) -- narrow string
     match rather than an SDK exception-class check, since it has to survive
     whichever concrete openai-python exception type raised it across SDK
@@ -73,10 +73,10 @@ def _moderation_blocked(error: Exception) -> bool:
 
 
 async def _generate_demo_image_bytes(prompt: str, aspect_ratio: str) -> bytes:
-    """Calls gpt-image-2, retrying once with a stricter, more conservative
+    """Calls GPT Image 2.5 Flare, retrying once with a stricter, more conservative
     prompt if the first attempt is blocked by output moderation -- a style
     described with dark/intense language (horror, noir, war, true-crime)
-    occasionally produces an image gpt-image-2 itself flags, even though the
+    occasionally produces an image GPT Image 2.5 Flare itself flags, even though the
     prompt is perfectly generatable in the abstract. Raises a clear 422 (not
     the raw OpenAI error) if even the safer retry is blocked, since at that
     point it's actionable feedback for the user, not a server-side failure.
@@ -84,7 +84,7 @@ async def _generate_demo_image_bytes(prompt: str, aspect_ratio: str) -> bytes:
 
     async def _call(p: str) -> bytes:
         result = await openai_client.images.generate(  # type: ignore[union-attr]
-            model="gpt-image-2",
+            model=OPENAI_IMAGE_BASE_MODEL,
             prompt=p,
             size=DEMO_IMAGE_SIZES[aspect_ratio],
             quality="low",

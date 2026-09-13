@@ -18,8 +18,9 @@ from app.routes.project.imagegeneration import (
     CANCELLED_STATUS,
     _generate_image_bytes,
     _image_size_for,
-    _quality_and_cost,
+    _model_quality_and_cost,
 )
+from app.openai_client import OPENAI_TEXT_MODEL
 from app.routes.project.projectcrud import _get_owned_project
 from app.routes.project.scenesplitcommon import format_style_brief
 from app.schemas.scene import GenerateSceneImageRequest, GenerateSceneImageResponse, Scene
@@ -71,7 +72,7 @@ class _ImageAnimationPromptRewrite(BaseModel):
 
 
 def _rewrite_llm() -> ChatOpenAI:
-    return ChatOpenAI(model="gpt-4o-mini", api_key=settings.CHATGPT_PAID_API_KEY, temperature=0.8)
+    return ChatOpenAI(model=OPENAI_TEXT_MODEL, api_key=settings.CHATGPT_PAID_API_KEY, temperature=0.8)
 
 
 def _reference_urls_for_scene(scene_id: str) -> list[str]:
@@ -228,7 +229,7 @@ async def regenerate_scene_image(
 
     # Step 2: generate the image from the rewritten prompt -- same
     # reserve/refund/generation-token/cleanup shape as generate_scene_image.
-    quality, image_cost = _quality_and_cost(project["image_model_id"])
+    image_model, quality, image_cost = _model_quality_and_cost(project["image_model_id"])
     reference_urls = _reference_urls_for_scene(scene["id"])
     size = _image_size_for(project.get("snapshot_styletemplate_image_aspect_ratio"))
     previous_image_url = scene.get("generated_image_url")
@@ -248,7 +249,7 @@ async def regenerate_scene_image(
     token = _start_generation(scene["id"], "image")
 
     try:
-        image_bytes = await _generate_image_bytes(new_image_prompt, reference_urls, size, quality)
+        image_bytes = await _generate_image_bytes(new_image_prompt, reference_urls, size, image_model, quality)
     except HTTPException:
         _finish_generation(scene["id"], "image", token, {"image_status": "failed"})
         new_balance = refund_project_credits(current_user.id, project["id"], project["name"], "image", image_cost)

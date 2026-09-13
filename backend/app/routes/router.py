@@ -69,7 +69,7 @@ api_router.include_router(freescripttoscenesplitter.router)
 api_router.include_router(generatedscenecard.router)
 api_router.include_router(imagegeneration.router)
 # imageregeneration imports helpers straight from imagegeneration (reuses its
-# _generate_image_bytes/_quality_and_cost/_image_size_for), so it's registered
+# _generate_image_bytes/_model_quality_and_cost/_image_size_for), so it's registered
 # right after it; its two paths (/sync_animation_prompt, /regenerate_and_save)
 # are literal and distinct from imagegeneration's own, so order doesn't matter
 # for routing, only for readability of the import relationship.

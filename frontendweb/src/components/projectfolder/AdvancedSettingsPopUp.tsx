@@ -18,13 +18,13 @@ interface AdvancedSettingsPopUpProps {
 }
 
 const LLM_OPTIONS: { id: LlmModelTier; label: string; description: string }[] = [
-  { id: "base", label: "Base", description: "GPT — fast, reliable scene-splitting for most scripts." },
+  { id: "base", label: "Base", description: "GPT-5.6 Luna — fast, cost-efficient scene splitting for most scripts." },
   { id: "pro", label: "Pro", description: "Gemini 3 Pro — stronger reasoning for long or complex scripts." },
 ];
 
 const IMAGE_OPTIONS: { id: ImageModelTier; label: string; description: string; cost: number }[] = [
-  { id: "base", label: "Base", description: "gpt-image-2, low quality.", cost: 4 },
-  { id: "pro", label: "Pro", description: "gpt-image-2, high quality.", cost: 20 },
+  { id: "base", label: "Base", description: "GPT Image 2.5 Flare, low quality.", cost: 4 },
+  { id: "pro", label: "Pro", description: "GPT Image 2.5 Sunburst, high quality.", cost: 20 },
 ];
 
 const ANIMATION_OPTIONS: { id: AnimationModelTier; label: string; description: string; cost: number }[] = [
