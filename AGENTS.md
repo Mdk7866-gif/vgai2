@@ -1,5 +1,10 @@
 # AGENTS.md
 
+Docker Hub deployment: use [DOCKERHUB_DEPLOY.md](./DOCKERHUB_DEPLOY.md) and
+`compose.deploy.yaml` to pull `mdk7866/vgai2-backend` and
+`mdk7866/vgai2-frontend` on EC2 without server-side builds. The existing
+Dockerfiles and .dockerignore files remain in each application directory.
+
 Home project thumbnail frames use the standard 16:9 video ratio (`aspect-video`) with `object-cover`, including real generated thumbnails and the empty-state frame, so cards remain visually consistent with the production workflow.
 
 ## Launch update — vgAI2, SEO, and Razorpay

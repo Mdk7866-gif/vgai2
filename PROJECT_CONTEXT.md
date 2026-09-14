@@ -1,5 +1,10 @@
 # vgAI — project context (hand this to an AI first)
 
+Docker Hub deployment: use [DOCKERHUB_DEPLOY.md](./DOCKERHUB_DEPLOY.md) and
+`compose.deploy.yaml` to pull `mdk7866/vgai2-backend` and
+`mdk7866/vgai2-frontend` on EC2 without server-side builds. The existing
+Dockerfiles and .dockerignore files remain in each application directory.
+
 # Launch update — vgAI2.com (15 Sep 2026)
 
 The visible customer and admin brand is **vgAI2**; internal `vgai2` identifiers remain unchanged. The customer product will deploy at `https://vgai2.com`; its frontend provides public SEO metadata, `robots.txt`, sitemap, manifest, pricing, terms-and-conditions, cancellation-refund-policy, privacy-policy, about, and contact routes. `hello@vgai2.com` is the public support/legal email.

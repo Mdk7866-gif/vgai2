@@ -1,5 +1,10 @@
 # Deploying vgAI2 to AWS EC2
 
+Docker Hub deployment: use [DOCKERHUB_DEPLOY.md](./DOCKERHUB_DEPLOY.md) and
+`compose.deploy.yaml` to pull `mdk7866/vgai2-backend` and
+`mdk7866/vgai2-frontend` on EC2 without server-side builds. The existing
+Dockerfiles and .dockerignore files remain in each application directory.
+
 End-to-end instructions for running the vgAI product (this repo — **not** the
 separate `vgai2admin` portal, which stays local-only) on a single EC2 instance
 with Docker, behind nginx, with a free Let's Encrypt TLS certificate.

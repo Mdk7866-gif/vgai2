@@ -1,0 +1,108 @@
+# vgAI — full production stack for a single EC2 host.
+#
+#   nginx (80/443)  ──┬──>  frontend:3000   (Next.js standalone server)
+#                     └──>  backend:8000    (FastAPI / uvicorn)
+#   certbot            ───>  renews the TLS cert into a shared volume
+#
+# Only nginx publishes ports. The backend and frontend are reachable solely on
+# the internal compose network, so nothing on the host's firewall needs 3000 or
+# 8000 open — see awsdeployment.md §3.
+#
+# Every value comes from the root `.env` file (copy `.env.example` to `.env`).
+# The domain lives there exactly once, as DOMAIN: nginx renders it into its
+# server_name and certificate paths, and the backend derives ALLOWED_ORIGINS
+# from it below. The frontend never needs it at all — it calls the backend at
+# the relative path /api.
+
+services:
+  backend:
+    # Deliberately vgai2-*, not vgai-*: mdk7866/vgai-backend and
+    # mdk7866/vgai-frontend are the earlier MVP's images and must not be
+    # overwritten by this build.
+    image: mdk7866/vgai2-backend:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    # Provides the Supabase / Cloudinary / OpenAI / OpenRouter / Gemini /
+    # Razorpay credentials. Values not declared on app/config.py's Settings are
+    # ignored (`extra="ignore"`), so sharing one env file across services is safe.
+    env_file:
+      - ${BACKEND_ENV_FILE:-.env}
+    environment:
+      # Derived from DOMAIN so the origin allowlist can never drift from the
+      # domain actually being served. `environment` wins over `env_file`, so an
+      # ALLOWED_ORIGINS left in .env by accident does not override this.
+      ALLOWED_ORIGINS: "https://${DOMAIN}"
+      UVICORN_WORKERS: "${UVICORN_WORKERS:-2}"
+    expose:
+      - "8000"
+    networks:
+      - vgai
+
+  frontend:
+    image: mdk7866/vgai2-frontend:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    expose:
+      - "3000"
+    networks:
+      - vgai
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: "${DOMAIN}"
+    volumes:
+      - ./nginx/templates:/etc/nginx/templates:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+    # The template is rendered explicitly here rather than being left to the
+    # image's own entrypoint: that entrypoint only runs its template scripts
+    # when the command starts with `nginx`, and this one starts with `sh` so it
+    # can also run the reload loop. Quoting '$DOMAIN' restricts envsubst to
+    # that single variable, leaving $host / $request_uri / $connection_upgrade
+    # in the template untouched.
+    #
+    # The 6-hourly `nginx -s reload` is what picks up a renewed certificate
+    # without dropping connections; certbot renews silently in its own container.
+    command:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        envsubst '$$DOMAIN' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
+        nginx -t
+        while :; do sleep 6h & wait $${!}; nginx -s reload; done &
+        exec nginx -g 'daemon off;'
+    networks:
+      - vgai
+
+  certbot:
+    image: certbot/certbot:latest
+    restart: unless-stopped
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    # Checks twice a day and renews only when the cert is within 30 days of
+    # expiry, which is what Let's Encrypt asks clients to do. The initial
+    # certificate is NOT issued here — see awsdeployment.md §6, which runs
+    # certbot once in standalone mode before nginx ever starts.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        trap exit TERM
+        while :; do
+          certbot renew --webroot -w /var/www/certbot --quiet
+          sleep 12h & wait $${!}
+        done
+    networks:
+      - vgai
+
+networks:
+  vgai:
+    driver: bridge
