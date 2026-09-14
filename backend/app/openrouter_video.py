@@ -32,8 +32,8 @@ VIDEO_DOWNLOAD_ATTEMPTS = 3
 _HEADERS = {
     "Authorization": f"Bearer {settings.OPENROUTER_PAID_API_KEY}",
     "Content-Type": "application/json",
-    "HTTP-Referer": "https://vgai.app",
-    "X-Title": "vgAI",
+    "HTTP-Referer": "https://vgai2.com",
+    "X-Title": "vgAI2",
 }
 
 

@@ -667,6 +667,58 @@ $$;
 --   delete from project_expence_tracker t using merged m
 --    where t.project_id = m.project_id and t.id <> m.keep_id;
 
+-- Atomically settles a successful Razorpay credit top-up. Both the signed
+-- browser callback and Razorpay's payment.captured webhook call this function;
+-- locking the order row makes those concurrent paths safe and idempotent.
+create or replace function settle_credit_topup(
+  p_order_id varchar,
+  p_payment_id varchar,
+  p_signature text default null
+)
+returns numeric
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_topup credit_topups%rowtype;
+  v_new_balance numeric;
+begin
+  select * into v_topup
+    from credit_topups
+   where razorpay_order_id = p_order_id
+   for update;
+
+  -- Razorpay may deliver an event for an order that was not created by this
+  -- application. Acknowledging it is safer than retrying forever.
+  if not found then
+    return null;
+  end if;
+
+  if v_topup.payment_status = 'success' then
+    select current_credit_balance into v_new_balance
+      from users where id = v_topup.user_id;
+    return v_new_balance;
+  end if;
+
+  update users
+     set current_credit_balance = current_credit_balance + v_topup.credits_added,
+         updated_at = now()
+   where id = v_topup.user_id
+  returning current_credit_balance into v_new_balance;
+
+  update credit_topups
+     set payment_status = 'success',
+         razorpay_payment_id = p_payment_id,
+         razorpay_signature = coalesce(p_signature, razorpay_signature),
+         credits_balance_after = v_new_balance,
+         updated_at = now()
+   where id = v_topup.id;
+
+  return v_new_balance;
+end;
+$$;
+
 -- ==========================
 -- Row Level Security
 -- ==========================

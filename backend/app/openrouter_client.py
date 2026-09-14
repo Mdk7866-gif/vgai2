@@ -24,7 +24,7 @@ def get_openrouter_chat_model(model: str, temperature: float = 0.7) -> ChatOpenA
         base_url=OPENROUTER_BASE_URL,
         temperature=temperature,
         default_headers={
-            "HTTP-Referer": "https://vgai.app",
-            "X-Title": "vgAI",
+            "HTTP-Referer": "https://vgai2.com",
+            "X-Title": "vgAI2",
         },
     )

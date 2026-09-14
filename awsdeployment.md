@@ -1,4 +1,4 @@
-# Deploying vgAI to AWS EC2
+# Deploying vgAI2 to AWS EC2
 
 End-to-end instructions for running the vgAI product (this repo — **not** the
 separate `vgai2admin` portal, which stays local-only) on a single EC2 instance
@@ -36,8 +36,8 @@ Four containers, defined in [`docker-compose.yml`](./docker-compose.yml):
 
 Two things to understand up front, because everything else follows from them:
 
-**Everything is served from one origin.** `https://vgai.syp3.com/` is the
-frontend and `https://vgai.syp3.com/api/...` is the backend. nginx strips the
+**Everything is served from one origin.** `https://vgai2.com/` is the
+frontend and `https://vgai2.com/api/...` is the backend. nginx strips the
 `/api` prefix before forwarding, so FastAPI still sees `/users/me`, `/payments/...`
 exactly as it does locally. Because the two halves share an origin, the frontend
 calls the backend at the **relative** path `/api` — the domain name is never
@@ -255,7 +255,7 @@ regenerating keys. Read [`.env.example`](./.env.example) itself for what each
 one is; the ones that matter most for this step:
 
 ```bash
-DOMAIN=vgai.syp3.com          # no https://, no trailing slash, no www
+DOMAIN=vgai2.com              # no https://, no trailing slash, no www
 ACME_EMAIL=you@example.com    # gets the certificate-expiry warnings
 ```
 
@@ -273,7 +273,7 @@ compose file with your values and prints the result:
 docker compose config | grep -E "ALLOWED_ORIGINS|DOMAIN|NEXT_PUBLIC_BACKEND_URL"
 ```
 
-You should see `https://vgai.syp3.com` and `/api`. If `DOMAIN` shows up empty,
+You should see `https://vgai2.com` and `/api`. If `DOMAIN` shows up empty,
 the `.env` file isn't where compose expects it (it must be `/opt/vgai/.env`).
 
 ---
@@ -293,7 +293,7 @@ Wait for it to propagate, then confirm **from the instance** that the name
 resolves to the right address:
 
 ```bash
-dig +short vgai.syp3.com
+dig +short vgai2.com
 ```
 
 This must print your Elastic IP and nothing else. Do not continue until it does
@@ -378,14 +378,14 @@ docker compose exec backend python -c \
   "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/health').read())"
 
 # 2. Through the proxy, over TLS
-curl -I https://vgai.syp3.com
-curl    https://vgai.syp3.com/api/health      # -> {"success":true,"status":"ok"}
+curl -I https://vgai2.com
+curl    https://vgai2.com/api/health      # -> {"success":true,"status":"ok"}
 
 # 3. The HTTP -> HTTPS redirect
-curl -I http://vgai.syp3.com                  # -> 301, Location: https://...
+curl -I http://vgai2.com                  # -> 301, Location: https://...
 ```
 
-Then open `https://vgai.syp3.com` in a browser and check the padlock. Sign-in
+Then open `https://vgai2.com` in a browser and check the padlock. Sign-in
 will still fail at this point — that's §10.
 
 If anything is wrong, `docker compose logs -f nginx` (or `backend` / `frontend`)
@@ -404,8 +404,8 @@ Google OAuth redirects back to `window.location.href`, so the deployed URL has
 to be on Supabase's allowlist. In the Supabase dashboard →
 **Authentication → URL Configuration**:
 
-- **Site URL**: `https://vgai.syp3.com`
-- **Redirect URLs**: add `https://vgai.syp3.com/**` (keep
+- **Site URL**: `https://vgai2.com`
+- **Redirect URLs**: add `https://vgai2.com/**` (keep
   `http://localhost:3000/**` as well so local development still works)
 
 You do **not** need to touch anything in the Google Cloud console — Google
@@ -413,18 +413,18 @@ redirects to Supabase's own `/auth/v1/callback`, which is unchanged.
 
 ### Razorpay
 
-Add `vgai.syp3.com` to the authorised domains for Checkout in the Razorpay
+Add `vgai2.com` to the authorised domains for Checkout in the Razorpay
 dashboard if your account has that restriction enabled. Nothing else is needed
 for top-ups — `/payments/verify` is called from the browser and works as-is.
 
-**Optional, now that a real domain exists:** the backup payment webhook in
-`backend/app/routes/payments/webhook.py` has been sitting unregistered precisely
-because Razorpay refuses `localhost` URLs. To turn it on, follow the four steps
-in that file's own docstring: uncomment the code, register the router in
-`app/routes/router.py`, point a Razorpay webhook at
-`https://vgai.syp3.com/api/payments/webhook`, and put the generated secret in
-`RAZORPAY_WEBHOOK_SECRET` in `.env`. Note the `/api` prefix — the webhook hits
-the same proxy path as everything else.
+**Required before accepting live payments:** the Razorpay webhook is registered
+in the backend. Add `https://vgai2.com/api/payments/webhook` in Razorpay Live
+mode, select `payment.captured` and `payment.failed`, and put its secret in
+`RAZORPAY_WEBHOOK_SECRET` in the root `.env`. Note the `/api` prefix — the
+webhook hits the same proxy path as everything else. Apply
+`vgai2admin/migration/004_atomic_razorpay_credit_settlement.sql` in Supabase
+before enabling it; this makes the webhook and browser checkout verification
+safe to run concurrently without adding credits twice.
 
 ### Database
 

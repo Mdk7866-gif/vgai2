@@ -11,6 +11,7 @@ from app.routes.styletemplates import generatetemplate as styletemplates_generat
 from app.routes.scriptgenerationtemplate import crud as scripttemplates_crud
 from app.routes.scriptgenerationtemplate import viralscripttopicresearch as scripttemplates_generate
 from app.routes.payments import crud as payments_crud
+from app.routes.payments import webhook as payments_webhook
 from app.routes.profile import usagehistory as profile_usagehistory
 from app.routes.project import projectcrud
 from app.routes.project import paidscripttoscenesplitter
@@ -47,6 +48,7 @@ api_router.include_router(styletemplates_generate.router)
 api_router.include_router(scripttemplates_generate.router)
 api_router.include_router(scripttemplates_crud.router)
 api_router.include_router(payments_crud.router)
+api_router.include_router(payments_webhook.router)
 # app.routes.payments.webhook is a placeholder, not registered yet — see that
 # file's docstring for why and how to activate it.
 

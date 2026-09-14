@@ -1,5 +1,11 @@
 # vgAI — project context (hand this to an AI first)
 
+# Launch update — vgAI2.com (15 Sep 2026)
+
+The visible customer and admin brand is **vgAI2**; internal `vgai2` identifiers remain unchanged. The customer product will deploy at `https://vgai2.com`; its frontend provides public SEO metadata, `robots.txt`, sitemap, manifest, pricing, terms-and-conditions, cancellation-refund-policy, privacy-policy, about, and contact routes. `hello@vgai2.com` is the public support/legal email.
+
+Razorpay Live checkout uses both browser signature verification and the signed server webhook at `https://vgai2.com/api/payments/webhook` (`payment.captured`, `payment.failed`). Before enabling it, run `vgai2admin/migration/004_atomic_razorpay_credit_settlement.sql` manually in the shared Supabase SQL Editor. The `settle_credit_topup()` function locks an order so concurrent browser/webhook deliveries cannot credit it twice. Purchased credits do not expire and are non-refundable; cancelled generations remain charged once their provider work begins, while provider failures are refunded.
+
 A single self-contained briefing on **both** halves of this product. Written to
 be pasted or attached at the start of a conversation so an assistant understands
 the setup before touching anything.

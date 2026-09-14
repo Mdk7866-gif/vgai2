@@ -1,3 +1,5 @@
+from collections.abc import Mapping
+
 import razorpay
 from fastapi import APIRouter, Depends, HTTPException
 from supabase_auth.types import User as SupabaseUser
@@ -22,6 +24,40 @@ router = APIRouter(prefix="/payments", tags=["payments"])
 # account, so credits are priced in INR using this fixed rate for now.
 USD_TO_INR_RATE = 100
 PAISE_PER_CREDIT = USD_TO_INR_RATE  # 100 credits = $1 = USD_TO_INR_RATE rupees = USD_TO_INR_RATE * 100 paise, so 1 credit = USD_TO_INR_RATE paise
+
+
+def settle_credit_topup(
+    razorpay_order_id: str,
+    razorpay_payment_id: str,
+    razorpay_signature: str | None = None,
+) -> None:
+    """Atomically mark a captured order successful and add its credits once.
+
+    Checkout verification and Razorpay webhooks can arrive in either order (or
+    at the same time). The database function locks the order row, so they can
+    never each add the same credits.
+    """
+    supabase.rpc(
+        "settle_credit_topup",
+        {
+            "p_order_id": razorpay_order_id,
+            "p_payment_id": razorpay_payment_id,
+            "p_signature": razorpay_signature,
+        },
+    ).execute()
+
+
+def mark_credit_topup_failed(
+    razorpay_order_id: str, razorpay_payment_id: str | None = None
+) -> None:
+    """Record a failed attempt without ever overwriting a captured payment."""
+    (
+        supabase.table("credit_topups")
+        .update({"payment_status": "failed", "razorpay_payment_id": razorpay_payment_id})
+        .eq("razorpay_order_id", razorpay_order_id)
+        .eq("payment_status", "pending")
+        .execute()
+    )
 
 
 @router.get("/history", response_model=PaymentHistoryResponse)
@@ -51,14 +87,18 @@ async def get_payment_history(current_user: SupabaseUser = Depends(get_current_u
         .order("created_at", desc=True)
         .execute()
     )
-    grants = grants_result.data or []
+    grants = [
+        AdminCreditGrant.model_validate(grant)
+        for grant in (grants_result.data or [])
+        if isinstance(grant, Mapping)
+    ]
 
     return PaymentHistoryResponse(
         topups=topups,
-        grants=[AdminCreditGrant(**grant) for grant in grants],
+        grants=grants,
         total_amount_paid=sum(float(topup["amount_paid"]) for topup in successful),
         total_credits_purchased=sum(float(topup["credits_added"]) for topup in successful),
-        total_credits_granted=sum(float(grant["credits_granted"]) for grant in grants),
+        total_credits_granted=sum(float(grant.credits_granted) for grant in grants),
     )
 
 
@@ -160,21 +200,11 @@ async def verify_payment(
         ).eq("id", topup["id"]).execute()
         raise HTTPException(status_code=400, detail="Payment signature verification failed")
 
-    current_balance = _get_current_balance(current_user.id)
-    new_balance = current_balance + float(topup["credits_added"])
-
-    supabase.table("users").update({"current_credit_balance": new_balance}).eq(
-        "id", current_user.id
-    ).execute()
-
-    supabase.table("credit_topups").update(
-        {
-            "payment_status": "success",
-            "razorpay_payment_id": payload.razorpay_payment_id,
-            "razorpay_signature": payload.razorpay_signature,
-            "credits_balance_after": new_balance,
-        }
-    ).eq("id", topup["id"]).execute()
+    settle_credit_topup(
+        payload.razorpay_order_id,
+        payload.razorpay_payment_id,
+        payload.razorpay_signature,
+    )
 
     result = supabase.table("users").select("*").eq("id", current_user.id).execute()
     return result.data[0]

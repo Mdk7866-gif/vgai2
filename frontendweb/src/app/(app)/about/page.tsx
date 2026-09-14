@@ -12,9 +12,9 @@ export default function AboutPage() {
     <div className="mx-auto max-w-5xl space-y-10 pb-16">
       <section className="relative overflow-hidden rounded-[2rem] border border-brand-200/60 bg-gradient-to-br from-white via-brand-50 to-cyan-50 p-7 dark:border-white/10 dark:from-surface dark:via-surface dark:to-slate-900 sm:p-12">
         <Clapperboard aria-hidden="true" className="mb-8 h-10 w-10 text-brand-500" />
-        <p className="eyebrow">Behind vgAI</p>
+        <p className="eyebrow">Behind vgAI2</p>
         <h1 className="mt-4 max-w-3xl text-4xl font-semibold leading-tight tracking-[-.045em] text-slate-950 dark:text-white sm:text-6xl">More room for the story.<br /><span className="text-brand-600 dark:text-brand-300">Less friction creating it.</span></h1>
-        <p className="mt-6 max-w-2xl text-base leading-8 text-slate-600 dark:text-slate-300">vgAI is a scene-by-scene production studio for video creators. It brings scripts, reusable characters, visual styles, and AI-generated media into one organized workspace.</p>
+        <p className="mt-6 max-w-2xl text-base leading-8 text-slate-600 dark:text-slate-300">vgAI2 is a scene-by-scene production studio for video creators. It brings scripts, reusable characters, visual styles, and AI-generated media into one organized workspace.</p>
         <Link href="/" className="mt-8 inline-flex items-center gap-2 rounded-xl bg-action px-5 py-3 text-sm font-semibold text-action-foreground transition hover:bg-action-hover">Explore the studio <ArrowRight className="h-4 w-4" /></Link>
       </section>
       <section aria-label="Our approach" className="grid gap-4 md:grid-cols-3">

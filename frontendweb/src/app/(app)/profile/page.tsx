@@ -102,7 +102,7 @@ export default function ProfilePage() {
           amount: order.amount,
           currency: order.currency,
           order_id: order.order_id,
-          name: "vgAI",
+          name: "vgAI2",
           description: `${credits} credits`,
           prefill: {
             name: profile?.name ?? undefined,

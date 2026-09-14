@@ -31,7 +31,7 @@ export default function LoginPage() {
 
         <div className="text-center">
           <h1 className="text-xl font-semibold text-slate-900 dark:text-white">
-            Sign in to vgAI
+            Sign in to vgAI2
           </h1>
           <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
             Save your scripts, build reusable characters, and create scene-by-scene visuals.

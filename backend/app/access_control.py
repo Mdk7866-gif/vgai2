@@ -109,11 +109,11 @@ def enforce_access(email: str | None) -> None:
     if mode == "allowed_all":
         blocked = normalized in entries
         reason = entries.get(normalized) if blocked else None
-        message = "Your access to vgAI has been revoked."
+        message = "Your access to vgAI2 has been revoked."
     else:
         blocked = normalized not in entries
         reason = None
-        message = "vgAI is currently invite-only, and this email is not on the allowed list."
+        message = "vgAI2 is currently invite-only, and this email is not on the allowed list."
 
     if blocked:
         raise HTTPException(

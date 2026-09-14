@@ -20,7 +20,7 @@ export const LoginModal = () => {
         onClick={closeLoginModal}
       />
 
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Sign in to vgAI" tabIndex={-1} className="relative max-h-[90dvh] overflow-y-auto w-full max-w-md md:max-w-lg bg-white dark:bg-surface border border-slate-200 dark:border-border rounded-3xl shadow-2xl p-6 sm:p-10 md:p-12 flex flex-col items-center gap-8 animate-in fade-in zoom-in-95 duration-200">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Sign in to vgAI2" tabIndex={-1} className="relative max-h-[90dvh] overflow-y-auto w-full max-w-md md:max-w-lg bg-white dark:bg-surface border border-slate-200 dark:border-border rounded-3xl shadow-2xl p-6 sm:p-10 md:p-12 flex flex-col items-center gap-8 animate-in fade-in zoom-in-95 duration-200">
         <button
           onClick={closeLoginModal}
           aria-label="Close"
@@ -33,7 +33,7 @@ export const LoginModal = () => {
 
         <div className="text-center">
           <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">
-            Sign in to vgAI
+            Sign in to vgAI2
           </h2>
           <p className="mt-2 text-[15px] text-slate-500 dark:text-slate-400">
             Please sign in to continue with this action.

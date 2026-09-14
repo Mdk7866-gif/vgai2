@@ -126,7 +126,7 @@ export function parseStyleTemplateImport(raw: string): StyleTemplateImportPayloa
   }
   if (imageAspectRatio !== videoAspectRatio) {
     throw new StyleTemplateImportError(
-      `"image_aspect_ratio" and "video_aspect_ratio" must match — vgAI uses a single aspect-ratio picker for both.`
+      `"image_aspect_ratio" and "video_aspect_ratio" must match — vgAI2 uses a single aspect-ratio picker for both.`
     );
   }
 

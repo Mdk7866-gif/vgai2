@@ -19,8 +19,27 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "vgAI - Generative Video Workflow",
-  description: "AI broken scene-by-scene script structure and generation",
+  metadataBase: new URL("https://vgai2.com"),
+  title: {
+    default: "vgAI2 | AI Video Creation Studio",
+    template: "%s | vgAI2",
+  },
+  description:
+    "Turn scripts into editable scenes, AI-generated images, animations, and downloadable video assets with vgAI2.",
+  applicationName: "vgAI2",
+  keywords: ["AI video generator", "script to video", "AI scene generator", "faceless video creator"],
+  robots: { index: true, follow: true },
+  openGraph: {
+    type: "website",
+    siteName: "vgAI2",
+    title: "vgAI2 | AI Video Creation Studio",
+    description: "Turn scripts into editable scenes, AI-generated images, animations, and downloadable video assets.",
+  },
+  twitter: {
+    card: "summary",
+    title: "vgAI2 | AI Video Creation Studio",
+    description: "Turn scripts into editable scenes, AI-generated images, animations, and downloadable video assets.",
+  },
 };
 
 export default function RootLayout({

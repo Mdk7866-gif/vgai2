@@ -22,7 +22,7 @@ export const Logo = ({ className = "" }: { className?: string }) => {
         <circle cx="16" cy="16" r="2.5" fill="white" />
       </svg>
       <span className="text-xl font-bold tracking-[-.04em] text-slate-950 dark:text-white">
-        vgAI
+        vgAI2
       </span>
     </div>
   );

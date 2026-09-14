@@ -2,6 +2,12 @@
 
 Home project thumbnail frames use the standard 16:9 video ratio (`aspect-video`) with `object-cover`, including real generated thumbnails and the empty-state frame, so cards remain visually consistent with the production workflow.
 
+## Launch update — vgAI2, SEO, and Razorpay
+
+The public product and its local-only sibling portal use visible brand **vgAI2**. Internal technical identifiers (`vgai2` database names, Cloudinary folder, event names) remain unchanged. The user-facing frontend at `https://vgai2.com` owns its Metadata API configuration plus generated `robots.txt`, sitemap, and web manifest; account/workspace paths are excluded from crawling while the public home, about, pricing, terms, cancellation/refund, privacy, and contact pages are indexed. Contact/legal email is `hello@vgai2.com`.
+
+Razorpay Live payments require both the signed checkout callback and the server-to-server `/payments/webhook` reconciliation route. Configure Razorpay Live `payment.captured` and `payment.failed` events at `https://vgai2.com/api/payments/webhook`, with its secret stored only as `RAZORPAY_WEBHOOK_SECRET` in the Docker root `.env`. `settle_credit_topup()` locks the order row and is called by both success paths so credits are added once even if deliveries race or duplicate. Run sibling-admin migration `004_atomic_razorpay_credit_settlement.sql` manually in the shared Supabase SQL Editor before enabling the webhook. Purchased credits are non-refundable and do not expire; a generation cancellation is not refundable once its provider work starts, while provider failures are refunded automatically.
+
 ## Documentation maintenance — required completion work
 
 This repository is developed alongside the sibling `vgai2admin` portal. Whenever a change adds, removes, or materially changes a feature, user/admin behavior, route/API, schema, credit rule, provider integration, deployment setup, or established implementation convention, update the relevant documentation as part of the same task — not in a later cleanup. Keep `README.md`, `AGENTS.md`, and the shared `PROJECT_CONTEXT.md` accurate in this repository and, when the change affects the other application or shared database, update the corresponding `README.md` and `AGENTS.md` in `C:\Users\ASUS\OneDrive\Desktop\vgai2admin` too. This rule exists so a new chat in Codex, Claude Code, or Antigravity has reliable current context.

@@ -26,10 +26,10 @@ export const AccessRevokedModal = () => {
   //  - allowed_all (the default "open" mode): this email was specifically
   //    singled out and restricted, so show the admin's note when there is one.
   const inviteOnly = accessRevokedMode === "allowed_only";
-  const title = inviteOnly ? "vgAI is invite-only right now" : "Access revoked";
+  const title = inviteOnly ? "vgAI2 is invite-only right now" : "Access revoked";
   const body = inviteOnly
     ? `${accessRevokedEmail ? `${accessRevokedEmail} isn't` : "Your email isn't"} on the allowed list yet, so you've been signed out. Contact the admin if you'd like access.`
-    : `Your access to vgAI has been revoked and you've been signed out.${
+    : `Your access to vgAI2 has been revoked and you've been signed out.${
         accessRevokedReason ? ` Reason: ${accessRevokedReason}` : " Contact support if you believe this is a mistake."
       }`;
 

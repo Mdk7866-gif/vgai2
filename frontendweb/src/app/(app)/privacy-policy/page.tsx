@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy - vgAI",
+  title: "Privacy Policy",
   description:
-    "How vgAI collects, uses, stores, and protects your data across scripts, generated media, and your account.",
+    "How vgAI2 collects, uses, stores, and protects your data across scripts, generated media, and your account.",
+  alternates: { canonical: "/privacy-policy" },
 };
 
 const LAST_UPDATED = "August 22, 2026";
-const CONTACT_EMAIL = "mujamahe@gmail.com";
+const CONTACT_EMAIL = "hello@vgai2.com";
 
 const sections: { id: string; title: string }[] = [
   { id: "overview", title: "1. Overview" },
@@ -60,11 +61,11 @@ export default function PrivacyPolicyPage() {
           Last updated: {LAST_UPDATED}
         </p>
         <p className="mt-4 text-sm leading-relaxed text-slate-600 dark:text-slate-300 max-w-3xl">
-          vgAI (&ldquo;vgAI,&rdquo; &ldquo;we,&rdquo; &ldquo;us,&rdquo; or
+          vgAI2 (&ldquo;vgAI2,&rdquo; &ldquo;we,&rdquo; &ldquo;us,&rdquo; or
           &ldquo;our&rdquo;) is an early-stage product that helps creators turn
           a script into scene-by-scene AI-generated images, animations, and
           voiceovers. This policy explains what data we collect when you use
-          vgAI, why we collect it, which third-party providers we share it
+          vgAI2, why we collect it, which third-party providers we share it
           with to make the product work, and the choices you have. We&rsquo;re
           a small team building this in the open — if anything here is
           unclear, email us and we&rsquo;ll clarify or fix it.
@@ -95,13 +96,13 @@ export default function PrivacyPolicyPage() {
         <div className="space-y-10 min-w-0 rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 dark:border-border dark:bg-surface">
           <Section id="overview" title="1. Overview">
             <p>
-              vgAI lets you paste a script, split it into scenes, and generate
+              vgAI2 lets you paste a script, split it into scenes, and generate
               matching images, animations, and voiceovers using third-party AI
               providers, reusing saved character and style-template libraries
               you build. To provide this, we necessarily process the content
               you submit (scripts, prompts, uploaded images) and account data
               tied to your login. This policy covers everything collected
-              through the vgAI website and app.
+              through the vgAI2 website and app.
             </p>
             <p>
               This policy is written for India-based operation and users, and
@@ -129,7 +130,7 @@ export default function PrivacyPolicyPage() {
               Scripts you paste or generate, scene breakdowns, image/video
               generation prompts, character descriptions, style-template
               settings, and any images or videos you upload or generate
-              through vgAI. This is the core content the product exists to
+              through vgAI2. This is the core content the product exists to
               help you produce.
             </p>
             <p>
@@ -192,7 +193,7 @@ export default function PrivacyPolicyPage() {
 
           <Section id="third-party-services" title="4. Third-Party Services We Use">
             <p>
-              vgAI is built on top of several third-party providers. Each
+              vgAI2 is built on top of several third-party providers. Each
               receives only the data necessary to perform its specific
               function, and each has its own privacy policy governing how it
               handles that data.
@@ -267,7 +268,7 @@ export default function PrivacyPolicyPage() {
             <p>
               You are responsible for the content of the scripts you submit
               and the outputs you generate, and for ensuring you have the
-              rights to any characters, likenesses, or material you ask vgAI
+              rights to any characters, likenesses, or material you ask vgAI2
               to reference or reproduce.
             </p>
           </Section>
@@ -337,7 +338,7 @@ export default function PrivacyPolicyPage() {
 
           <Section id="childrens-privacy" title="10. Children's Privacy">
             <p>
-              vgAI is not directed at children under 18. We do not knowingly
+              vgAI2 is not directed at children under 18. We do not knowingly
               collect personal information from children. If you believe a
               child has provided us with personal data, contact us and
               we&rsquo;ll remove it.
@@ -347,7 +348,7 @@ export default function PrivacyPolicyPage() {
           <Section id="international-transfers" title="11. International Data Transfers">
             <p>
               Our third-party providers (Section 4) operate infrastructure in
-              multiple countries, including the United States. By using vgAI,
+              multiple countries, including the United States. By using vgAI2,
               you understand your data may be processed outside India as part
               of these providers&rsquo; standard operations.
             </p>
@@ -355,11 +356,11 @@ export default function PrivacyPolicyPage() {
 
           <Section id="changes" title="12. Changes to This Policy">
             <p>
-              As vgAI is under active development, this policy may change as
+              As vgAI2 is under active development, this policy may change as
               we add or change features and providers. We&rsquo;ll update the
               &ldquo;Last updated&rdquo; date above when we do, and for
               material changes we&rsquo;ll make a reasonable effort to notify
-              active users. Continuing to use vgAI after a change means you
+              active users. Continuing to use vgAI2 after a change means you
               accept the updated policy.
             </p>
           </Section>

@@ -44,8 +44,8 @@ export const buildShareableStyleTemplate = (template: StyleTemplate): StyleTempl
   demo_image_url: template.demo_image_url,
 });
 
-const jsonFileName = (template: StyleTemplate) => `${slugify(template.name)}.vgai-style.json`;
-const textFileName = (template: StyleTemplate) => `${slugify(template.name)}.vgai-style.txt`;
+const jsonFileName = (template: StyleTemplate) => `${slugify(template.name)}.vgai2-style.json`;
+const textFileName = (template: StyleTemplate) => `${slugify(template.name)}.vgai2-style.txt`;
 
 const buildJson = (template: StyleTemplate): string => JSON.stringify(buildShareableStyleTemplate(template), null, 2);
 
@@ -86,7 +86,7 @@ export const shareStyleTemplateJson = async (
 ): Promise<"shared" | "shared-text" | "downloaded"> => {
   const json = buildJson(template);
   const nav = navigator as ShareCapableNavigator;
-  const shareMeta = { title: `${template.name} — vgAI Style Template` };
+  const shareMeta = { title: `${template.name} — vgAI2 Style Template` };
 
   if (nav.share) {
     const file = new File([json], textFileName(template), { type: "text/plain" });

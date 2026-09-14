@@ -40,12 +40,12 @@ export default function HomePageAllowOnlyTheseUserAccessCard() {
               {user ? "Your creative workspace" : "Open access"}
             </div>
             <h2 className="mt-1.5 text-xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-2xl">
-              {firstName ? `Welcome back, ${firstName}` : "Welcome to vgAI"}
+              {firstName ? `Welcome back, ${firstName}` : "Welcome to vgAI2"}
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
               {user
                 ? "You’re all set. Start a new project or continue building with your saved characters and style templates."
-                : "vgAI is currently open to everyone. Explore the creative tools and sign in with Google when you’re ready to start building."}
+                : "vgAI2 is currently open to everyone. Explore the creative tools and sign in with Google when you’re ready to start building."}
             </p>
           </div>
         </div>
@@ -56,7 +56,7 @@ export default function HomePageAllowOnlyTheseUserAccessCard() {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!email.trim()) {
-      setError("Enter the Google account email you want to use with vgAI.");
+      setError("Enter the Google account email you want to use with vgAI2.");
       return;
     }
     setSubmitting(true);
@@ -83,7 +83,7 @@ export default function HomePageAllowOnlyTheseUserAccessCard() {
         <div>
           <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-brand-200 bg-white/70 px-3 py-1.5 text-xs font-semibold text-brand-700 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-brand-300">
             <ShieldCheck className="h-3.5 w-3.5" />
-            vgAI is currently invite-only
+            vgAI2 is currently invite-only
           </div>
           <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
             Request early access

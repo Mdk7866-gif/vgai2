@@ -1,91 +1,57 @@
-"""Razorpay webhook — PLACEHOLDER, not wired up yet.
+"""Server-to-server Razorpay payment reconciliation.
 
-Why this exists but isn't active: Razorpay refuses "localhost" as a webhook
-URL, so there's nothing to point it at until this app is deployed with a real
-domain. The primary credit-top-up path (app/routes/payments/crud.py's
-/payments/verify) already works without this — it verifies the payment
-signature returned by Razorpay Checkout directly in the browser flow. This
-webhook is only a *backup*: it covers the case where a payment succeeds but
-the user closes the tab before the frontend can call /verify.
-
-To activate once you have a domain:
-  1. Uncomment the code below.
-  2. Register the router in app/routes/router.py:
-       from app.routes.payments import webhook as payments_webhook
-       api_router.include_router(payments_webhook.router)
-  3. In the Razorpay Dashboard -> Settings -> Webhooks, add:
-       URL:    https://<your-domain>/payments/webhook
-       Secret: generate one, put it in RAZORPAY_WEBHOOK_SECRET in backend/.env
-       Events: payment.captured, payment.failed (order.paid optional)
+Checkout's signed browser response gives immediate feedback, while this route
+ensures captured payments are credited if that browser callback never returns.
+It deliberately accepts no user session. Razorpay's HMAC is checked against
+the exact raw request bytes before JSON is parsed, and settlement is atomic in
+Postgres so duplicate or concurrent deliveries cannot grant credits twice.
 """
 
-# import razorpay
-# from fastapi import APIRouter, HTTPException, Request
-#
-# from app.config import settings
-# from app.razorpay_client import razorpay_client
-# from app.supabase import supabase
-#
-# router = APIRouter(prefix="/payments", tags=["payments"])
-#
-#
-# @router.post("/webhook")
-# async def razorpay_webhook(request: Request):
-#     body = await request.body()
-#     signature = request.headers.get("X-Razorpay-Signature", "")
-#
-#     if razorpay_client is None or not settings.RAZORPAY_WEBHOOK_SECRET:
-#         raise HTTPException(status_code=500, detail="Webhook not configured.")
-#
-#     try:
-#         razorpay_client.utility.verify_webhook_signature(
-#             body.decode(), signature, settings.RAZORPAY_WEBHOOK_SECRET
-#         )
-#     except razorpay.errors.SignatureVerificationError:
-#         raise HTTPException(status_code=400, detail="Invalid webhook signature")
-#
-#     event = await request.json()
-#     event_type = event.get("event")
-#
-#     if event_type == "payment.captured":
-#         payment_entity = event["payload"]["payment"]["entity"]
-#         order_id = payment_entity["order_id"]
-#         payment_id = payment_entity["id"]
-#
-#         topup_result = (
-#             supabase.table("credit_topups").select("*").eq("razorpay_order_id", order_id).execute()
-#         )
-#         if not topup_result.data:
-#             return {"status": "ignored"}  # unknown order, nothing to do
-#         topup = topup_result.data[0]
-#
-#         # Idempotency: /verify (the browser-side path) may have already
-#         # applied this top-up — only apply it here if it's still pending.
-#         if topup["payment_status"] != "pending":
-#             return {"status": "already_processed"}
-#
-#         user_result = (
-#             supabase.table("users").select("current_credit_balance").eq("id", topup["user_id"]).execute()
-#         )
-#         current_balance = float(user_result.data[0]["current_credit_balance"])
-#         new_balance = current_balance + float(topup["credits_added"])
-#
-#         supabase.table("users").update({"current_credit_balance": new_balance}).eq(
-#             "id", topup["user_id"]
-#         ).execute()
-#         supabase.table("credit_topups").update(
-#             {
-#                 "payment_status": "success",
-#                 "razorpay_payment_id": payment_id,
-#                 "credits_balance_after": new_balance,
-#             }
-#         ).eq("id", topup["id"]).execute()
-#
-#     elif event_type == "payment.failed":
-#         payment_entity = event["payload"]["payment"]["entity"]
-#         order_id = payment_entity["order_id"]
-#         supabase.table("credit_topups").update({"payment_status": "failed"}).eq(
-#             "razorpay_order_id", order_id
-#         ).execute()
-#
-#     return {"status": "ok"}
+import hashlib
+import hmac
+import json
+
+from fastapi import APIRouter, HTTPException, Request
+
+from app.config import settings
+from app.routes.payments.crud import mark_credit_topup_failed, settle_credit_topup
+
+router = APIRouter(prefix="/payments", tags=["payments"])
+
+
+def _is_valid_signature(body: bytes, signature: str) -> bool:
+    secret = settings.RAZORPAY_WEBHOOK_SECRET
+    if not secret or not signature:
+        return False
+    expected = hmac.new(secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, signature)
+
+
+@router.post("/webhook")
+async def razorpay_webhook(request: Request):
+    if not settings.RAZORPAY_WEBHOOK_SECRET:
+        raise HTTPException(status_code=503, detail="Payment webhook is not configured.")
+
+    body = await request.body()
+    if not _is_valid_signature(body, request.headers.get("x-razorpay-signature", "")):
+        raise HTTPException(status_code=400, detail="Invalid Razorpay webhook signature.")
+
+    try:
+        event = json.loads(body)
+        payment = event["payload"]["payment"]["entity"]
+        order_id = payment["order_id"]
+        payment_id = payment["id"]
+    except (KeyError, TypeError, json.JSONDecodeError):
+        # A signed event that is not a payment event is outside this endpoint's
+        # scope; acknowledge it rather than causing Razorpay retries.
+        return {"status": "ignored"}
+
+    if event.get("event") == "payment.captured":
+        settle_credit_topup(order_id, payment_id)
+        return {"status": "settled"}
+
+    if event.get("event") == "payment.failed":
+        mark_credit_topup_failed(order_id, payment_id)
+        return {"status": "failed_recorded"}
+
+    return {"status": "ignored"}

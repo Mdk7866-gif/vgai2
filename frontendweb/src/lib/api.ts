@@ -30,7 +30,7 @@ export async function authFetch(path: string, options: RequestInit = {}) {
           detail: { mode: body.detail.mode ?? null, reason: body.detail.reason ?? null },
         })
       );
-      throw new Error(body.detail.message ?? "Your access to vgAI has been revoked.");
+      throw new Error(body.detail.message ?? "Your access to vgAI2 has been revoked.");
     }
 
     const detail = typeof body?.detail === "string" ? body.detail : null;

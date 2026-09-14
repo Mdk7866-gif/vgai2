@@ -61,7 +61,7 @@ export default function Home() {
             {returning ? `Welcome back${firstName ? `, ${firstName}` : ""}.` : <>Turn your script into <span className="text-brand-600 dark:text-brand-300">images & animations.</span></>}
           </h1>
           <p className="mt-5 max-w-xl text-base leading-7 text-slate-600 dark:text-slate-300">
-            {returning ? "Continue a project below, or start a new story. Your characters and visual styles are ready to reuse." : "vgAI helps video creators break a script into scenes, generate matching visuals, and download the assets for editing. You stay in control of every scene."}
+            {returning ? "Continue a project below, or start a new story. Your characters and visual styles are ready to reuse." : "vgAI2 helps video creators break a script into scenes, generate matching visuals, and download the assets for editing. You stay in control of every scene."}
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
             {inviteOnly ? (
