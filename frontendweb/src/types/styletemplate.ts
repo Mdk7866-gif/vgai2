@@ -18,6 +18,8 @@ export interface DefaultStyleTemplate {
   video_aspect_ratio: string;
   best_for: string | null;
   demo_image_url: string | null;
+  /** Ordered catalog gallery; only index 0 is copied on import. */
+  demo_image_urls: string[];
 }
 
 export interface StyleTemplate {

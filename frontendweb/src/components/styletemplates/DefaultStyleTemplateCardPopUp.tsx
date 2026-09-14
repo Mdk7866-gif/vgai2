@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
-import { X, Palette, Sparkles, Layers, Loader2, Check, Plus, ZoomIn } from "lucide-react";
+import { X, Palette, Sparkles, Layers, Loader2, Check, Plus, ZoomIn, Images } from "lucide-react";
 import type { DefaultStyleTemplate } from "@/types/styletemplate";
 import ImageZoomPopUp from "@/components/ImageZoomPopUp";
 
@@ -108,7 +108,7 @@ export const DefaultStyleTemplateCardPopUp = ({
                   type="button"
                   onClick={() => setAspectFilter(opt.value)}
                   aria-pressed={aspectFilter === opt.value}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer ${
                     aspectFilter === opt.value
                       ? "bg-brand-600 text-white shadow-sm"
                       : "bg-slate-50 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-brand-300 dark:hover:border-brand-500/50"
@@ -131,6 +131,11 @@ export const DefaultStyleTemplateCardPopUp = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                 {filteredDefaults.map((template) => {
                   const isPortrait = template.image_aspect_ratio === "9:16";
+                  const demoUrls = template.demo_image_urls.length
+                    ? template.demo_image_urls
+                    : template.demo_image_url
+                      ? [template.demo_image_url]
+                      : [];
                   const importing = importingSlug === template.slug;
                   const imported = importedSlugs.includes(template.slug);
                   const imageLoaded = loadedSlugs.has(template.slug);
@@ -138,25 +143,31 @@ export const DefaultStyleTemplateCardPopUp = ({
                   return (
                     <div
                       key={template.slug}
-                      className="flex flex-col h-full bg-white dark:bg-surface border border-brand-200/70 dark:border-brand-500/30 rounded-2xl overflow-hidden shadow-sm hover:shadow-lg dark:hover:shadow-slate-900/50 transition-all duration-200"
+                      className="flex flex-col h-full bg-white dark:bg-surface border border-brand-200/70 dark:border-brand-500/30 rounded-2xl overflow-hidden shadow-sm hover:shadow-lg dark:hover:shadow-slate-900/50 transition duration-200"
                     >
                       {/* Media — a fixed 16:9 box always; a 9:16 template is
                           letterboxed inside it over a blurred copy of itself
                           rather than shrinking the box, so every card in this
                           grid lines up the same height. Click to zoom. */}
-                      <button
-                        type="button"
+                      <div
+                        role={demoUrls.length ? "button" : undefined}
+                        tabIndex={demoUrls.length ? 0 : undefined}
                         onClick={() =>
-                          template.demo_image_url &&
-                          setZoomTarget({ url: template.demo_image_url, alt: `${template.name} demo frame` })
+                          demoUrls[0] &&
+                          setZoomTarget({ url: demoUrls[0], alt: `${template.name} demo image 1` })
                         }
-                        disabled={!template.demo_image_url}
                         aria-label={
-                          template.demo_image_url ? `View full image for ${template.name}` : "No preview image yet"
+                          demoUrls.length ? `View demo gallery for ${template.name}` : "No preview image yet"
                         }
                         className={`group relative w-full aspect-video bg-slate-100 dark:bg-slate-900/60 overflow-hidden ${
-                          template.demo_image_url ? "cursor-zoom-in" : "cursor-default"
+                          demoUrls.length ? "cursor-zoom-in" : "cursor-default"
                         }`}
+                        onKeyDown={(event) => {
+                          if (demoUrls[0] && (event.key === "Enter" || event.key === " ")) {
+                            event.preventDefault();
+                            setZoomTarget({ url: demoUrls[0], alt: `${template.name} demo image 1` });
+                          }
+                        }}
                       >
                         <span className="absolute top-2 left-2 z-10 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-brand-600/90 text-white shadow-sm">
                           <Layers className="w-3 h-3" />
@@ -169,11 +180,11 @@ export const DefaultStyleTemplateCardPopUp = ({
                           </span>
                         )}
 
-                        {template.demo_image_url ? (
+                        {demoUrls.length ? (
                           <>
                             {isPortrait && (
                               <Image
-                                src={template.demo_image_url}
+                                src={demoUrls[0]}
                                 alt=""
                                 aria-hidden="true"
                                 fill
@@ -184,8 +195,8 @@ export const DefaultStyleTemplateCardPopUp = ({
                               />
                             )}
                             <Image
-                              src={template.demo_image_url}
-                              alt={`${template.name} demo frame`}
+                              src={demoUrls[0]}
+                              alt={`${template.name} demo image 1`}
                               fill
                               unoptimized
                               onLoad={() => markLoaded(template.slug)}
@@ -201,9 +212,19 @@ export const DefaultStyleTemplateCardPopUp = ({
                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
                               <span className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold bg-black/70 text-white">
                                 <ZoomIn className="w-3.5 h-3.5" />
-                                View full image
+                                View gallery
                               </span>
                             </div>
+                            {demoUrls.length > 1 && (
+                              <div className="absolute inset-x-2 bottom-2 z-20 flex gap-1.5" onClick={(event) => event.stopPropagation()}>
+                                {demoUrls.map((url, index) => (
+                                  <button key={url} type="button" onClick={() => setZoomTarget({ url, alt: `${template.name} demo image ${index + 1}` })} className="relative h-9 flex-1 overflow-hidden rounded-md ring-1 ring-white/80 transition hover:ring-2 hover:ring-brand-300" aria-label={`View demo image ${index + 1}`}>
+                                    <Image src={url} alt="" fill unoptimized className="object-cover" />
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                            <span className="absolute right-2 top-2 z-20 inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold text-white"><Images className="h-3 w-3" />{demoUrls.length} demo{demoUrls.length === 1 ? "" : "s"}</span>
                           </>
                         ) : (
                           <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-slate-300 dark:text-slate-600">
@@ -213,7 +234,7 @@ export const DefaultStyleTemplateCardPopUp = ({
                             </span>
                           </div>
                         )}
-                      </button>
+                      </div>
 
                       <div className="p-4 flex flex-col gap-3 flex-1">
                         <div>
@@ -250,7 +271,7 @@ export const DefaultStyleTemplateCardPopUp = ({
                           onClick={() => onImport(template)}
                           disabled={importing}
                           aria-label={`Add ${template.name} to your library`}
-                          className={`mt-auto flex items-center justify-center gap-1.5 w-full px-3 py-2 rounded-xl text-[13px] font-semibold shadow-sm transition-all active:scale-95 cursor-pointer disabled:cursor-not-allowed disabled:opacity-70 ${
+                          className={`mt-auto flex items-center justify-center gap-1.5 w-full px-3 py-2 rounded-xl text-[13px] font-semibold shadow-sm transition active:scale-95 cursor-pointer disabled:cursor-not-allowed disabled:opacity-70 ${
                             imported
                               ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-200 dark:ring-emerald-500/30"
                               : "bg-white dark:bg-slate-900/60 text-brand-600 dark:text-brand-400 ring-1 ring-brand-200 dark:ring-brand-500/40 hover:bg-brand-50 dark:hover:bg-brand-500/10"

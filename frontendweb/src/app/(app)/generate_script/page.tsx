@@ -76,6 +76,7 @@ export default function GenerateScriptPage() {
   const [researching, setResearching] = useState(false);
   const [topics, setTopics] = useState<ViralTopic[]>([]);
   const [generatingTopicTitle, setGeneratingTopicTitle] = useState<string | null>(null);
+  const scriptGenerationAbortRef = useRef<AbortController | null>(null);
   const [generatedScripts, setGeneratedScripts] = useState<GeneratedScript[]>([]);
 
   const [savingTemplate, setSavingTemplate] = useState(false);
@@ -246,6 +247,8 @@ export default function GenerateScriptPage() {
     }
 
     setGeneratingTopicTitle(topic.title);
+    const controller = new AbortController();
+    scriptGenerationAbortRef.current = controller;
     try {
       const res = await authFetch("/scripttemplates/generatescript", {
         method: "POST",
@@ -254,6 +257,7 @@ export default function GenerateScriptPage() {
           script_template_id: currentScriptTemplateId,
           topic: topic.title,
         }),
+        signal: controller.signal,
       });
       const data = await res.json();
       const newScript: GeneratedScript = {
@@ -273,11 +277,14 @@ export default function GenerateScriptPage() {
       setScriptsPage(1);
       setBalance(data.credits_remaining);
     } catch (err) {
-      setAlert({ title: "Script generation failed", message: err instanceof Error ? err.message : "Something went wrong." });
+      if (!controller.signal.aborted) setAlert({ title: "Script generation failed", message: err instanceof Error ? err.message : "Something went wrong." });
     } finally {
+      if (scriptGenerationAbortRef.current === controller) scriptGenerationAbortRef.current = null;
       setGeneratingTopicTitle(null);
     }
   };
+
+  const cancelScriptGeneration = () => scriptGenerationAbortRef.current?.abort();
 
   const handleImport = async (generated: GeneratedScript) => {
     if (!requireAuth()) return;
@@ -710,6 +717,7 @@ export default function GenerateScriptPage() {
                     topic={topic}
                     creditCost={activeGenerateCost}
                     onGenerate={handleGenerateScript}
+                    onCancel={cancelScriptGeneration}
                     generating={generatingTopicTitle === topic.title}
                     disabled={generatingTopicTitle !== null && generatingTopicTitle !== topic.title}
                   />

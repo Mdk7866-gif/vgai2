@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Flame, Loader2, Sparkles } from "lucide-react";
+import { Flame, Sparkles, X } from "lucide-react";
 import type { ViralTopic } from "@/types/scripttemplate";
 import CreditCoinIcon from "@/components/CreditCoinIcon";
 
@@ -9,6 +9,7 @@ interface SuggestionTopicCardProps {
   topic: ViralTopic;
   creditCost: number;
   onGenerate: (topic: ViralTopic) => void;
+  onCancel?: () => void;
   generating?: boolean;
   /** Disable Generate on every card while any one of them is generating. */
   disabled?: boolean;
@@ -18,6 +19,7 @@ export const SuggestionTopicCard = ({
   topic,
   creditCost,
   onGenerate,
+  onCancel,
   generating = false,
   disabled = false,
 }: SuggestionTopicCardProps) => {
@@ -38,12 +40,12 @@ export const SuggestionTopicCard = ({
         </p>
 
         <button
-          onClick={() => onGenerate(topic)}
-          disabled={disabled || generating}
+          onClick={() => generating ? onCancel?.() : onGenerate(topic)}
+          disabled={generating ? false : disabled}
           className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-action-foreground bg-action hover:bg-action-hover rounded-lg shadow-md shadow-brand-200 dark:shadow-brand-900/40 transition-all active:scale-95 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-          {generating ? "Generating…" : "+ Generate"}
+          {generating ? <X className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
+          {generating ? "Cancel generation" : "+ Generate"}
           {!generating && (
             <span className="flex items-center gap-1 pl-2 ml-0.5 border-l border-white/30 text-brand-100 dark:border-current/20 dark:text-action-foreground">
               <CreditCoinIcon className="w-3.5 h-3.5" />

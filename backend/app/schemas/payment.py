@@ -40,6 +40,16 @@ class CreditTopup(BaseModel):
         from_attributes = True
 
 
+class AdminCreditGrant(BaseModel):
+    """A free-credit adjustment recorded by the local admin portal."""
+
+    id: str
+    credits_granted: float
+    credits_balance_after: float
+    reason: str | None = None
+    created_at: datetime
+
+
 class PaymentHistoryResponse(BaseModel):
     """Top-up history for the /profile page's Payment tab.
 
@@ -48,5 +58,7 @@ class PaymentHistoryResponse(BaseModel):
     """
 
     topups: list[CreditTopup]
+    grants: list[AdminCreditGrant]
     total_amount_paid: float
     total_credits_purchased: float
+    total_credits_granted: float

@@ -8,6 +8,7 @@ from app.razorpay_client import razorpay_client
 from app.schemas.payment import (
     CreateOrderRequest,
     CreateOrderResponse,
+    AdminCreditGrant,
     PaymentHistoryResponse,
     VerifyPaymentRequest,
 )
@@ -43,11 +44,21 @@ async def get_payment_history(current_user: SupabaseUser = Depends(get_current_u
     )
     topups = result.data or []
     successful = [topup for topup in topups if topup["payment_status"] == "success"]
+    grants_result = (
+        supabase.table("admin_credit_grants")
+        .select("id, credits_granted, credits_balance_after, reason, created_at")
+        .eq("user_id", current_user.id)
+        .order("created_at", desc=True)
+        .execute()
+    )
+    grants = grants_result.data or []
 
     return PaymentHistoryResponse(
         topups=topups,
+        grants=[AdminCreditGrant(**grant) for grant in grants],
         total_amount_paid=sum(float(topup["amount_paid"]) for topup in successful),
         total_credits_purchased=sum(float(topup["credits_added"]) for topup in successful),
+        total_credits_granted=sum(float(grant["credits_granted"]) for grant in grants),
     )
 
 

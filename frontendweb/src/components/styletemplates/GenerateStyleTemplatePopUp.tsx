@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Loader2, RotateCcw, Sparkles, X } from "lucide-react";
 import Image from "next/image";
@@ -58,6 +58,7 @@ export const GenerateStyleTemplatePopUp = ({
   const [loadingBalance, setLoadingBalance] = useState(true);
 
   const [generating, setGenerating] = useState(false);
+  const generationAbortRef = useRef<AbortController | null>(null);
   const [result, setResult] = useState<GenerateResult | null>(null);
   const [accepting, setAccepting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -104,6 +105,8 @@ export const GenerateStyleTemplatePopUp = ({
     }
 
     setGenerating(true);
+    const controller = new AbortController();
+    generationAbortRef.current = controller;
     try {
       const res = await authFetch("/styletemplates/generate", {
         method: "POST",
@@ -114,16 +117,20 @@ export const GenerateStyleTemplatePopUp = ({
           aspect_ratio: aspectRatio,
           generate_demo_image: generateDemoImage,
         }),
+        signal: controller.signal,
       });
       const data: GenerateResult = await res.json();
       setResult(data);
       setBalance(data.credits_remaining);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      if (!controller.signal.aborted) setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
+      if (generationAbortRef.current === controller) generationAbortRef.current = null;
       setGenerating(false);
     }
   };
+
+  const cancelGeneration = () => generationAbortRef.current?.abort();
 
   const handleReject = () => {
     setResult(null);
@@ -204,6 +211,7 @@ export const GenerateStyleTemplatePopUp = ({
                     ? "This can take up to 60-90 seconds (includes generating the demo image). Please wait."
                     : "This can take up to 15 seconds. Please wait."}
                 </p>
+                <button type="button" onClick={cancelGeneration} className="mx-auto mt-4 inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100"><X className="h-3.5 w-3.5" />Cancel generation</button>
               </div>
             </div>
           ) : !result ? (

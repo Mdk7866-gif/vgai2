@@ -19,8 +19,19 @@ export interface CreditTopup {
 export interface PaymentHistoryResponse {
   /** Includes pending/failed attempts; only successful ones feed the totals. */
   topups: CreditTopup[];
+  grants: AdminCreditGrant[];
   total_amount_paid: number;
   total_credits_purchased: number;
+  total_credits_granted: number;
+}
+
+export interface AdminCreditGrant {
+  id: string;
+  credits_granted: number;
+  credits_balance_after: number;
+  /** Admin-provided explanation, shown verbatim to the account owner. */
+  reason: string | null;
+  created_at: string;
 }
 
 export interface ProjectUsageRecord {

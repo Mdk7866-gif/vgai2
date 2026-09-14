@@ -144,6 +144,9 @@ create table style_templates (
   -- a large library is scannable visually rather than by prompt text.
   best_for text,
   demo_image_url text,
+  -- Ordered catalog gallery (maximum three). The first URL remains in
+  -- demo_image_url and is the sole preview copied when a user imports.
+  demo_image_urls jsonb not null default '[]'::jsonb,
 
   created_at timestamp not null default now(),
   updated_at timestamp not null default now()
@@ -455,6 +458,10 @@ create table default_style_templates (
 
 create index idx_default_style_templates_published
   on default_style_templates (is_published, sort_order);
+
+alter table default_style_templates
+  add constraint default_style_templates_demo_image_urls_count
+  check (jsonb_typeof(demo_image_urls) = 'array' and jsonb_array_length(demo_image_urls) <= 3);
 
 -- The character-library counterpart of default_style_templates: the starter
 -- catalog behind GET /characters/defaults, edited from the admin portal.

@@ -116,8 +116,11 @@ async def import_default_style_template(
     new_template = {field: entry.get(field) for field in _IMPORTABLE_FIELDS}
     new_template["user_id"] = current_user.id
 
-    # Nullable in the catalog, so only copy when there's actually one to copy.
-    catalog_demo_url = entry.get("demo_image_url")
+    # The gallery is catalog-only. Import exactly its first (priority) image as
+    # the user's one independent library preview; older entries fall back to
+    # the legacy column until migration 003 has been applied.
+    catalog_demo_urls = entry.get("demo_image_urls") or []
+    catalog_demo_url = catalog_demo_urls[0] if catalog_demo_urls else entry.get("demo_image_url")
     new_template["demo_image_url"] = (
         copy_image_from_url(
             catalog_demo_url,

@@ -163,6 +163,8 @@ Table style_templates {
   // demo_image_url = Cloudinary sample frame previewed on the template card.
   best_for text
   demo_image_url text
+  // Ordered catalog gallery (up to three); first is copied on import.
+  demo_image_urls jsonb [not null, default: `[]`]
 
   created_at timestamp [not null, default: `now()`]
   updated_at timestamp [not null, default: `now()`]

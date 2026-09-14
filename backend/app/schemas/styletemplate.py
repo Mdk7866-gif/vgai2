@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 SceneDensity = Literal["small", "medium", "high"]
 
@@ -70,6 +70,8 @@ class DefaultStyleTemplate(BaseModel):
     video_aspect_ratio: str
     best_for: str | None = None
     demo_image_url: str | None = None
+    # Catalog-only gallery; its first image is the only one copied on import.
+    demo_image_urls: list[str] = Field(default_factory=list, max_length=3)
 
 
 class GenerateStyleTemplateRequest(BaseModel):

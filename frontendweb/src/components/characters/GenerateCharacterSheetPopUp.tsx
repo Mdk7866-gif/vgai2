@@ -50,6 +50,7 @@ export const GenerateCharacterSheetPopUp = ({
   const [loadingBalance, setLoadingBalance] = useState(true);
 
   const [generating, setGenerating] = useState(false);
+  const generationAbortRef = useRef<AbortController | null>(null);
   const [result, setResult] = useState<GenerateResult | null>(null);
   const [accepting, setAccepting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -126,6 +127,8 @@ export const GenerateCharacterSheetPopUp = ({
     }
 
     setGenerating(true);
+    const controller = new AbortController();
+    generationAbortRef.current = controller;
     try {
       const formData = new FormData();
       formData.append("character_name", name.trim());
@@ -133,16 +136,19 @@ export const GenerateCharacterSheetPopUp = ({
       formData.append("pro", String(proMode));
       if (referenceFile) formData.append("reference_image", referenceFile);
 
-      const res = await authFetch("/characters/generate", { method: "POST", body: formData });
+      const res = await authFetch("/characters/generate", { method: "POST", body: formData, signal: controller.signal });
       const data: GenerateResult = await res.json();
       setResult(data);
       setBalance(data.credits_remaining);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      if (!controller.signal.aborted) setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
+      if (generationAbortRef.current === controller) generationAbortRef.current = null;
       setGenerating(false);
     }
   };
+
+  const cancelGeneration = () => generationAbortRef.current?.abort();
 
   const handleReject = () => {
     setResult(null);
@@ -214,6 +220,7 @@ export const GenerateCharacterSheetPopUp = ({
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                   {proMode ? "This can take 1–2 minutes. Please wait." : "This can take 30–60 seconds. Please wait."}
                 </p>
+                <button type="button" onClick={cancelGeneration} className="mx-auto mt-4 inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100"><X className="h-3.5 w-3.5" />Cancel generation</button>
               </div>
             </div>
           ) : !result ? (

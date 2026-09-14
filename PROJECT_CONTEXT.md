@@ -209,9 +209,11 @@ layer above them.
 8. **A starter catalog's images are shared product assets — copy them on
    import, don't reference them.** Both catalogs live in root-level Cloudinary
    folders (`default_style_templates/`, `default_characters/`), not under any
-   user. When vgAI imports from **either** catalog, it makes a real Cloudinary
-   *copy* into the importer's own folder, so deleting a catalog entry can never
-   blank an image someone already imported. This was learned the hard way twice
+   user. A starter style template may show an ordered gallery of up to three
+   examples, but vgAI copies only its first-priority image into the importer's
+   own folder. When vgAI imports from **either** catalog, it makes that real
+   Cloudinary *copy*, so deleting a catalog entry can never blank an image
+   someone already imported. This was learned the hard way twice
    already: `project_characters` used to store a copy of the *URL string*, so
    deleting a library character blanked it in every project that had imported
    it; the style-template catalog had the same flaw for its demo image and was

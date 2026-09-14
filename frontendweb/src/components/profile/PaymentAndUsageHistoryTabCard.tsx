@@ -225,12 +225,12 @@ export const PaymentAndUsageHistoryTabCard = () => {
   };
 
   const renderPaymentTab = (data: PaymentHistoryResponse) => {
-    if (data.topups.length === 0) {
+    if (data.topups.length === 0 && data.grants.length === 0) {
       return (
         <EmptyState
           Icon={Receipt}
           title="No payments yet"
-          message="Credit top-ups you make will show up here."
+          message="Credit top-ups and any credits granted by support will show up here."
         />
       );
     }
@@ -293,8 +293,26 @@ export const PaymentAndUsageHistoryTabCard = () => {
           onChange={setPage}
         />
 
+        {data.grants.length > 0 && (
+          <section className="mt-7 border-t border-slate-200 pt-6 dark:border-slate-700/70">
+            <div className="mb-3 flex items-baseline justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Credits granted by support</h3>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">These are free credits added to your balance, separate from purchases.</p>
+              </div>
+              <span className="inline-flex items-center gap-1.5 whitespace-nowrap font-semibold text-emerald-700 dark:text-emerald-400"><CreditCoinIcon className="h-4 w-4" />+{formatCredits(data.total_credits_granted)}</span>
+            </div>
+            <div className="overflow-x-auto rounded-xl border border-emerald-100 dark:border-emerald-500/20">
+              <table className="w-full min-w-[520px] text-sm">
+                <thead className="bg-emerald-50/60 dark:bg-emerald-500/5"><tr className="text-xs uppercase tracking-wide text-slate-400 dark:text-slate-500"><th className="px-4 py-3 text-left font-medium">Date</th><th className="px-4 py-3 text-left font-medium">Reason</th><th className="px-4 py-3 text-right font-medium">Credits added</th><th className="px-4 py-3 text-right font-medium">Balance after</th></tr></thead>
+                <tbody>{data.grants.map((grant) => <tr key={grant.id} className="border-t border-slate-100 dark:border-slate-700/50"><td className="px-4 py-3 whitespace-nowrap text-slate-600 dark:text-slate-300">{formatDate(grant.created_at)}</td><td className="px-4 py-3 text-slate-600 dark:text-slate-300">{grant.reason || "Support credit"}</td><td className="px-4 py-3 text-right font-semibold text-emerald-700 dark:text-emerald-400">+{formatCredits(grant.credits_granted)}</td><td className="px-4 py-3 text-right text-slate-600 dark:text-slate-300">{formatCredits(grant.credits_balance_after)}</td></tr>)}</tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
         {/* Totals stay across every top-up, not just the visible page. */}
-        <div className="mt-5 pt-5 border-t border-slate-200 dark:border-slate-700/70 grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="mt-5 pt-5 border-t border-slate-200 dark:border-slate-700/70 grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700/60 px-4 py-3">
             <p className="text-xs uppercase tracking-wide text-slate-400 dark:text-slate-500">
               Total Amount Paid
@@ -302,6 +320,10 @@ export const PaymentAndUsageHistoryTabCard = () => {
             <p className="mt-1 text-xl font-semibold text-slate-900 dark:text-white">
               {formatMoney(data.total_amount_paid, currency)}
             </p>
+          </div>
+          <div className="rounded-xl bg-emerald-50/60 dark:bg-emerald-500/5 border border-emerald-100 dark:border-emerald-500/20 px-4 py-3">
+            <p className="text-xs uppercase tracking-wide text-emerald-600/70 dark:text-emerald-400/70">Total Credits Granted</p>
+            <p className="mt-1 text-xl font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-2"><CreditCoinIcon className="w-5 h-5" />+{formatCredits(data.total_credits_granted)}</p>
           </div>
           <div className="rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700/60 px-4 py-3">
             <p className="text-xs uppercase tracking-wide text-slate-400 dark:text-slate-500">
