@@ -210,8 +210,12 @@ layer above them.
    import, don't reference them.** Both catalogs live in root-level Cloudinary
    folders (`default_style_templates/`, `default_characters/`), not under any
    user. A starter style template may show an ordered gallery of up to three
-   examples, but vgAI copies only its first-priority image into the importer's
-   own folder. When vgAI imports from **either** catalog, it makes that real
+   examples, browsed through `MultipleImageViewCardPopUp` (previous/next
+   buttons, ←/→ keys, thumbnails, and a counter), but vgAI copies only its
+   first-priority image into the importer's own folder. The admin generates
+   gallery examples concurrently as a single-subject, multi-subject, and
+   environment-led set so they demonstrate the style's range rather than one
+   repeated protagonist. When vgAI imports from **either** catalog, it makes that real
    Cloudinary *copy*, so deleting a catalog entry can never blank an image
    someone already imported. This was learned the hard way twice
    already: `project_characters` used to store a copy of the *URL string*, so

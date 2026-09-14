@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import Image from "next/image";
 import { X, Palette, Sparkles, Layers, Loader2, Check, Plus, ZoomIn, Images } from "lucide-react";
 import type { DefaultStyleTemplate } from "@/types/styletemplate";
-import ImageZoomPopUp from "@/components/ImageZoomPopUp";
+import MultipleImageViewCardPopUp from "@/components/MultipleImageViewCardPopUp";
 
 interface DefaultStyleTemplateCardPopUpProps {
   isOpen: boolean;
@@ -46,9 +46,9 @@ export const DefaultStyleTemplateCardPopUp = ({
   importingSlug,
   importedSlugs,
 }: DefaultStyleTemplateCardPopUpProps) => {
-  // Shared by every card's image so only one ImageZoomPopUp instance is needed
-  // for the whole grid instead of one per card.
-  const [zoomTarget, setZoomTarget] = useState<{ url: string; alt: string } | null>(null);
+  // Shared by every card's image so only one gallery viewer is needed for the
+  // whole grid instead of one per card.
+  const [galleryTarget, setGalleryTarget] = useState<{ urls: string[]; index: number; title: string } | null>(null);
   const [aspectFilter, setAspectFilter] = useState<AspectFilter>("all");
 
   // Tracks which demo images have finished loading, keyed by slug, so a card
@@ -154,7 +154,7 @@ export const DefaultStyleTemplateCardPopUp = ({
                         tabIndex={demoUrls.length ? 0 : undefined}
                         onClick={() =>
                           demoUrls[0] &&
-                          setZoomTarget({ url: demoUrls[0], alt: `${template.name} demo image 1` })
+                          setGalleryTarget({ urls: demoUrls, index: 0, title: template.name })
                         }
                         aria-label={
                           demoUrls.length ? `View demo gallery for ${template.name}` : "No preview image yet"
@@ -165,7 +165,7 @@ export const DefaultStyleTemplateCardPopUp = ({
                         onKeyDown={(event) => {
                           if (demoUrls[0] && (event.key === "Enter" || event.key === " ")) {
                             event.preventDefault();
-                            setZoomTarget({ url: demoUrls[0], alt: `${template.name} demo image 1` });
+                            setGalleryTarget({ urls: demoUrls, index: 0, title: template.name });
                           }
                         }}
                       >
@@ -218,7 +218,7 @@ export const DefaultStyleTemplateCardPopUp = ({
                             {demoUrls.length > 1 && (
                               <div className="absolute inset-x-2 bottom-2 z-20 flex gap-1.5" onClick={(event) => event.stopPropagation()}>
                                 {demoUrls.map((url, index) => (
-                                  <button key={url} type="button" onClick={() => setZoomTarget({ url, alt: `${template.name} demo image ${index + 1}` })} className="relative h-9 flex-1 overflow-hidden rounded-md ring-1 ring-white/80 transition hover:ring-2 hover:ring-brand-300" aria-label={`View demo image ${index + 1}`}>
+                                  <button key={url} type="button" onClick={() => setGalleryTarget({ urls: demoUrls, index, title: template.name })} className="relative h-9 flex-1 overflow-hidden rounded-md ring-1 ring-white/80 transition hover:ring-2 hover:ring-brand-300" aria-label={`View demo image ${index + 1}`}>
                                     <Image src={url} alt="" fill unoptimized className="object-cover" />
                                   </button>
                                 ))}
@@ -306,12 +306,7 @@ export const DefaultStyleTemplateCardPopUp = ({
         document.body
       )}
 
-      <ImageZoomPopUp
-        isOpen={!!zoomTarget}
-        onClose={() => setZoomTarget(null)}
-        imageUrl={zoomTarget?.url ?? ""}
-        alt={zoomTarget?.alt ?? ""}
-      />
+      {galleryTarget && <MultipleImageViewCardPopUp key={`${galleryTarget.title}-${galleryTarget.index}`} isOpen onClose={() => setGalleryTarget(null)} imageUrls={galleryTarget.urls} initialIndex={galleryTarget.index} title={galleryTarget.title} />}
     </>
   );
 };
