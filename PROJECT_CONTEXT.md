@@ -225,3 +225,5 @@ layer above them.
    shared asset" path should copy, not reference — and note the two guards
    named `_owns_demo_image` / `_owns_character_sheet` only *avoid deleting*
    someone else's asset, which is not the same as owning your own.
+<!-- Image preview behavior, updated September 2026 -->
+Single-image previews in both apps use `ImageZoomPopUp` with direct image URLs (`unoptimized`) so already-cached originals can be reused. Loading is tracked by URL and checked against the mounted image's completion state; reopening does not force a loading reset. The viewer supports pinch/scroll/double-tap zoom, dragging, +/−/0 keyboard controls, a bottom toolbar, an image title and scale indicator, focus containment/restoration, and a retryable error state. Starter style galleries continue using `MultipleImageViewCardPopUp` for previous/next navigation. A first uncached image still requires a network download.

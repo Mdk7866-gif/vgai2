@@ -17,7 +17,11 @@ const MAX_SCALE = 6;
 const DOUBLE_TAP_MS = 300;
 
 export default function ImageZoomPopUp({ isOpen, onClose, imageUrl, alt = "Image" }: ImageZoomPopUpProps) {
-    const [loading, setLoading] = useState(true);
+    const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
+    const [failedUrl, setFailedUrl] = useState<string | null>(null);
+    const [retry, setRetry] = useState(0);
+    const loading = loadedUrl !== imageUrl && failedUrl !== imageUrl;
+    const failed = failedUrl === imageUrl;
     // Rendered scale for the badge — updated via RAF to avoid layout thrash
     const [displayScale, setDisplayScale] = useState(1);
 
@@ -77,22 +81,41 @@ export default function ImageZoomPopUp({ isOpen, onClose, imageUrl, alt = "Image
     // ── Reset whenever popup opens / image changes ──
     useEffect(() => {
         if (isOpen) {
-            Promise.resolve().then(() => {
-                setLoading(true);
-            });
             resetView(false);
         }
     }, [isOpen, imageUrl, resetView]);
 
     // ── Escape key ──
     useEffect(() => {
-        const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+        const handler = (e: KeyboardEvent) => {
+            if (e.key === "Escape") onClose();
+            if (["+", "=", "-", "0"].includes(e.key)) {
+                e.preventDefault();
+                if (e.key === "0") resetView();
+                else {
+                    scale.current = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale.current + (e.key === "-" ? -0.5 : 0.5)));
+                    clampPos();
+                    applyTransform(true);
+                }
+            }
+        };
         if (isOpen) window.addEventListener("keydown", handler);
         return () => window.removeEventListener("keydown", handler);
-    }, [isOpen, onClose]);
+    }, [isOpen, onClose, resetView, clampPos, applyTransform]);
 
     // ── Prevent native pinch-zoom / overscroll on the overlay ──
     const overlayRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (!isOpen) return;
+        const previousFocus = document.activeElement as HTMLElement | null;
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+        overlayRef.current?.focus();
+        return () => {
+            document.body.style.overflow = previousOverflow;
+            previousFocus?.focus();
+        };
+    }, [isOpen]);
     useEffect(() => {
         const el = overlayRef.current;
         if (!el || !isOpen) return;
@@ -268,39 +291,61 @@ export default function ImageZoomPopUp({ isOpen, onClose, imageUrl, alt = "Image
     return createPortal(
         <div
             ref={overlayRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={alt}
+            tabIndex={-1}
+            onKeyDown={(event) => {
+                if (event.key !== "Tab") return;
+                const buttons = overlayRef.current?.querySelectorAll<HTMLButtonElement>("button:not(:disabled)");
+                if (!buttons?.length) return;
+                const first = buttons[0];
+                const last = buttons[buttons.length - 1];
+                if (event.shiftKey && (document.activeElement === first || document.activeElement === overlayRef.current)) {
+                    event.preventDefault(); last.focus();
+                } else if (!event.shiftKey && (document.activeElement === last || document.activeElement === overlayRef.current)) {
+                    event.preventDefault(); first.focus();
+                }
+            }}
             className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95"
             style={{ touchAction: "none" }}
         >
             {/* ── Top Controls ── */}
             <div
-                className="absolute top-3 right-3 z-50 flex items-center gap-1.5"
+                className="absolute bottom-12 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-2xl border border-white/15 bg-zinc-900/95 p-2 shadow-xl"
                 onClick={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
             >
                 <button
                     onClick={zoomIn}
-                    className="p-2.5 bg-zinc-900/90 hover:bg-zinc-800 text-white border border-zinc-700 transition-all active:scale-90 rounded-sm"
-                    title="Zoom In"
+                    disabled={displayScale >= MAX_SCALE || loading || failed}
+                    aria-label="Zoom in"
+                    className="p-2.5 bg-zinc-900/90 hover:bg-zinc-800 text-white border border-zinc-700 transition active:scale-90 rounded-xl"
+                    title="Zoom in (+)"
                 >
                     <ZoomIn className="h-4 w-4" />
                 </button>
                 <button
                     onClick={zoomOut}
-                    className="p-2.5 bg-zinc-900/90 hover:bg-zinc-800 text-white border border-zinc-700 transition-all active:scale-90 rounded-sm"
-                    title="Zoom Out"
+                    disabled={displayScale <= MIN_SCALE || loading || failed}
+                    aria-label="Zoom out"
+                    className="p-2.5 bg-zinc-900/90 hover:bg-zinc-800 text-white border border-zinc-700 transition active:scale-90 rounded-xl"
+                    title="Zoom out (-)"
                 >
                     <ZoomOut className="h-4 w-4" />
                 </button>
                 <button
                     onClick={() => resetView(true)}
-                    className="p-2.5 bg-zinc-900/90 hover:bg-zinc-800 text-white border border-zinc-700 transition-all active:scale-90 rounded-sm"
+                    aria-label="Fit image (0)"
+                    className="p-2.5 bg-zinc-900/90 hover:bg-zinc-800 text-white border border-zinc-700 transition active:scale-90 rounded-xl"
                     title="Reset View"
                 >
                     <RotateCcw className="h-4 w-4" />
                 </button>
                 <button
                     onClick={onClose}
-                    className="p-2.5 bg-white text-black hover:bg-zinc-100 border border-white transition-all active:scale-90 font-bold rounded-sm"
+                    aria-label="Close image (Escape)"
+                    className="p-2.5 bg-white text-black hover:bg-zinc-100 border border-white transition active:scale-90 font-bold rounded-xl"
                     title="Close"
                 >
                     <X className="h-4 w-4" />
@@ -308,17 +353,24 @@ export default function ImageZoomPopUp({ isOpen, onClose, imageUrl, alt = "Image
             </div>
 
             {/* ── Scale Badge ── */}
-            <div className="absolute top-3 left-3 z-50 pointer-events-none bg-black/70 px-3 py-1.5 border border-zinc-800 text-[10px] font-black uppercase tracking-widest text-zinc-300 rounded-sm">
-                {Math.round(displayScale * 100)}%
+            <div className="absolute top-3 left-3 z-50 pointer-events-none bg-black/70 px-3 py-1.5 border border-zinc-800 text-[10px] font-black uppercase tracking-widest text-zinc-300 rounded-xl">
+                <span className="block max-w-[80vw] truncate text-sm normal-case tracking-normal">{alt}</span>
+                <span className="block mt-1 text-zinc-400">{Math.round(displayScale * 100)}% · {displayScale === 1 ? "Fit to screen" : "Drag to explore"}</span>
             </div>
 
             {/* ── Loading Overlay ── */}
             {loading && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-black/90">
-                    <Loader2 className="h-10 w-10 animate-spin text-brand-400 mb-2" />
+                <div role="status" className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center z-10">
+                    <Loader2 className="h-10 w-10 animate-spin text-indigo-400 mb-2" />
                     <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Loading...</p>
                 </div>
             )}
+
+            {failed && <div role="alert" className="absolute z-30 rounded-2xl border border-white/15 bg-zinc-900 p-6 text-center text-white shadow-xl">
+                <p className="font-semibold">This image couldn’t load</p>
+                <p className="mt-2 text-sm text-zinc-400">Check your connection and try again.</p>
+                <button type="button" className="mt-4 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-black" onClick={() => { setFailedUrl(null); setLoadedUrl(null); setRetry((value) => value + 1); }}>Try again</button>
+            </div>}
 
             {/* ── Viewport — captures all pointer events ── */}
             <div
@@ -350,14 +402,20 @@ export default function ImageZoomPopUp({ isOpen, onClose, imageUrl, alt = "Image
                     }}
                 >
                     <Image
+                        key={`${imageUrl}-${retry}`}
+                        unoptimized
+                        ref={(image) => {
+                            if (image?.complete && image.naturalWidth > 0) setLoadedUrl(imageUrl);
+                        }}
                         src={imageUrl}
                         alt={alt}
                         width={1600}
                         height={1200}
                         priority
                         loading="eager"
-                        onLoad={() => setLoading(false)}
-                        className="object-contain max-h-[88vh] max-w-[95vw] select-none pointer-events-none block"
+                        onLoad={() => { setLoadedUrl(imageUrl); setFailedUrl(null); }}
+                        onError={() => setFailedUrl(imageUrl)}
+                        className="object-contain max-h-[72vh] max-w-[95vw] select-none pointer-events-none block rounded-lg"
                         draggable={false}
                     />
                 </div>
