@@ -60,7 +60,6 @@ If this private repository requests credentials, enter your GitHub username and 
 
 ```bash
 cd /opt/vgai
-umask 077
 cp .env.example .env
 chmod 600 .env
 nano .env
@@ -115,6 +114,7 @@ sudo ss -ltnp '( sport = :80 or sport = :443 )'
 sudo docker compose -f compose.deploy.yaml config --quiet
 sudo docker compose -f compose.deploy.yaml pull
 mkdir -p certbot/conf certbot/www
+chmod 755 certbot certbot/conf certbot/www
 ```
 
 Both A lookups must return your Elastic IP. For IPv4-only deployment, AAAA should be empty. Wait for DNS propagation if needed. Ports 80/443 must be free for initial setup. Config validation succeeds silently without exposing secrets.

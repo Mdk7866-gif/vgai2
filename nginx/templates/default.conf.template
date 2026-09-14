@@ -31,8 +31,10 @@ server {
 
     # Let's Encrypt writes its challenge files into this shared volume; this
     # location must stay reachable over plain HTTP or renewals fail.
-    location /.well-known/acme-challenge/ {
+    location ^~ /.well-known/acme-challenge/ {
         root /var/www/certbot;
+        default_type text/plain;
+        try_files $uri =404;
     }
 
     location / {
