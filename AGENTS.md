@@ -75,12 +75,12 @@ The authoritative constants are in `app/routes/project/scenesplitcommon.py`: Man
   - Note the **sibling repo's `vgai2admin/migration/` is the primary home for new migrations** (numbered, idempotent, with an applied checklist in its own `migration/README.md`) — the shared tables it added (`access_control_list`, `access_system_settings`, `admin_credit_grants`, `default_style_templates`, `default_characters`, `contact_submissions`, `user_access_requests`) live there, not here. Put a new schema change there unless it is genuinely vgAI-only.
 - `README.md` — full product/feature spec, routes, page-by-page behavior
 - **Deployment (AWS EC2 + Docker + nginx + Let's Encrypt)** — planned and written, not yet deployed:
-  - `awsdeployment.md` — the end-to-end runbook (instance sizing, security group, DNS, certificate issuance, build/start, post-deploy dashboard changes, day-2 ops, troubleshooting). **Read this before touching any deployment question.**
+  - `DOCKERHUB_DEPLOY.md` — the end-to-end runbook (instance sizing, security group, DNS, certificate issuance, build/start, post-deploy dashboard changes, day-2 ops, troubleshooting). **Read this before touching any deployment question.**
   - `docker-compose.yml` — the four-container production stack (nginx / backend / frontend / certbot). Only nginx publishes ports; backend and frontend are `expose`-only on the internal network.
   - `nginx/templates/default.conf.template` — the reverse proxy: `/` → frontend, `/api/` → backend (trailing slash strips the prefix), 900s proxy timeouts for long generations, `client_max_body_size 200M` for animation uploads.
   - `.env.example` → copy to a root `.env` — the deployment stack's **own** env file, separate from `backend/.env` / `frontendweb/.env.local`, which local dev still uses unchanged. `DOMAIN` is written there exactly once; nginx and the backend's `ALLOWED_ORIGINS` both derive from it.
-- `dockercommands.md` — **the earlier MVP's** build/push reference (`mdk7866/vgai-backend`, `mdk7866/vgai-frontend`), kept only for that. This stack uses `vgai2-backend` / `vgai2-frontend` tags everywhere; do not push to the `vgai-*` names or you overwrite the old MVP's images. See `awsdeployment.md` §13.
-- `docker_setup.tex` — an older LaTeX write-up of the Docker setup, superseded by `awsdeployment.md`.
+- `dockercommands.md` — short Windows PowerShell build/push reference for `mdk7866/vgai2-backend` and `mdk7866/vgai2-frontend`, with public frontend build arguments and existing-site update commands. Initial EC2 setup lives only in `DOCKERHUB_DEPLOY.md`. Keep the required `nginx/templates/default.conf.template` mount. Never use the older MVP's `vgai-*` image tags.
+- `docker_setup.tex` — an older LaTeX write-up of the Docker setup, superseded by `DOCKERHUB_DEPLOY.md`.
 
 ## Commands
 
@@ -118,11 +118,11 @@ No test runner is configured yet in the frontend.
 ### Production stack (Docker, not yet deployed)
 ```bash
 cp .env.example .env           # repo root — the deployment env file, NOT backend/.env
-docker compose build           # frontend is the slow half; needs 2 GiB+ RAM
-docker compose up -d
-docker compose config | grep -E "ALLOWED_ORIGINS|DOMAIN"   # sanity-check substitution
+sudo docker compose -f compose.deploy.yaml pull # prebuilt images
+sudo docker compose -f compose.deploy.yaml up -d
+sudo docker compose -f compose.deploy.yaml config --quiet # protect secrets
 ```
-`awsdeployment.md` is the full runbook — **read it before answering any deployment question**, rather than reasoning from the compose file alone. The short version of what shapes everything else: four containers (nginx / backend / frontend / certbot); **only nginx publishes ports** (80/443), with backend and frontend `expose`-only on the internal network, so 3000/8000 must never be opened in the EC2 security group; everything is served from **one origin** (`/` → frontend, `/api/` → backend, prefix stripped by the trailing slash on `proxy_pass`), which is why the frontend calls the backend at the **relative** `/api` and no domain is compiled into its bundle; and the domain lives in exactly one place, `DOMAIN` in the root `.env`, from which nginx's `server_name`/cert paths and the backend's `ALLOWED_ORIGINS` are both derived. `NEXT_PUBLIC_*` values are frontend **build args**, so changing one needs `docker compose build frontend`, not a restart. There is nothing to provision for data — Supabase and Cloudinary are already hosted, and the deployment points at the same shared project the local app uses.
+`DOCKERHUB_DEPLOY.md` is the full runbook — **read it before answering any deployment question**, rather than reasoning from the compose file alone. The short version of what shapes everything else: four containers (nginx / backend / frontend / certbot); **only nginx publishes ports** (80/443), with backend and frontend `expose`-only on the internal network, so 3000/8000 must never be opened in the EC2 security group; everything is served from **one origin** (`/` → frontend, `/api/` → backend, prefix stripped by the trailing slash on `proxy_pass`), which is why the frontend calls the backend at the **relative** `/api` and no domain is compiled into its bundle; and the domain lives in exactly one place, `DOMAIN` in the root `.env`, from which nginx's `server_name`/cert paths and the backend's `ALLOWED_ORIGINS` are both derived. `NEXT_PUBLIC_*` values are frontend **build args**, so changing one needs a local frontend image rebuild and Docker Hub push, not a restart. There is nothing to provision for data — Supabase and Cloudinary are already hosted, and the deployment points at the same shared project the local app uses.
 
 ## Backend architecture
 

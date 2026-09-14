@@ -23,7 +23,7 @@ Everything below is true as of **11 Sep 2026**.
 
 | | Folder | What it is | Deployed? |
 |---|---|---|---|
-| **vgAI** | `C:\Users\ASUS\OneDrive\Desktop\vgai2` | The customer-facing product | **Not yet** — Docker/EC2 stack written and building, deployment planned. See that repo's `awsdeployment.md`. |
+| **vgAI** | `C:\Users\ASUS\OneDrive\Desktop\vgai2` | The customer-facing product | **Not yet** — Docker/EC2 stack written and building, deployment planned. See that repo's `DOCKERHUB_DEPLOY.md`. |
 | **vgAI Admin** | `C:\Users\ASUS\OneDrive\Desktop\vgai2admin` | Internal portal for running vgAI | **No — local only, by design** |
 
 They are **two separate git repos**. There is no parent repo above them.
@@ -183,8 +183,8 @@ layer above them.
 | `vgai2\vgaidatabase.dbml` | Canonical DB schema. |
 | `vgai2\vgaidatabase.sql` | The sole canonical runnable DDL snapshot for the shared database, including credit-accounting functions. There is deliberately no duplicate in `vgai2admin`; admin migrations must update this file and the canonical DBML. |
 | `vgai2admin\migration\` | The primary home for schema changes: `vgai2admin_migration.sql` (the original, already applied) plus numbered ones since. Each idempotent, each run by hand in Supabase. (`vgai2\migration\` holds vgAI's own two earlier migrations, both applied — put new ones here.) |
-| `vgai2\awsdeployment.md` | vgAI's deployment runbook — EC2 + Docker + nginx + Let's Encrypt, end to end. Read it before answering any deployment question; don't reconstruct the setup from `docker-compose.yml` alone. |
-| `vgai2\dockercommands.md` | The **earlier MVP's** build/push reference (`mdk7866/vgai-backend`, `mdk7866/vgai-frontend`), kept only for that. The current stack uses `vgai2-*` image tags — pushing to the `vgai-*` names would overwrite the old MVP. |
+| `vgai2\DOCKERHUB_DEPLOY.md` | vgAI's deployment runbook — EC2 + Docker + nginx + Let's Encrypt, end to end. Read it before answering any deployment question; don't reconstruct the setup from `docker-compose.yml` alone. |
+| `vgai2\dockercommands.md` | Short Windows PowerShell build/push reference for current `vgai2-*` images, required public frontend build arguments, and existing-site updates. Initial setup lives in `DOCKERHUB_DEPLOY.md`; the nginx template is required. |
 
 ---
 

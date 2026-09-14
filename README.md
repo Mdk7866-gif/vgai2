@@ -705,7 +705,7 @@ vgai2/
 
 **Written and verified to build; not yet deployed.** The target is a single AWS EC2 instance running four Docker containers behind nginx with a free Let's Encrypt certificate.
 
-[`awsdeployment.md`](./awsdeployment.md) is the end-to-end runbook — instance sizing, security group, DNS, certificate issuance, build/start, the post-deploy dashboard changes, day-2 operations, and the failures that actually happen. Read it rather than reconstructing the setup from the config files.
+[`DOCKERHUB_DEPLOY.md`](./DOCKERHUB_DEPLOY.md) is the end-to-end runbook — instance sizing, security group, DNS, certificate issuance, build/start, the post-deploy dashboard changes, day-2 operations, and the failures that actually happen. Read it rather than reconstructing the setup from the config files.
 
 The shape, since everything else follows from it:
 
@@ -724,10 +724,10 @@ The shape, since everything else follows from it:
 - **The domain is written once**, as `DOMAIN` in the root `.env` — nginx renders it into `server_name` and the certificate paths, and the backend's `ALLOWED_ORIGINS` is derived from it. Changing domains needs no frontend rebuild.
 - **Only nginx publishes ports.** The backend and frontend use `expose`, so 3000/8000 are reachable only on the internal Docker network and must never be opened in the security group.
 - **Nothing to provision for data** — Supabase and Cloudinary are already hosted, and the deployment points at the same shared project, so the schema and every existing asset are live the moment the containers start.
-- **The deployment env file is the root [`.env.example`](./.env.example) → `.env`**, separate from `backend/.env` and `frontendweb/.env.local`, which local development still uses unchanged. `NEXT_PUBLIC_*` values are baked into the browser bundle at **build** time, so changing one needs `docker compose build frontend`, not a restart.
+- **The deployment env file is the root [`.env.example`](./.env.example) → `.env`**, separate from `backend/.env` and `frontendweb/.env.local`, which local development still uses unchanged. `NEXT_PUBLIC_*` values are baked into the browser bundle at **build** time, so changing one needs a local frontend image rebuild and Docker Hub push, not a restart.
 - After going live, update Supabase redirect URLs, add `vgai2.com` to Razorpay's authorised Checkout domains, and configure the required Razorpay Live webhook at `https://vgai2.com/api/payments/webhook`. Before enabling that webhook, run `vgai2admin/migration/004_atomic_razorpay_credit_settlement.sql` manually in Supabase; it makes webhook reconciliation and browser checkout verification atomic and prevents duplicate credit grants.
 
-[`dockercommands.md`](./dockercommands.md) is the **earlier MVP's** build reference (`mdk7866/vgai-backend` / `vgai-frontend`) and is kept only for that; this stack uses `vgai2-*` image tags everywhere.
+[`dockercommands.md`](./dockercommands.md) is the short Windows PowerShell build/push reference for `mdk7866/vgai2-backend` and `mdk7866/vgai2-frontend`, including required public frontend build arguments and updates to an already-deployed EC2 site. Initial deployment is covered only in `DOCKERHUB_DEPLOY.md`. Keep `nginx/templates/default.conf.template`; Compose requires it for HTTPS and routing.
 
 ## Starter style-template demo gallery
 

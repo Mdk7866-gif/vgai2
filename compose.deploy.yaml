@@ -6,7 +6,7 @@
 #
 # Only nginx publishes ports. The backend and frontend are reachable solely on
 # the internal compose network, so nothing on the host's firewall needs 3000 or
-# 8000 open — see awsdeployment.md §3.
+# 8000 open — see DOCKERHUB_DEPLOY.md step 1.
 #
 # Every value comes from the root `.env` file (copy `.env.example` to `.env`).
 # The domain lives there exactly once, as DOMAIN: nginx renders it into its
@@ -89,7 +89,7 @@ services:
       - ./certbot/www:/var/www/certbot
     # Checks twice a day and renews only when the cert is within 30 days of
     # expiry, which is what Let's Encrypt asks clients to do. The initial
-    # certificate is NOT issued here — see awsdeployment.md §6, which runs
+    # certificate is NOT issued here — see DOCKERHUB_DEPLOY.md step 6, which runs
     # certbot once in standalone mode before nginx ever starts.
     entrypoint:
       - /bin/sh

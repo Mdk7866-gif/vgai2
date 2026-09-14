@@ -19,7 +19,7 @@ WORKDIR /app
 # Dependencies in their own layer, before any source is copied: editing a route
 # then rebuilds in seconds instead of re-resolving the whole dependency tree.
 # uv.lock is matched with a glob because it is currently gitignored (see
-# awsdeployment.md §2) — with it present the build is reproducible, without it
+# DOCKERHUB_DEPLOY.md step 3) — with it present the build is reproducible, without it
 # uv resolves fresh. Committing it is strongly recommended.
 COPY pyproject.toml uv.lock* ./
 RUN uv sync --no-dev --no-install-project

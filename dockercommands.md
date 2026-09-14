@@ -1,49 +1,65 @@
-# Docker Commands Reference
+# vgAI2 Docker build and push commands
 
-This document contains instructions to build, run, and push the Docker images for the vgAI application.
+Run this on your **Windows computer in PowerShell**, with Docker Desktop running in Linux-container mode. Images already published do not need rebuilding for the first EC2 deployment.
 
-## Prerequisites
-- Ensure you are in the project root directory (`c:\Users\ASUS\OneDrive\Desktop\vgai`) before executing these commands.
-- **IMPORTANT**: Ensure your Docker Engine (e.g., Docker Desktop) is running. If you get a connection pipe error, open Docker Desktop and wait for the engine to start up.
+For all EC2 setup commands, use [DOCKERHUB_DEPLOY.md](./DOCKERHUB_DEPLOY.md).
 
----
+## 1. Sign in
 
-## 1. Authentication
-Log in to your Docker Hub account (`mdk7866`):
-```bash
-docker login
-```
-*(If you are already logged in, this will verify and authenticate with your existing credentials)*
-
----
-
-## 2. Build the Docker Images
-Build the backend and frontend Docker images using the Dockerfiles in their respective directories:
-
-### Backend Image
-```bash
-docker build -t mdk7866/vgai-backend:latest ./backend
+```powershell
+Set-Location 'C:\Users\ASUS\OneDrive\Desktop\vgai2'
+docker login --username mdk7866
+if ($LASTEXITCODE -ne 0) { throw 'Docker login failed' }
 ```
 
-### Frontend Image
-```bash
-docker build -t mdk7866/vgai-frontend:latest ./frontendweb
+## 2. Build
+
+Enter the two **public** values from `frontendweb/.env.local` when prompted. Never enter the Supabase secret/service-role key. Backend credentials are supplied only on EC2 through its root `.env`.
+
+```powershell
+$vgaiPublicUrl = Read-Host 'NEXT_PUBLIC_SUPABASE_URL'
+$vgaiPublicKey = Read-Host 'NEXT_PUBLIC_SUPABASE_ANON_KEY'
+if (-not $vgaiPublicUrl.StartsWith('https://') -or [string]::IsNullOrWhiteSpace($vgaiPublicKey)) {
+    throw 'Enter the real public Supabase URL and public key'
+}
+
+docker build --platform linux/amd64 -t mdk7866/vgai2-backend:latest ./backend
+if ($LASTEXITCODE -ne 0) { throw 'Backend build failed; do not push' }
+
+docker build --platform linux/amd64 -t mdk7866/vgai2-frontend:latest `
+  --build-arg "NEXT_PUBLIC_SUPABASE_URL=$vgaiPublicUrl" `
+  --build-arg "NEXT_PUBLIC_SUPABASE_ANON_KEY=$vgaiPublicKey" `
+  --build-arg "NEXT_PUBLIC_BACKEND_URL=/api" `
+  ./frontendweb
+if ($LASTEXITCODE -ne 0) { throw 'Frontend build failed; do not push' }
 ```
 
----
+## 3. Push after both builds succeed
 
-## 3. Push to Docker Hub
-Upload the newly built images to Docker Hub for remote storage or deployment:
+These commands replace the `latest` tags for vgAI2:
 
-### Push Backend
-```bash
-docker push mdk7866/vgai-backend:latest
+```powershell
+docker push mdk7866/vgai2-backend:latest
+if ($LASTEXITCODE -ne 0) { throw 'Backend push failed' }
+docker push mdk7866/vgai2-frontend:latest
+if ($LASTEXITCODE -ne 0) { throw 'Frontend push failed' }
 ```
 
-### Push Frontend
+## 4. Update an already-deployed EC2 site
+
+Run in the **EC2 Ubuntu terminal**, only after initial deployment is complete:
+
 ```bash
-docker push mdk7866/vgai-frontend:latest
+cd /opt/vgai
+sudo docker compose -f compose.deploy.yaml pull
+sudo docker compose -f compose.deploy.yaml up -d
+sudo docker compose -f compose.deploy.yaml restart nginx
+curl --fail --retry 12 --retry-connrefused --retry-delay 5 https://vgai2.com/api/health
 ```
+
+Keep `nginx/templates/default.conf.template`: Compose mounts it for HTTPS and routing. Restarting nginx after image updates refreshes application container addresses.
+
+[Docker build command reference](https://docs.docker.com/reference/cli/docker/buildx/build/)
 
 
 
