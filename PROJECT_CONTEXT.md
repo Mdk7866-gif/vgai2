@@ -11,6 +11,8 @@ The visible customer and admin brand is **vgAI2**; internal `vgai2` identifiers 
 
 Razorpay Live checkout uses both browser signature verification and the signed server webhook at `https://vgai2.com/api/payments/webhook` (`payment.captured`, `payment.failed`). Before enabling it, run `vgai2admin/migration/004_atomic_razorpay_credit_settlement.sql` manually in the shared Supabase SQL Editor. The `settle_credit_topup()` function locks an order so concurrent browser/webhook deliveries cannot credit it twice. Purchased credits do not expire and are non-refundable; cancelled generations remain charged once their provider work begins, while provider failures are refunded.
 
+Customer Profile → Payment History now shows a copyable Razorpay payment ID for a completed payment. The local-only vgai2admin `/payment` support lookup uses that ID to display the matching shared transaction and user; it alone may display the stored checkout signature.
+
 A single self-contained briefing on **both** halves of this product. Written to
 be pasted or attached at the start of a conversation so an assistant understands
 the setup before touching anything.
@@ -184,7 +186,7 @@ layer above them.
 | `vgai2\vgaidatabase.sql` | The sole canonical runnable DDL snapshot for the shared database, including credit-accounting functions. There is deliberately no duplicate in `vgai2admin`; admin migrations must update this file and the canonical DBML. |
 | `vgai2admin\migration\` | The primary home for schema changes: `vgai2admin_migration.sql` (the original, already applied) plus numbered ones since. Each idempotent, each run by hand in Supabase. (`vgai2\migration\` holds vgAI's own two earlier migrations, both applied — put new ones here.) |
 | `vgai2\DOCKERHUB_DEPLOY.md` | vgAI's deployment runbook — EC2 + Docker + nginx + Let's Encrypt, end to end. Read it before answering any deployment question; don't reconstruct the setup from `docker-compose.yml` alone. |
-| `vgai2\dockercommands.md` | Short Windows PowerShell build/push reference for current `vgai2-*` images, required public frontend build arguments, and existing-site updates. Initial setup lives in `DOCKERHUB_DEPLOY.md`; the nginx template is required. |
+| `vgai2\QUICK_DEPLOYMENT.md` | Repeatable Windows-to-EC2 update guide for current `vgai2-*` images. Initial setup lives in `DOCKERHUB_DEPLOY.md`; the nginx template is required. |
 
 ---
 

@@ -10,6 +10,8 @@ import {
   Folder,
   Image as ImageIcon,
   Mic,
+  Copy,
+  Check,
   Receipt,
   Sparkles,
 } from "lucide-react";
@@ -156,6 +158,7 @@ export const PaymentAndUsageHistoryTabCard = () => {
   const [usage, setUsage] = useState<UsageHistoryResponse | null>(null);
   const [errors, setErrors] = useState<Partial<Record<Tab, string>>>({});
   const [popover, setPopover] = useState<PopoverState | null>(null);
+  const [copiedPaymentId, setCopiedPaymentId] = useState<string | null>(null);
   // Called unconditionally for both tabs regardless of which is active — the
   // render functions below are plain helpers invoked conditionally on `tab`,
   // so a hook call couldn't live inside them without violating the rules of
@@ -224,6 +227,12 @@ export const PaymentAndUsageHistoryTabCard = () => {
     });
   };
 
+  const copyPaymentId = async (paymentId: string) => {
+    await navigator.clipboard.writeText(paymentId);
+    setCopiedPaymentId(paymentId);
+    window.setTimeout(() => setCopiedPaymentId(null), 1600);
+  };
+
   const renderPaymentTab = (data: PaymentHistoryResponse) => {
     if (data.topups.length === 0 && data.grants.length === 0) {
       return (
@@ -245,13 +254,14 @@ export const PaymentAndUsageHistoryTabCard = () => {
     return (
       <>
         <div className="overflow-x-auto -mx-5 px-5 sm:-mx-6 sm:px-6">
-          <table className="w-full min-w-[520px] text-sm">
+          <table className="w-full min-w-[680px] text-sm">
             <thead>
               <tr className="text-xs uppercase tracking-wide text-slate-400 dark:text-slate-500">
                 <th className="pb-3 text-left font-medium">Date</th>
                 <th className="pb-3 text-left font-medium">Status</th>
                 <th className="pb-3 text-right font-medium">Amount Paid</th>
                 <th className="pb-3 text-right font-medium">Credits</th>
+                <th className="pb-3 text-right font-medium">Payment ID</th>
               </tr>
             </thead>
             <tbody>
@@ -277,6 +287,14 @@ export const PaymentAndUsageHistoryTabCard = () => {
                       <CreditCoinIcon className="w-4 h-4" />
                       {formatCredits(topup.credits_added)}
                     </span>
+                  </td>
+                  <td className="py-3 border-t border-slate-100 dark:border-slate-700/50 text-right">
+                    {topup.razorpay_payment_id ? (
+                      <button type="button" onClick={() => void copyPaymentId(topup.razorpay_payment_id!)} className="inline-flex max-w-[195px] items-center gap-1.5 rounded-lg border border-slate-200 px-2 py-1 font-mono text-xs text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800" title="Copy Razorpay payment ID">
+                        {copiedPaymentId === topup.razorpay_payment_id ? <Check className="h-3.5 w-3.5 shrink-0 text-emerald-500" /> : <Copy className="h-3.5 w-3.5 shrink-0" />}
+                        <span className="truncate">{copiedPaymentId === topup.razorpay_payment_id ? "Copied" : topup.razorpay_payment_id}</span>
+                      </button>
+                    ) : <span className="text-xs text-slate-400">Not available</span>}
                   </td>
                 </tr>
               ))}
@@ -340,6 +358,7 @@ export const PaymentAndUsageHistoryTabCard = () => {
           Totals count successful payments only — pending and failed attempts are listed above but
           were never charged.
         </p>
+        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">If you need support for a charge, copy your Razorpay payment ID and include it when contacting <a href="mailto:hello@vgai2.com" className="font-medium text-brand-600 hover:underline dark:text-brand-300">hello@vgai2.com</a>.</p>
       </>
     );
   };

@@ -9,6 +9,8 @@ Home project thumbnail frames use the standard 16:9 video ratio (`aspect-video`)
 
 ## Launch update — vgAI2, SEO, and Razorpay
 
+Profile → Payment History exposes only a copyable Razorpay payment ID for a completed top-up, so customers can include it in a support query to `hello@vgai2.com`. Checkout signatures remain server-side; the local-only vgai2admin `/payment` lookup is the support tool that may display them.
+
 The public product and its local-only sibling portal use visible brand **vgAI2**. Internal technical identifiers (`vgai2` database names, Cloudinary folder, event names) remain unchanged. The user-facing frontend at `https://vgai2.com` owns its Metadata API configuration plus generated `robots.txt`, sitemap, and web manifest; account/workspace paths are excluded from crawling while the public home, about, pricing, terms, cancellation/refund, privacy, and contact pages are indexed. Contact/legal email is `hello@vgai2.com`.
 
 Razorpay Live payments require both the signed checkout callback and the server-to-server `/payments/webhook` reconciliation route. Configure Razorpay Live `payment.captured` and `payment.failed` events at `https://vgai2.com/api/payments/webhook`, with its secret stored only as `RAZORPAY_WEBHOOK_SECRET` in the Docker root `.env`. `settle_credit_topup()` locks the order row and is called by both success paths so credits are added once even if deliveries race or duplicate. Run sibling-admin migration `004_atomic_razorpay_credit_settlement.sql` manually in the shared Supabase SQL Editor before enabling the webhook. Purchased credits are non-refundable and do not expire; a generation cancellation is not refundable once its provider work starts, while provider failures are refunded automatically.
@@ -79,7 +81,7 @@ The authoritative constants are in `app/routes/project/scenesplitcommon.py`: Man
   - `docker-compose.yml` — the four-container production stack (nginx / backend / frontend / certbot). Only nginx publishes ports; backend and frontend are `expose`-only on the internal network.
   - `nginx/templates/default.conf.template` — the reverse proxy: `/` → frontend, `/api/` → backend (trailing slash strips the prefix), 900s proxy timeouts for long generations, `client_max_body_size 200M` for animation uploads.
   - `.env.example` → copy to a root `.env` — the deployment stack's **own** env file, separate from `backend/.env` / `frontendweb/.env.local`, which local dev still uses unchanged. `DOMAIN` is written there exactly once; nginx and the backend's `ALLOWED_ORIGINS` both derive from it.
-- `dockercommands.md` — short Windows PowerShell build/push reference for `mdk7866/vgai2-backend` and `mdk7866/vgai2-frontend`, with public frontend build arguments and existing-site update commands. Initial EC2 setup lives only in `DOCKERHUB_DEPLOY.md`. Keep the required `nginx/templates/default.conf.template` mount. Never use the older MVP's `vgai-*` image tags.
+- `QUICK_DEPLOYMENT.md` — repeatable Windows-to-EC2 update guide for `mdk7866/vgai2-backend` and `mdk7866/vgai2-frontend`. Initial EC2 setup lives only in `DOCKERHUB_DEPLOY.md`. Keep the required `nginx/templates/default.conf.template` mount. Never use the older MVP's `vgai-*` image tags.
 - `docker_setup.tex` — an older LaTeX write-up of the Docker setup, superseded by `DOCKERHUB_DEPLOY.md`.
 
 ## Commands
