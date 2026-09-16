@@ -50,6 +50,7 @@ const WORDS_PER_CREDIT_MANUAL = 200;
 const WORDS_PER_CREDIT_AUTO_BASE = WORDS_PER_CREDIT_MANUAL / 2;
 const AUTOMATIC_PRO_COST_MULTIPLIER = 3;
 const BASE_GENERATION_SECONDS_PER_1000_WORDS = 30;
+const MAX_SCRIPT_WORDS = 4000;
 // Mirrors app/routes/project/imagegeneration.py's SCENES_PER_CREDIT_MANUAL.
 const SCENES_PER_CREDIT_MANUAL = 5;
 
@@ -235,6 +236,7 @@ export default function ProjectFolderPage() {
   }, [projectId]);
 
   const wordCount = useMemo(() => countWords(scriptDraft), [scriptDraft]);
+  const scriptWordsOverLimit = Math.max(0, wordCount - MAX_SCRIPT_WORDS);
   const baseAutomaticCost = Math.ceil(wordCount / WORDS_PER_CREDIT_AUTO_BASE) || 0;
   const isProSceneSplit = project?.llm_model_id === "pro";
   const automaticCost = isProSceneSplit ? baseAutomaticCost * AUTOMATIC_PRO_COST_MULTIPLIER : baseAutomaticCost;
@@ -248,7 +250,7 @@ export default function ProjectFolderPage() {
   const manualCost = Math.ceil(wordCount / WORDS_PER_CREDIT_MANUAL) || 0;
   const manualImageCost = Math.ceil(scenes.length / SCENES_PER_CREDIT_MANUAL) || 0;
   const hasStyleTemplate = !!project?.snapshot_styletemplate_name;
-  const canGenerateAutomatic = wordCount > 0 && hasStyleTemplate && !generatingScenes;
+  const canGenerateAutomatic = wordCount > 0 && scriptWordsOverLimit === 0 && hasStyleTemplate && !generatingScenes;
 
   // Scenes "Generate All Images (Automatic)" will actually touch — already-
   // generated scenes are skipped, and so are scenes with no image prompt (that
@@ -271,6 +273,14 @@ export default function ProjectFolderPage() {
 
   const handleScriptBlur = async () => {
     if (!project || scriptDraft === (project.script ?? "")) return;
+    if (scriptWordsOverLimit > 0) {
+      setAlert({
+        type: "warning",
+        title: "Shorten your script",
+        message: `Your script is ${scriptWordsOverLimit.toLocaleString()} words over the 4,000-word limit. Reduce it before leaving this field.`,
+      });
+      return;
+    }
     setSavingScript(true);
     try {
       const res = await authFetch(`/projects/update/${projectId}`, {
@@ -767,7 +777,12 @@ export default function ProjectFolderPage() {
               {savingScript ? "Saving…" : `${wordCount} words`}
             </span>
           </div>
-          <p id="script-save-help" className="text-xs leading-5 text-slate-500 dark:text-slate-400">Changes save when you leave this field. Refine your script before generating scenes.</p>
+          <p id="script-save-help" className="text-xs leading-5 text-slate-500 dark:text-slate-400">Changes save when you leave this field. Refine your script before generating scenes (4,000 words maximum).</p>
+          {scriptWordsOverLimit > 0 && (
+            <p role="alert" aria-live="polite" className="text-xs font-medium leading-5 text-red-600 dark:text-red-400">
+              Please reduce your script by {scriptWordsOverLimit.toLocaleString()} words. Scripts are limited to 4,000 words.
+            </p>
+          )}
           <textarea
             id="project-script"
             aria-describedby="script-save-help"

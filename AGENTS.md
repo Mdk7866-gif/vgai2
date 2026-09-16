@@ -1,5 +1,7 @@
 # AGENTS.md
 
+> Workspace and favicon update (September 2026): `/project_folder/{project_id}` limits a pasted/edited script to 4,000 words. The client gives an immediate accessible reduction message and blocks autosave/generation while over the limit; `ProjectUpdate` enforces the same limit server-side. `frontendweb/src/app/favicon.ico` is the navbar's violet rounded-square vgAI2 mark, not the default Vercel icon.
+
 Docker Hub deployment: use [DOCKERHUB_DEPLOY.md](./DOCKERHUB_DEPLOY.md) and
 `compose.deploy.yaml` to pull `mdk7866/vgai2-backend` and
 `mdk7866/vgai2-frontend` on EC2 without server-side builds. The existing

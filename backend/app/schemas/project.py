@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from app.schemas.styletemplate import SceneDensity
 
@@ -87,6 +87,13 @@ class ProjectUpdate(BaseModel):
     description_of_video: str | None = None
     tags_of_video: str | None = None
     thumbnail_prompt: str | None = None
+
+    @field_validator("script")
+    @classmethod
+    def script_has_at_most_4000_words(cls, value: str | None) -> str | None:
+        if value is not None and len(value.split()) > 4000:
+            raise ValueError("Script must be 4,000 words or fewer. Please shorten it and try again.")
+        return value
 
     snapshot_styletemplate_name: str | None = None
     snapshot_styletemplate_image_prompt: str | None = None

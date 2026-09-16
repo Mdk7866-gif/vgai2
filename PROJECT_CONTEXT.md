@@ -1,5 +1,7 @@
 # vgAI — project context (hand this to an AI first)
 
+The project workspace limits pasted and edited scripts to 4,000 words. The browser tells the creator how many words to remove, and the backend rejects an over-limit direct update as well. The website favicon matches the navbar's violet-and-white vgAI2 mark.
+
 Docker Hub deployment: use [DOCKERHUB_DEPLOY.md](./DOCKERHUB_DEPLOY.md) and
 `compose.deploy.yaml` to pull `mdk7866/vgai2-backend` and
 `mdk7866/vgai2-frontend` on EC2 without server-side builds. The existing
