@@ -26,6 +26,9 @@ export const VideoMetaDataCard = ({ project, onThumbnailGenerated, onMetadataSav
   const thumbnailAspectClass = project.snapshot_styletemplate_video_aspect_ratio === "9:16"
     ? "aspect-[9/16]"
     : "aspect-video";
+  const thumbnailPreviewMaxWidthClass = project.snapshot_styletemplate_video_aspect_ratio === "9:16"
+    ? "max-w-[240px]"
+    : "max-w-[400px]";
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -298,7 +301,7 @@ export const VideoMetaDataCard = ({ project, onThumbnailGenerated, onMetadataSav
 
           <div
             onClick={() => project.thumbnail_image_url && setThumbnailZoomOpen(true)}
-            className={`relative w-full ${thumbnailAspectClass} rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700/60 flex items-center justify-center ${
+            className={`relative w-full ${thumbnailPreviewMaxWidthClass} mx-auto ${thumbnailAspectClass} rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700/60 flex items-center justify-center ${
               project.thumbnail_image_url ? "cursor-zoom-in" : ""
             }`}
           >

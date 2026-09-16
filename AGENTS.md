@@ -2,7 +2,7 @@
 
 > Workspace and favicon update (September 2026): `/project_folder/{project_id}` limits a pasted/edited script to 4,000 words. The client gives an immediate accessible reduction message and blocks autosave/generation while over the limit; `ProjectUpdate` enforces the same limit server-side. `frontendweb/src/app/favicon.ico` is the navbar's violet rounded-square vgAI2 mark, not the default Vercel icon.
 
-> Thumbnail-ratio update (September 2026): `VideoMetaDataCard.tsx` uses `project.snapshot_styletemplate_video_aspect_ratio` for its thumbnail frame, rendering Reels projects as 9:16 and defaulting older/long-form projects to 16:9.
+> Thumbnail-ratio update (September 2026): `VideoMetaDataCard.tsx` uses `project.snapshot_styletemplate_video_aspect_ratio` for its thumbnail frame, rendering Reels projects as 9:16 and defaulting older/long-form projects to 16:9. The 9:16 preview is capped at the same 240px width as scene-card media rather than filling the metadata column.
 
 Docker Hub deployment: use [DOCKERHUB_DEPLOY.md](./DOCKERHUB_DEPLOY.md) and
 `compose.deploy.yaml` to pull `mdk7866/vgai2-backend` and
