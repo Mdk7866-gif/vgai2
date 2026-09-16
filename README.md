@@ -150,7 +150,7 @@ The core workspace. Here the user:
 - Imports **characters** from `/characters` (saved as `project_characters` — a **snapshot**, so later edits to the global character don't retroactively change this project). Each imported character can also be viewed and edited *for this project only* — a project-specific tweak (a detail changed for this story, a different reference image) never touches the original in `/characters` or any other project that imported the same character. This snapshot is still visible and editable even if the original character is later deleted from `/characters` entirely.
 - Imports a **style template** from `/style_templates` (also snapshotted onto the project — `snapshot_styletemplate_*` fields — so future edits to the global template don't affect existing projects). The applied template can likewise be viewed and edited for this project only, and stays fully visible and editable even after the original is deleted from `/style_templates` — the project keeps its own independent copy regardless of what happens to the library.
 - Configures ElevenLabs voiceover settings (`vo_voice_id`, `vo_model_id`, `vo_stability`, `vo_similarity`, `vo_style`, `vo_speaker_boost`, `vo_speed`).
-- Chooses which LLM / image / animation models to use for this project.
+- Chooses which LLM / image / animation models to use for this project. The video-metadata thumbnail preview follows the applied style template's video ratio: 9:16 for Reels and 16:9 otherwise.
 
 #### Automatic scene generation
 
