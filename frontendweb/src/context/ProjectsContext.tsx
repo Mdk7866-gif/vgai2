@@ -9,6 +9,7 @@ export interface ProjectListItem {
   name: string;
   is_liked: boolean;
   thumbnail_image_url: string | null;
+  snapshot_styletemplate_video_aspect_ratio: string | null;
   created_at: string;
 }
 
@@ -27,6 +28,7 @@ interface ProjectRow {
   name: string;
   is_liked: boolean;
   thumbnail_image_url: string | null;
+  snapshot_styletemplate_video_aspect_ratio: string | null;
   created_at: string;
 }
 
@@ -35,6 +37,7 @@ const toListItem = (p: ProjectRow): ProjectListItem => ({
   name: p.name,
   is_liked: p.is_liked,
   thumbnail_image_url: p.thumbnail_image_url,
+  snapshot_styletemplate_video_aspect_ratio: p.snapshot_styletemplate_video_aspect_ratio,
   created_at: p.created_at,
 });
 

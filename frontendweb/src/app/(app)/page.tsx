@@ -17,6 +17,9 @@ const steps = [
   { title: "Download your assets", icon: Download, heading: "Ready for your video editor.", copy: "Download scene images, animations, and the thumbnail. Assemble the final video in your preferred editing software.", detail: "vgAI creates the assets — it does not export a finished edited video." },
 ];
 
+const thumbnailAspectClass = (videoAspectRatio: string | null) =>
+  videoAspectRatio === "9:16" ? "aspect-[9/16]" : "aspect-video";
+
 export default function Home() {
   const router = useRouter();
   const { user, requireAuth, accessMode, loading: authLoading } = useAuth();
@@ -127,7 +130,7 @@ export default function Home() {
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {filtered.slice(0, visibleCount).map((project) => (
                   <Link key={project.id} href={`/project_folder/${project.id}`} className="group overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:border-brand-300 hover:shadow-lg dark:border-white/10 dark:bg-surface dark:hover:border-brand-400/40">
-                    <div className="relative flex aspect-video items-center justify-center bg-gradient-to-br from-brand-50 to-slate-100 dark:from-brand-400/10 dark:to-slate-900">
+                    <div className={`relative flex ${thumbnailAspectClass(project.snapshot_styletemplate_video_aspect_ratio)} items-center justify-center bg-gradient-to-br from-brand-50 to-slate-100 dark:from-brand-400/10 dark:to-slate-900`}>
                       {project.thumbnail_image_url ? <Image src={project.thumbnail_image_url} alt="" fill sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw" className="object-cover" /> : <Clapperboard className="h-8 w-8 text-brand-400" />}
                     </div>
                     <div className="flex items-center gap-3 p-5"><div className="min-w-0 flex-1"><h3 className="truncate font-semibold text-slate-900 dark:text-white">{project.name}</h3><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Open workspace</p></div><ArrowRight className="h-4 w-4 text-brand-500 transition group-hover:translate-x-1" /></div>
