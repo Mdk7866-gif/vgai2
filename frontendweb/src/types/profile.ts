@@ -31,6 +31,8 @@ export interface AdminCreditGrant {
   credits_balance_after: number;
   /** Admin-provided explanation, shown verbatim to the account owner. */
   reason: string | null;
+  /** "welcome" is the automatic first-login bonus; "admin" is support-added credit. */
+  grant_kind: "admin" | "welcome";
   created_at: string;
 }
 

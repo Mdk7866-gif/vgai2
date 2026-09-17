@@ -42,6 +42,15 @@ Every user has a `current_credit_balance`. Spend is tracked two ways:
 - **Per-project spend** — recorded in `project_expence_tracker`, broken down into `llm_credit_spent`, `image_credit_spent`, `animation_credit_spent`, and `voiceover_credit_spent`. This table stores a **snapshot** of the project id/name (no foreign key) specifically so spend history survives even if the user later deletes the project. There is exactly one running-total row per project, not one row per spend event.
 - **Miscellaneous spend** — actions not tied to a project (script generation, character-sheet generation, style-template generation) are tracked on the user directly via `miscellaneous_credit_spent`.
 
+### First-login welcome bonus
+
+Each newly created account receives **20 free credits** at its first successful
+backend sign-in. The database creates the user, updates the balance, and writes
+one `admin_credit_grants` row with `grant_kind = 'welcome'` in the same atomic
+operation, so repeated authentication callbacks cannot award it twice. Profile
+history calls this **Welcome bonus — your first login**. It is free credit,
+never a Razorpay purchase, and is excluded from all purchase totals.
+
 ### Credits are charged when a generation *starts*
 
 Credits are **reserved before the AI provider is called**, not deducted after it succeeds. Every provider (OpenAI, OpenRouter, ElevenLabs) bills vgAI the moment the work begins, so charging only on success meant absorbing the cost of anything a user started and then abandoned. Concretely:
@@ -306,6 +315,7 @@ Migrations are run **by hand** in the Supabase SQL Editor — neither backend ca
 Summary of tables:
 
 - **`users`** — profile, `current_credit_balance`, `miscellaneous_credit_spent`.
+- **`admin_credit_grants`** — support grants and the one-time 20-credit `welcome` bonus, each with a balance-after audit value; neither is a purchase.
 - **`project_expence_tracker`** — historical per-project credit spend (`llm_credit_spent`, `image_credit_spent`, `animation_credit_spent`, `voiceover_credit_spent`), snapshotted by `project_id`/`project_name` so it survives project deletion. One row per project, uniquely indexed on `project_id`.
 - **`projects`** — script, `is_liked`, selected model ids, a full snapshot of the style template used, YouTube metadata, and ElevenLabs voice settings.
 - **`style_templates`** — reusable visual styles: image/animation/YouTube prompts, `scene_density`, `image_aspect_ratio`, `video_aspect_ratio`, `is_default`.

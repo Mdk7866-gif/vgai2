@@ -418,6 +418,10 @@ Table admin_credit_grants {
 
   reason text
 
+  // `welcome` is the automatic one-time first-login bonus; `admin` is a
+  // support/operator grant. DDL enforces one welcome row per user.
+  grant_kind varchar [not null, default: 'admin']
+
   created_at timestamp [not null, default: `now()`]
 
   indexes {

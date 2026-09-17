@@ -239,7 +239,7 @@ export const PaymentAndUsageHistoryTabCard = () => {
         <EmptyState
           Icon={Receipt}
           title="No payments yet"
-          message="Credit top-ups and any credits granted by support will show up here."
+          message="Credit top-ups and any free credits, including your welcome bonus, will show up here."
         />
       );
     }
@@ -315,15 +315,15 @@ export const PaymentAndUsageHistoryTabCard = () => {
           <section className="mt-7 border-t border-slate-200 pt-6 dark:border-slate-700/70">
             <div className="mb-3 flex items-baseline justify-between gap-3">
               <div>
-                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Credits granted by support</h3>
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">These are free credits added to your balance, separate from purchases.</p>
+                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Free credit grants</h3>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Your welcome bonus and any support-added credits are separate from purchases.</p>
               </div>
               <span className="inline-flex items-center gap-1.5 whitespace-nowrap font-semibold text-emerald-700 dark:text-emerald-400"><CreditCoinIcon className="h-4 w-4" />+{formatCredits(data.total_credits_granted)}</span>
             </div>
             <div className="overflow-x-auto rounded-xl border border-emerald-100 dark:border-emerald-500/20">
               <table className="w-full min-w-[520px] text-sm">
                 <thead className="bg-emerald-50/60 dark:bg-emerald-500/5"><tr className="text-xs uppercase tracking-wide text-slate-400 dark:text-slate-500"><th className="px-4 py-3 text-left font-medium">Date</th><th className="px-4 py-3 text-left font-medium">Reason</th><th className="px-4 py-3 text-right font-medium">Credits added</th><th className="px-4 py-3 text-right font-medium">Balance after</th></tr></thead>
-                <tbody>{data.grants.map((grant) => <tr key={grant.id} className="border-t border-slate-100 dark:border-slate-700/50"><td className="px-4 py-3 whitespace-nowrap text-slate-600 dark:text-slate-300">{formatDate(grant.created_at)}</td><td className="px-4 py-3 text-slate-600 dark:text-slate-300">{grant.reason || "Support credit"}</td><td className="px-4 py-3 text-right font-semibold text-emerald-700 dark:text-emerald-400">+{formatCredits(grant.credits_granted)}</td><td className="px-4 py-3 text-right text-slate-600 dark:text-slate-300">{formatCredits(grant.credits_balance_after)}</td></tr>)}</tbody>
+                <tbody>{data.grants.map((grant) => <tr key={grant.id} className="border-t border-slate-100 dark:border-slate-700/50"><td className="px-4 py-3 whitespace-nowrap text-slate-600 dark:text-slate-300">{formatDate(grant.created_at)}</td><td className="px-4 py-3 text-slate-600 dark:text-slate-300">{grant.reason || (grant.grant_kind === "welcome" ? "Welcome bonus — your first login" : "Support credit")}</td><td className="px-4 py-3 text-right font-semibold text-emerald-700 dark:text-emerald-400">+{formatCredits(grant.credits_granted)}</td><td className="px-4 py-3 text-right text-slate-600 dark:text-slate-300">{formatCredits(grant.credits_balance_after)}</td></tr>)}</tbody>
               </table>
             </div>
           </section>

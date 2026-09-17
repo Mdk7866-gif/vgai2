@@ -23,8 +23,9 @@ async def get_access_status():
 async def sync_user(current_user: SupabaseUser = Depends(get_current_user)):
     """Ensures a `users` row exists for the authenticated Supabase user.
 
-    Called by the frontend right after login. Safe to call repeatedly:
-    creates the row on first login, otherwise returns the existing one untouched.
+    Called by the frontend right after login. Safe to call repeatedly: a new
+    account receives its 20-credit welcome bonus exactly once, atomically with
+    creating its row; returning users are left untouched.
     """
     existing = (
         supabase.table("users").select("*").eq("id", current_user.id).execute()
@@ -34,14 +35,15 @@ async def sync_user(current_user: SupabaseUser = Depends(get_current_user)):
         return existing.data[0]
 
     metadata = current_user.user_metadata or {}
-    new_user = {
-        "id": current_user.id,
-        "email": current_user.email,
-        "name": metadata.get("full_name") or metadata.get("name"),
-        "profile_image_url": metadata.get("avatar_url"),
-    }
-
-    created = supabase.table("users").insert(new_user).execute()
+    created = supabase.rpc(
+        "create_user_with_welcome_bonus",
+        {
+            "p_user_id": current_user.id,
+            "p_email": current_user.email,
+            "p_name": metadata.get("full_name") or metadata.get("name"),
+            "p_profile_image_url": metadata.get("avatar_url"),
+        },
+    ).execute()
     return created.data[0]
 
 

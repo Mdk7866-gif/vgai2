@@ -416,11 +416,20 @@ create table admin_credit_grants (
 
   reason text,
 
+  -- `welcome` is the automatic, one-time new-account bonus. `admin` is a
+  -- support/operator grant. Welcome rows are unique per user below.
+  grant_kind varchar(20) not null default 'admin'
+    check (grant_kind in ('admin', 'welcome')),
+
   created_at timestamp not null default now()
 );
 
 create index idx_admin_credit_grants_user
   on admin_credit_grants (user_id, created_at desc);
+
+create unique index idx_admin_credit_grants_one_welcome_per_user
+  on admin_credit_grants (user_id)
+  where grant_kind = 'welcome';
 
 -- The starter style-template catalog, replacing the bundled
 -- backend/app/routes/styletemplates/default_style_templates.json so it can be
@@ -716,6 +725,49 @@ begin
    where id = v_topup.id;
 
   return v_new_balance;
+end;
+$$;
+
+-- Creates a product user and its 20-credit welcome bonus as one operation.
+-- The conflict path returns the existing account unchanged, making duplicate
+-- Supabase SIGNED_IN callbacks safe. The grant row doubles as the account
+-- history record shown in Profile and enforces one welcome bonus per user.
+create or replace function create_user_with_welcome_bonus(
+  p_user_id uuid,
+  p_email varchar,
+  p_name varchar default null,
+  p_profile_image_url text default null
+)
+returns setof users
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_created_count integer;
+  v_balance numeric;
+begin
+  insert into users (id, email, name, profile_image_url)
+  values (p_user_id, p_email, p_name, p_profile_image_url)
+  on conflict (id) do nothing;
+
+  get diagnostics v_created_count = row_count;
+
+  if v_created_count = 1 then
+    update users
+       set current_credit_balance = current_credit_balance + 20,
+           updated_at = now()
+     where id = p_user_id
+     returning current_credit_balance into v_balance;
+
+    insert into admin_credit_grants (
+      user_id, credits_granted, credits_balance_after, reason, grant_kind
+    ) values (
+      p_user_id, 20, v_balance, 'Welcome bonus — your first login', 'welcome'
+    );
+  end if;
+
+  return query select * from users where id = p_user_id;
 end;
 $$;
 

@@ -82,7 +82,7 @@ async def get_payment_history(current_user: SupabaseUser = Depends(get_current_u
     successful = [topup for topup in topups if topup["payment_status"] == "success"]
     grants_result = (
         supabase.table("admin_credit_grants")
-        .select("id, credits_granted, credits_balance_after, reason, created_at")
+        .select("id, credits_granted, credits_balance_after, reason, grant_kind, created_at")
         .eq("user_id", current_user.id)
         .order("created_at", desc=True)
         .execute()

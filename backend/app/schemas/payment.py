@@ -41,12 +41,13 @@ class CreditTopup(BaseModel):
 
 
 class AdminCreditGrant(BaseModel):
-    """A free-credit adjustment recorded by the local admin portal."""
+    """A free-credit adjustment, either from support or the welcome bonus."""
 
     id: str
     credits_granted: float
     credits_balance_after: float
     reason: str | None = None
+    grant_kind: str = "admin"
     created_at: datetime
 
 

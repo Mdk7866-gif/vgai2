@@ -17,6 +17,12 @@ Razorpay Live checkout uses both browser signature verification and the signed s
 
 Customer Profile → Payment History now shows a copyable Razorpay payment ID for a completed payment. The local-only vgai2admin `/payment` support lookup uses that ID to display the matching shared transaction and user; it alone may display the stored checkout signature.
 
+New vgAI2 accounts receive a one-time **20-credit welcome bonus** at the first
+backend sign-in. The database creates the user, updates the balance, and records
+a `welcome` grant atomically, so duplicate login callbacks cannot award it twice.
+It appears in Profile history as “Welcome bonus — your first login” and never
+counts as a Razorpay purchase.
+
 A single self-contained briefing on **both** halves of this product. Written to
 be pasted or attached at the start of a conversation so an assistant understands
 the setup before touching anything.
