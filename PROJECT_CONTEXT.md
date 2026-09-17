@@ -2,7 +2,7 @@
 
 Payment UI: checkout previews show INR without a hard-coded test-mode label, and only successful top-ups expose a copyable Razorpay payment ID. Browser signature failures only mark still-pending orders failed, preserving any concurrent successful webhook settlement.
 
-The project workspace limits pasted and edited scripts to 4,000 words. The browser tells the creator how many words to remove, and the backend rejects an over-limit direct update as well. The website favicon matches the navbar's violet-and-white vgAI2 mark. The video-metadata thumbnail frame follows the project's snapshotted style-template video ratio: 9:16 for Reels and 16:9 otherwise; its portrait preview uses the same compact 240px cap as scene-card media. Home project cards stay 16:9 for a compact four-column grid, with portrait thumbnails contained on a neutral background.
+The project workspace limits pasted and edited scripts to 4,000 words. The browser tells the creator how many words to remove, and the backend rejects an over-limit direct update as well. The website favicon matches the navbar's violet-and-white vgAI2 mark. The video-metadata thumbnail frame follows the project's snapshotted style-template video ratio: 9:16 for Reels and 16:9 otherwise; its portrait preview uses the same compact 240px cap as scene-card media. Home and Liked Project cards stay 16:9, with portrait thumbnails contained on a neutral background; Home uses a compact four-column desktop grid.
 
 Docker Hub deployment: use [DOCKERHUB_DEPLOY.md](./DOCKERHUB_DEPLOY.md) and
 `compose.deploy.yaml` to pull `mdk7866/vgai2-backend` and

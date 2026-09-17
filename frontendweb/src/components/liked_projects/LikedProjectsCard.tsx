@@ -19,14 +19,14 @@ export const LikedProjectsCard = ({ project, onUnlike, unliking = false }: Liked
   return (
     <div className="group bg-white dark:bg-surface border border-slate-200/80 dark:border-white/10 rounded-3xl overflow-hidden shadow-sm hover:border-brand-300 dark:hover:border-brand-400/40 hover:shadow-xl hover:shadow-brand-950/10 motion-safe:hover:-translate-y-1 transition-all duration-200">
       <div className="relative">
-      <Link href={`/project_folder/${project.id}`} className="relative block w-full aspect-video bg-slate-100 dark:bg-slate-900">
+      <Link href={`/project_folder/${project.id}`} className="relative block w-full aspect-video bg-slate-50 dark:bg-slate-950">
         {project.thumbnail_image_url ? (
           <Image
             src={project.thumbnail_image_url}
             alt={project.name}
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-            className="object-cover"
+            className="object-contain"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-brand-100 via-brand-50 to-cyan-100 dark:from-brand-500/20 dark:via-slate-900 dark:to-cyan-500/10">
