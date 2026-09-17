@@ -7,7 +7,7 @@ Docker Hub deployment: use [DOCKERHUB_DEPLOY.md](./DOCKERHUB_DEPLOY.md) and
 `mdk7866/vgai2-frontend` on EC2 without server-side builds. The existing
 Dockerfiles and .dockerignore files remain in each application directory.
 
-Home project thumbnail frames follow each project's snapshotted style-template video ratio: Reels projects use 9:16 and long-form or older projects without a snapshot default to 16:9. Both generated thumbnails and empty-state frames use `object-cover`.
+Home project cards always use a compact 16:9 thumbnail frame, including Reels projects. Portrait thumbnails use `object-contain` inside that frame, leaving a neutral background at the sides rather than making a tall card; the desktop grid shows four cards per row.
 
 Consistency convention: all app/component brand accents use the shared `brand-*` Tailwind scale; use `bg-action text-action-foreground hover:bg-action-hover` for primary actions and `surface`/`border` for panels. These tokens preserve the light violet and dark lavender/charcoal treatment across form dialogs, tabs, cards, generators and checkout entry points. Semantic warning/error/success/credit colors and black media-preview backgrounds intentionally remain distinct. Pagination uses larger bordered controls with result announcements, toggles support an explicit accessible label, and the access-revoked dialog traps focus while retaining acknowledgement-only dismissal. ThemeProvider validates stored values, syncs other-tab changes, follows OS changes when no preference is saved, and still toggles when storage is blocked. AuthContext, CreditBalanceContext and ProjectsContext are data providers, not visual components; their business behavior remains unchanged.
 

@@ -17,9 +17,6 @@ const steps = [
   { title: "Download your assets", icon: Download, heading: "Ready for your video editor.", copy: "Download scene images, animations, and the thumbnail. Assemble the final video in your preferred editing software.", detail: "vgAI creates the assets — it does not export a finished edited video." },
 ];
 
-const thumbnailAspectClass = (videoAspectRatio: string | null) =>
-  videoAspectRatio === "9:16" ? "aspect-[9/16]" : "aspect-video";
-
 export default function Home() {
   const router = useRouter();
   const { user, requireAuth, accessMode, loading: authLoading } = useAuth();
@@ -116,7 +113,7 @@ export default function Home() {
           </div>
           {!loading && !authLoading && projects.length > 0 && <LibrarySearch value={query} onChange={(value) => { setQuery(value); setVisibleCount(6); }} label="Search your projects" count={filtered.length} />}
           {loading || authLoading ? (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{[0, 1, 2].map((item) => <div key={item} className="h-48 animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-800" />)}</div>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[0, 1, 2, 3].map((item) => <div key={item} className="h-48 animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-800" />)}</div>
           ) : projects.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-slate-300 p-8 text-center dark:border-white/15">
               <h3 className="font-semibold text-slate-900 dark:text-white">Your first video starts with a script.</h3>
@@ -127,11 +124,11 @@ export default function Home() {
             <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-center dark:border-white/15"><p className="text-slate-600 dark:text-slate-300">No projects match your search.</p><button onClick={() => setQuery("")} className="mt-3 text-sm font-semibold text-brand-600 dark:text-brand-300">Clear search</button></div>
           ) : (
             <>
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 {filtered.slice(0, visibleCount).map((project) => (
                   <Link key={project.id} href={`/project_folder/${project.id}`} className="group overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:border-brand-300 hover:shadow-lg dark:border-white/10 dark:bg-surface dark:hover:border-brand-400/40">
-                    <div className={`relative flex ${thumbnailAspectClass(project.snapshot_styletemplate_video_aspect_ratio)} items-center justify-center bg-gradient-to-br from-brand-50 to-slate-100 dark:from-brand-400/10 dark:to-slate-900`}>
-                      {project.thumbnail_image_url ? <Image src={project.thumbnail_image_url} alt="" fill sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw" className="object-cover" /> : <Clapperboard className="h-8 w-8 text-brand-400" />}
+                    <div className="relative flex aspect-video items-center justify-center bg-slate-50 dark:bg-slate-950">
+                      {project.thumbnail_image_url ? <Image src={project.thumbnail_image_url} alt="" fill sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 25vw" className="object-contain" /> : <Clapperboard className="h-8 w-8 text-brand-400" />}
                     </div>
                     <div className="flex items-center gap-3 p-5"><div className="min-w-0 flex-1"><h3 className="truncate font-semibold text-slate-900 dark:text-white">{project.name}</h3><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Open workspace</p></div><ArrowRight className="h-4 w-4 text-brand-500 transition group-hover:translate-x-1" /></div>
                   </Link>
