@@ -13,6 +13,7 @@ import {
   Copy,
   Check,
   Receipt,
+  CircleAlert,
   Sparkles,
 } from "lucide-react";
 import { authFetch } from "@/lib/api";
@@ -250,9 +251,27 @@ export const PaymentAndUsageHistoryTabCard = () => {
       data.topups.find((topup) => topup.payment_status === "success")?.currency ?? "INR";
 
     const { page, pageCount, pageItems: visible, setPage } = paymentPagination;
+    const failedTopups = data.topups.filter((topup) => topup.payment_status === "failed");
 
     return (
       <>
+        {failedTopups.length > 0 && (
+          <section
+            role="status"
+            className="mb-5 flex gap-3 rounded-xl border border-amber-200 bg-amber-50/70 p-4 text-sm text-amber-950 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100"
+          >
+            <CircleAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden="true" />
+            <div>
+              <h3 className="font-semibold">A payment attempt was unsuccessful</h3>
+              <p className="mt-1 leading-6 text-amber-900/85 dark:text-amber-100/80">
+                No credits were added for a failed payment. If money was debited from your bank or UPI account, Razorpay usually reverses it automatically within 5 working days; your bank may take additional time to process it.
+              </p>
+              <p className="mt-1 leading-6 text-amber-900/85 dark:text-amber-100/80">
+                If it has not returned after that, copy the payment reference when available and contact <a href="mailto:hello@vgai2.com" className="font-medium underline underline-offset-2">hello@vgai2.com</a>.
+              </p>
+            </div>
+          </section>
+        )}
         <div className="overflow-x-auto -mx-5 px-5 sm:-mx-6 sm:px-6">
           <table className="w-full min-w-[680px] text-sm">
             <thead>
@@ -289,8 +308,8 @@ export const PaymentAndUsageHistoryTabCard = () => {
                     </span>
                   </td>
                   <td className="py-3 border-t border-slate-100 dark:border-slate-700/50 text-right">
-                    {topup.payment_status === "success" && topup.razorpay_payment_id ? (
-                      <button type="button" onClick={() => void copyPaymentId(topup.razorpay_payment_id!)} className="inline-flex max-w-[195px] items-center gap-1.5 rounded-lg border border-slate-200 px-2 py-1 font-mono text-xs text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800" title="Copy Razorpay payment ID">
+                    {(topup.payment_status === "success" || topup.payment_status === "failed") && topup.razorpay_payment_id ? (
+                      <button type="button" onClick={() => void copyPaymentId(topup.razorpay_payment_id!)} className="inline-flex max-w-[195px] items-center gap-1.5 rounded-lg border border-slate-200 px-2 py-1 font-mono text-xs text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800" title={topup.payment_status === "failed" ? "Copy failed payment reference" : "Copy Razorpay payment ID"}>
                         {copiedPaymentId === topup.razorpay_payment_id ? <Check className="h-3.5 w-3.5 shrink-0 text-emerald-500" /> : <Copy className="h-3.5 w-3.5 shrink-0" />}
                         <span className="truncate">{copiedPaymentId === topup.razorpay_payment_id ? "Copied" : topup.razorpay_payment_id}</span>
                       </button>
@@ -358,7 +377,7 @@ export const PaymentAndUsageHistoryTabCard = () => {
           Totals count successful payments only — pending and failed attempts are listed above but
           were never charged.
         </p>
-        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">If you need support for a charge, copy your Razorpay payment ID and include it when contacting <a href="mailto:hello@vgai2.com" className="font-medium text-brand-600 hover:underline dark:text-brand-300">hello@vgai2.com</a>.</p>
+        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">If a payment failed but has a payment reference, copy it and include it when contacting <a href="mailto:hello@vgai2.com" className="font-medium text-brand-600 hover:underline dark:text-brand-300">hello@vgai2.com</a>. Successful payment IDs can be used for charge support too.</p>
       </>
     );
   };

@@ -1,6 +1,6 @@
 # vgAI — project context (hand this to an AI first)
 
-Payment UI: checkout previews show INR without a hard-coded test-mode label, and only successful top-ups expose a copyable Razorpay payment ID. Browser signature failures only mark still-pending orders failed, preserving any concurrent successful webhook settlement.
+Payment UI: checkout previews show INR without a hard-coded test-mode label. Successful top-ups and failed attempts with a Razorpay payment ID expose it as a copyable support reference; pending attempts and failed attempts without an ID do not. Failed-payment history shows a clear notice: no credits were added, a debited amount is usually reversed within 5 working days plus bank processing, and the user can contact support with the reference. Browser signature failures only mark still-pending orders failed, preserving any concurrent successful webhook settlement.
 
 The project workspace limits pasted and edited scripts to 4,000 words. The browser tells the creator how many words to remove, and the backend rejects an over-limit direct update as well. The website favicon matches the navbar's violet-and-white vgAI2 mark. The video-metadata thumbnail frame follows the project's snapshotted style-template video ratio: 9:16 for Reels and 16:9 otherwise; its portrait preview uses the same compact 240px cap as scene-card media. Home and Liked Project cards stay 16:9, with portrait thumbnails contained on a neutral background; Home uses a compact four-column desktop grid.
 
@@ -15,7 +15,7 @@ The visible customer and admin brand is **vgAI2**; internal `vgai2` identifiers 
 
 Razorpay Live checkout uses both browser signature verification and the signed server webhook at `https://vgai2.com/api/payments/webhook` (`payment.captured`, `payment.failed`). Before enabling it, run `vgai2admin/migration/004_atomic_razorpay_credit_settlement.sql` manually in the shared Supabase SQL Editor. The `settle_credit_topup()` function locks an order so concurrent browser/webhook deliveries cannot credit it twice. Purchased credits do not expire and are non-refundable; cancelled generations remain charged once their provider work begins, while provider failures are refunded.
 
-Customer Profile → Payment History now shows a copyable Razorpay payment ID for a completed payment. The local-only vgai2admin `/payment` support lookup uses that ID to display the matching shared transaction and user; it alone may display the stored checkout signature.
+Customer Profile → Payment History shows a copyable Razorpay payment ID for a completed payment and, when present, a failed attempt. The local-only vgai2admin `/payment` support lookup uses that ID to display the matching shared transaction and user; it alone may display the stored checkout signature.
 
 New vgAI2 accounts receive a one-time **20-credit welcome bonus** at the first
 backend sign-in. The database creates the user, updates the balance, and records

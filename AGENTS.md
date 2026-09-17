@@ -13,7 +13,7 @@ Home and Liked Project cards always use a compact 16:9 thumbnail frame. Reels th
 
 ## Launch update — vgAI2, SEO, and Razorpay
 
-Profile → Payment History exposes only a copyable Razorpay payment ID for a completed top-up, so customers can include it in a support query to `hello@vgai2.com`. Checkout signatures remain server-side; the local-only vgai2admin `/payment` lookup is the support tool that may display them.
+Profile → Payment History exposes a copyable Razorpay payment ID for a completed top-up and for a failed attempt when Razorpay supplied one, so customers can include it in a support query to `hello@vgai2.com`. Pending attempts and failed attempts without an ID expose no reference. A visible failed-payment notice says that no credits were added, a debited amount is usually automatically reversed within 5 working days (plus any bank processing time), and provides the support/referral path. Checkout signatures remain server-side; the local-only vgai2admin `/payment` lookup is the support tool that may display them.
 
 The public product and its local-only sibling portal use visible brand **vgAI2**. Internal technical identifiers (`vgai2` database names, Cloudinary folder, event names) remain unchanged. The user-facing frontend at `https://vgai2.com` owns its Metadata API configuration plus generated `robots.txt`, sitemap, and web manifest; account/workspace paths are excluded from crawling while the public home, about, pricing, terms, cancellation/refund, privacy, and contact pages are indexed. Contact/legal email is `hello@vgai2.com`.
 

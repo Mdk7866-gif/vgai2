@@ -1,6 +1,6 @@
 # vgAI — Project Summary & Architecture Guide
 
-Payment UI: checkout previews show INR without a hard-coded test-mode label, and only successful top-ups expose a copyable Razorpay payment ID. Browser signature failures only mark still-pending orders failed, so they cannot overwrite a payment already settled by the webhook.
+Payment UI: checkout previews show INR without a hard-coded test-mode label. Successful top-ups and failed attempts that have a Razorpay payment ID expose that ID as a copyable support reference; pending attempts and failed attempts without an ID do not. When Payment History contains a failed attempt, it explains that no credits were added, a debited amount is usually automatically reversed within 5 working days (subject to bank processing), and how to contact support with the reference. Browser signature failures only mark still-pending orders failed, so they cannot overwrite a payment already settled by the webhook.
 
 Docker Hub deployment: use [DOCKERHUB_DEPLOY.md](./DOCKERHUB_DEPLOY.md) and
 `compose.deploy.yaml` to pull `mdk7866/vgai2-backend` and
@@ -717,7 +717,7 @@ vgai2/
 
 ### Payment support IDs
 
-Profile → Payment History displays a copyable Razorpay payment ID for each completed top-up. Customers can send that ID to `hello@vgai2.com` when they need payment support. Razorpay signatures remain server-side and are available only in the local vgai2admin payment lookup.
+Profile → Payment History displays a copyable Razorpay payment ID for each completed top-up and, when Razorpay supplied one, a failed attempt. Customers can send that reference to `hello@vgai2.com` when they need payment support. Pending attempts and failed attempts without a payment ID show no reference. Razorpay signatures remain server-side and are available only in the local vgai2admin payment lookup.
 
 **Written and verified to build; not yet deployed.** The target is a single AWS EC2 instance running four Docker containers behind nginx with a free Let's Encrypt certificate.
 
