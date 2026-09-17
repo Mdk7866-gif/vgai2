@@ -1,5 +1,7 @@
 # vgAI — project context (hand this to an AI first)
 
+Payment UI: checkout previews show INR without a hard-coded test-mode label, and only successful top-ups expose a copyable Razorpay payment ID. Browser signature failures only mark still-pending orders failed, preserving any concurrent successful webhook settlement.
+
 The project workspace limits pasted and edited scripts to 4,000 words. The browser tells the creator how many words to remove, and the backend rejects an over-limit direct update as well. The website favicon matches the navbar's violet-and-white vgAI2 mark. Video-metadata and Home project-thumbnail frames follow the project's snapshotted style-template video ratio: 9:16 for Reels, 16:9 otherwise; the metadata portrait preview uses the same compact 240px cap as scene-card media.
 
 Docker Hub deployment: use [DOCKERHUB_DEPLOY.md](./DOCKERHUB_DEPLOY.md) and

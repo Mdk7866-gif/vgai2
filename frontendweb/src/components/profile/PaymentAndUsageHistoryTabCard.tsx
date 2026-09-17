@@ -289,7 +289,7 @@ export const PaymentAndUsageHistoryTabCard = () => {
                     </span>
                   </td>
                   <td className="py-3 border-t border-slate-100 dark:border-slate-700/50 text-right">
-                    {topup.razorpay_payment_id ? (
+                    {topup.payment_status === "success" && topup.razorpay_payment_id ? (
                       <button type="button" onClick={() => void copyPaymentId(topup.razorpay_payment_id!)} className="inline-flex max-w-[195px] items-center gap-1.5 rounded-lg border border-slate-200 px-2 py-1 font-mono text-xs text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800" title="Copy Razorpay payment ID">
                         {copiedPaymentId === topup.razorpay_payment_id ? <Check className="h-3.5 w-3.5 shrink-0 text-emerald-500" /> : <Copy className="h-3.5 w-3.5 shrink-0" />}
                         <span className="truncate">{copiedPaymentId === topup.razorpay_payment_id ? "Copied" : topup.razorpay_payment_id}</span>

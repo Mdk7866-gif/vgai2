@@ -165,7 +165,7 @@ export const AddCreditsPopUp = ({
                 <span className="text-slate-500 dark:text-slate-400">You&apos;ll be charged</span>
                 <span className="font-medium text-slate-700 dark:text-slate-300">
                   ₹{inrAmount.toLocaleString()}{" "}
-                  <span className="text-xs text-slate-400 dark:text-slate-500">(INR, test mode)</span>
+                  <span className="text-xs text-slate-400 dark:text-slate-500">(INR)</span>
                 </span>
               </div>
             </div>

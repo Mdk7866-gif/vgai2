@@ -1,5 +1,7 @@
 # vgAI — Project Summary & Architecture Guide
 
+Payment UI: checkout previews show INR without a hard-coded test-mode label, and only successful top-ups expose a copyable Razorpay payment ID. Browser signature failures only mark still-pending orders failed, so they cannot overwrite a payment already settled by the webhook.
+
 Docker Hub deployment: use [DOCKERHUB_DEPLOY.md](./DOCKERHUB_DEPLOY.md) and
 `compose.deploy.yaml` to pull `mdk7866/vgai2-backend` and
 `mdk7866/vgai2-frontend` on EC2 without server-side builds. The existing

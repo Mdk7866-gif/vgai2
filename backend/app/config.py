@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     GEMINI_PAID_API_KEY: str | None = None
 
     # Razorpay — credit top-ups (see app/routes/payments/). RAZORPAY_WEBHOOK_SECRET
-    # is only needed once app/routes/payments/webhook.py is wired up post-deploy.
+    # is required by the registered webhook in every deployed environment.
     RAZORPAY_KEY_ID: str | None = None
     RAZORPAY_KEY_SECRET: str | None = None
     RAZORPAY_WEBHOOK_SECRET: str | None = None

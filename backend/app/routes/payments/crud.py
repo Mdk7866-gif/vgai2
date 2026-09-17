@@ -165,8 +165,8 @@ async def verify_payment(
     """Verifies the Razorpay Checkout signature and applies the credits.
 
     This is the primary path (called by the frontend's checkout success
-    handler). See routes/payments/webhook.py for the server-side backup path
-    that will also need to call this same apply-credits logic once deployed.
+    handler). The registered server-side webhook calls the same atomic
+    settlement helper if this browser callback never returns.
     """
     if razorpay_client is None:
         raise HTTPException(status_code=500, detail="Razorpay is not configured on the backend.")
@@ -195,9 +195,10 @@ async def verify_payment(
             }
         )
     except razorpay.errors.SignatureVerificationError:
-        supabase.table("credit_topups").update(
-            {"payment_status": "failed", "razorpay_payment_id": payload.razorpay_payment_id}
-        ).eq("id", topup["id"]).execute()
+        # A webhook may have settled this order between our initial read and this
+        # browser-side signature failure. Only transition a still-pending row so
+        # a stale/tampered response can never overwrite a captured payment.
+        mark_credit_topup_failed(payload.razorpay_order_id, payload.razorpay_payment_id)
         raise HTTPException(status_code=400, detail="Payment signature verification failed")
 
     settle_credit_topup(
