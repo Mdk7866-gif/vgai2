@@ -6,6 +6,10 @@ The project workspace limits pasted and edited scripts to 4,000 words. The brows
 
 Project names are renamed only inside their workspace; Sidebar project rows navigate on click, expose the complete name and creation date in their hover tooltip, and have a Select mode for a confirmed multi-project deletion. The batch-delete API verifies every selected project belongs to the requester before deleting its Cloudinary media and project row. Manual scene splitting sends the copied prompt to gemini.google.com and instructs creators to use a Gemini Pro model; its JSON parser remains provider-agnostic. Workspace style-template choices display each library template's demo image when present.
 
+Character descriptions have a uniform 300-word maximum: manual create/update and AI-generation input reject longer text, while the generated image prompt is instructed and hard-capped to 300 words before image generation and later acceptance as the saved description. Generated Script cards likewise show and enforce a 300-word Topic Description limit in both the browser and `GeneratedScriptUpdate` API.
+
+`vgai2admin/migration/006_generated_script_topic_word_limit.sql` has been applied manually in the shared Supabase SQL Editor. It widened `generated_scripts.topic_name` from 300 characters to `text`, which is required for the 300-word rule.
+
 Docker Hub deployment: use [DOCKERHUB_DEPLOY.md](./DOCKERHUB_DEPLOY.md) and
 `compose.deploy.yaml` to pull `mdk7866/vgai2-backend` and
 `mdk7866/vgai2-frontend` on EC2 without server-side builds. The existing

@@ -3,7 +3,7 @@ from supabase_auth.types import User as SupabaseUser
 
 from app.auth import get_current_user
 from app.cloudinary import delete_media, upload_image
-from app.schemas.character import Character
+from app.schemas.character import Character, MAX_CHARACTER_DESCRIPTION_WORDS, character_description_within_word_limit
 from app.supabase import supabase
 
 router = APIRouter(prefix="/characters", tags=["characters"])
@@ -39,6 +39,11 @@ async def create_character(
     character_sheet: UploadFile = File(...),
     current_user: SupabaseUser = Depends(get_current_user),
 ):
+    if not character_description_within_word_limit(description):
+        raise HTTPException(
+            status_code=422,
+            detail=f"Description must be {MAX_CHARACTER_DESCRIPTION_WORDS} words or fewer.",
+        )
     image_url = await upload_image(
         character_sheet, folder=f"{current_user.id}/characters", public_id_prefix="character"
     )
@@ -63,6 +68,11 @@ async def update_character(
     character_sheet: UploadFile | None = File(None),
     current_user: SupabaseUser = Depends(get_current_user),
 ):
+    if not character_description_within_word_limit(description):
+        raise HTTPException(
+            status_code=422,
+            detail=f"Description must be {MAX_CHARACTER_DESCRIPTION_WORDS} words or fewer.",
+        )
     existing = _get_owned_character(character_id, current_user.id)
 
     update_data: dict = {

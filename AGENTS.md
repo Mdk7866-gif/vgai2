@@ -73,6 +73,8 @@ The authoritative constants are in `app/routes/project/scenesplitcommon.py`: Man
 
 > **Sidebar and manual-scene update (September 2026):** The sidebar no longer renames projects; names are renamed from the project workspace only. Its native hover tooltip now contains the complete project name plus creation date, and Select mode supports confirmed multi-project deletion. `POST /projects/delete/batch` validates ownership of every selected id before cleaning each project Cloudinary folder and deleting the rows; `ProjectsContext.removeProjects()` keeps the shared list in sync. `GenerateScenesManualPopUp.tsx` directs users to gemini.google.com, explicitly asks them to select a Gemini Pro model, and labels all parser feedback as Gemini. `ChooseStyleTemplatePopUp.tsx` shows a library template's `demo_image_url` in its selectable row. These facts supersede older sidebar rename and ChatGPT references below.
 
+> **Content-limit update (September 2026):** `MAX_CHARACTER_DESCRIPTION_WORDS = 300` is shared by character create/update validation and character-AI input validation. `generatecharacter.py` also tells the LLM to stay within that limit and hard-truncates its generated image prompt before rendering/returning it, because that prompt becomes the accepted character's saved description. `GeneratedScriptCard.tsx` visibly blocks a Topic Description edit over 300 words, while `GeneratedScriptUpdate` independently rejects it server-side.
+
 ## Repo layout
 
 - `backend/` — FastAPI + uv Python backend

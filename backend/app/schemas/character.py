@@ -3,6 +3,14 @@ from datetime import datetime
 from pydantic import BaseModel
 
 
+MAX_CHARACTER_DESCRIPTION_WORDS = 300
+
+
+def character_description_within_word_limit(value: str) -> bool:
+    """Keeps every persisted character description compatible with its form."""
+    return len(value.split()) <= MAX_CHARACTER_DESCRIPTION_WORDS
+
+
 class Character(BaseModel):
     id: str
     user_id: str

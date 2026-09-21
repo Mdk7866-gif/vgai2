@@ -15,7 +15,11 @@ from app.openai_client import (
     OPENAI_TEXT_REASONING_EFFORT,
     openai_client,
 )
-from app.schemas.character import GenerateCharacterSheetResponse
+from app.schemas.character import (
+    GenerateCharacterSheetResponse,
+    MAX_CHARACTER_DESCRIPTION_WORDS,
+    character_description_within_word_limit,
+)
 
 router = APIRouter(prefix="/characters", tags=["characters"])
 
@@ -27,6 +31,11 @@ GENERATE_PRO_CREDIT_COST = 20
 # GPT Image 2.5 requires both edges to be multiples of 16. 1792x1008 = 16*112 x 16*63,
 # and 112:63 reduces to exactly 16:9 (unlike the legacy 1792x1024 DALL-E-3 size, which is 1.75:1).
 SHEET_IMAGE_SIZE = "1792x1008"
+
+
+def _truncate_words(text: str, max_words: int) -> str:
+    words = text.split()
+    return text if len(words) <= max_words else " ".join(words[:max_words])
 
 CHARACTER_PROMPT_SYSTEM_MESSAGE = (
     "You are a concept artist's assistant. Given a character's name and description "
@@ -50,7 +59,7 @@ CHARACTER_PROMPT_SYSTEM_MESSAGE = (
     "scenery, gradient, texture, vignette, or cast shadows on it — the character sheet "
     "gets composited over other backgrounds later, so anything but flat white is wrong.\n\n"
     "Output ONLY the image-generation prompt text itself, nothing else — no preamble, "
-    "no markdown."
+    f"no markdown. Keep the prompt to {MAX_CHARACTER_DESCRIPTION_WORDS} words or fewer."
 )
 
 
@@ -85,7 +94,9 @@ async def _build_character_prompt(
         raise HTTPException(status_code=502, detail=f"Failed to generate character prompt: {e}")
 
     prompt_text = response.content if isinstance(response.content, str) else str(response.content)
-    return prompt_text.strip()
+    # The accepted prompt becomes the saved character description, whose manual
+    # form has the same 300-word ceiling. Prompting alone is not enforcement.
+    return _truncate_words(prompt_text.strip(), MAX_CHARACTER_DESCRIPTION_WORDS)
 
 
 async def _generate_sheet_image(
@@ -140,6 +151,11 @@ async def generate_character_sheet(
     """
     if openai_client is None:
         raise HTTPException(status_code=500, detail="OpenAI is not configured on the backend.")
+    if not character_description_within_word_limit(description):
+        raise HTTPException(
+            status_code=422,
+            detail=f"Description must be {MAX_CHARACTER_DESCRIPTION_WORDS} words or fewer.",
+        )
 
     credit_cost = GENERATE_PRO_CREDIT_COST if pro else GENERATE_CREDIT_COST
 

@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 ContentType = Literal["long_videos", "short_videos"]
 
@@ -116,6 +116,13 @@ class ScriptImproviseResponse(BaseModel):
 class GeneratedScriptUpdate(BaseModel):
     topic: str
     script: str
+
+    @field_validator("topic")
+    @classmethod
+    def topic_has_at_most_300_words(cls, value: str) -> str:
+        if len(value.split()) > 300:
+            raise ValueError("Topic description must be 300 words or fewer.")
+        return value
 
 
 class GeneratedScriptRecord(BaseModel):

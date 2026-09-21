@@ -36,6 +36,13 @@ const characterLine = (c: GeneratedScript["characters"][number]) => {
 const inputClass =
   "w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-400 transition-all";
 
+const MAX_TOPIC_WORDS = 300;
+
+const countWords = (text: string) => {
+  const trimmed = text.trim();
+  return trimmed === "" ? 0 : trimmed.split(/\s+/).length;
+};
+
 export const GeneratedScriptCard = ({
   generated,
   index,
@@ -49,6 +56,8 @@ export const GeneratedScriptCard = ({
   const [editTopic, setEditTopic] = useState(generated.topic);
   const [editScript, setEditScript] = useState(generated.script);
   const [saving, setSaving] = useState(false);
+  const editTopicWordCount = countWords(editTopic);
+  const topicOverWordLimit = editTopicWordCount > MAX_TOPIC_WORDS;
 
   const startEditing = () => {
     setEditTopic(generated.topic);
@@ -60,6 +69,7 @@ export const GeneratedScriptCard = ({
 
   const handleSave = async () => {
     if (!editTopic.trim() || !editScript.trim()) return;
+    if (topicOverWordLimit) return;
     setSaving(true);
     try {
       await onUpdate(generated, { topic: editTopic.trim(), script: editScript.trim() });
@@ -80,13 +90,22 @@ export const GeneratedScriptCard = ({
             #{index}
           </span>
           {editing ? (
-            <input
-              type="text"
-              value={editTopic}
-              onChange={(e) => setEditTopic(e.target.value)}
-              placeholder="Topic"
-              className={`${inputClass} font-semibold`}
-            />
+            <div className="min-w-0 flex-1">
+              <input
+                type="text"
+                value={editTopic}
+                onChange={(e) => setEditTopic(e.target.value)}
+                placeholder="Topic description"
+                aria-describedby="generated-script-topic-count"
+                className={`${inputClass} font-semibold ${topicOverWordLimit ? "border-red-300 dark:border-red-500/60 focus:ring-red-500/50 focus:border-red-400" : ""}`}
+              />
+              <p
+                id="generated-script-topic-count"
+                className={`mt-1 text-xs tabular-nums ${topicOverWordLimit ? "text-red-600 dark:text-red-400" : "text-slate-400 dark:text-slate-500"}`}
+              >
+                {editTopicWordCount}/{MAX_TOPIC_WORDS} words
+              </p>
+            </div>
           ) : (
             <h3 className="font-semibold text-[15px] text-slate-900 dark:text-slate-100 truncate">
               {generated.topic}
@@ -157,7 +176,7 @@ export const GeneratedScriptCard = ({
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={saving || !editTopic.trim() || !editScript.trim()}
+                disabled={saving || !editTopic.trim() || !editScript.trim() || topicOverWordLimit}
                 className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg shadow-md shadow-emerald-200 dark:shadow-emerald-900/40 transition-all active:scale-95 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}

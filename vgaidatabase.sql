@@ -236,7 +236,7 @@ create table generated_scripts (
 
   -- Denormalized, not a FK to researched_topics -- a script must survive even
   -- after its originating topic batch gets replaced by a later research call.
-  topic_name varchar(300) not null,
+  topic_name text not null,
   script_text text not null,
 
   -- Characters involved, serialized as delimited text (characters joined by
