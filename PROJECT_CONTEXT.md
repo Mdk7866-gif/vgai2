@@ -4,6 +4,8 @@ Payment UI: checkout previews show INR without a hard-coded test-mode label. Suc
 
 The project workspace limits pasted and edited scripts to 4,000 words. The browser tells the creator how many words to remove, and the backend rejects an over-limit direct update as well. The website favicon matches the navbar's violet-and-white vgAI2 mark. The video-metadata thumbnail frame follows the project's snapshotted style-template video ratio: 9:16 for Reels and 16:9 otherwise; its portrait preview uses the same compact 240px cap as scene-card media. Home and Liked Project cards stay 16:9, with portrait thumbnails contained on a neutral background; Home uses a compact four-column desktop grid.
 
+Project names are renamed only inside their workspace; Sidebar project rows navigate on click, expose the complete name and creation date in their hover tooltip, and have a Select mode for a confirmed multi-project deletion. The batch-delete API verifies every selected project belongs to the requester before deleting its Cloudinary media and project row. Manual scene splitting sends the copied prompt to gemini.google.com and instructs creators to use a Gemini Pro model; its JSON parser remains provider-agnostic. Workspace style-template choices display each library template's demo image when present.
+
 Docker Hub deployment: use [DOCKERHUB_DEPLOY.md](./DOCKERHUB_DEPLOY.md) and
 `compose.deploy.yaml` to pull `mdk7866/vgai2-backend` and
 `mdk7866/vgai2-frontend` on EC2 without server-side builds. The existing

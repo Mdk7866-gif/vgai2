@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import Image from "next/image";
 import { X, Loader2, Check, Palette, AlertTriangle, Pencil } from "lucide-react";
 import { authFetch } from "@/lib/api";
 import type { StyleTemplate } from "@/types/styletemplate";
@@ -240,8 +241,19 @@ export const ChooseStyleTemplatePopUp = ({
                       : "border-slate-200 dark:border-slate-700 hover:border-brand-300 dark:hover:border-brand-500/50"
                   }`}
                 >
-                  <div className="w-9 h-9 flex-shrink-0 rounded-xl bg-brand-50 dark:bg-brand-500/10 border border-brand-100 dark:border-brand-500/30 text-brand-600 dark:text-brand-400 flex items-center justify-center">
-                    <Palette className="w-4.5 h-4.5" />
+                  <div className="w-24 aspect-video flex-shrink-0 overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-center">
+                    {t.demo_image_url ? (
+                      <Image
+                        src={t.demo_image_url}
+                        alt=""
+                        width={192}
+                        height={108}
+                        unoptimized
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <Palette className="w-4.5 h-4.5 text-brand-600 dark:text-brand-400" />
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">

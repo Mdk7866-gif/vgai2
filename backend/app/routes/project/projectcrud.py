@@ -6,6 +6,7 @@ from app.cloudinary import copy_image_from_url, delete_media, delete_project_med
 from app.schemas.project import (
     CharacterImportRequest,
     Project,
+    ProjectBatchDeleteRequest,
     ProjectCharacter,
     ProjectCreate,
     ProjectUpdate,
@@ -197,6 +198,44 @@ async def delete_project(project_id: str, current_user: SupabaseUser = Depends(g
 
     supabase.table("projects").delete().eq("id", project_id).execute()
     return {"success": True}
+
+
+@router.post("/delete/batch")
+async def delete_projects_batch(
+    payload: ProjectBatchDeleteRequest,
+    current_user: SupabaseUser = Depends(get_current_user),
+):
+    """Delete a user's selected projects as one sidebar action.
+
+    Ownership of every id is verified before any Cloudinary or database work
+    starts, so a stale or tampered selection can never partly delete another
+    user's project. The per-project media teardown intentionally remains the
+    same as the single-delete path: Cloudinary assets have one folder per
+    project and must be removed before the cascading database delete.
+    """
+    project_ids = payload.project_ids
+    owned = (
+        supabase.table("projects")
+        .select("id")
+        .eq("user_id", current_user.id)
+        .in_("id", project_ids)
+        .execute()
+    )
+    owned_ids = {row["id"] for row in owned.data}
+    if len(owned_ids) != len(project_ids):
+        raise HTTPException(status_code=404, detail="One or more projects were not found")
+
+    for project_id in project_ids:
+        delete_project_media(current_user.id, project_id)
+
+    (
+        supabase.table("projects")
+        .delete()
+        .eq("user_id", current_user.id)
+        .in_("id", project_ids)
+        .execute()
+    )
+    return {"success": True, "deleted_project_ids": project_ids}
 
 
 @router.get("/{project_id}/characters", response_model=list[ProjectCharacter])

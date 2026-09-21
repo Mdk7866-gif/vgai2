@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from app.schemas.styletemplate import SceneDensity
 
@@ -59,6 +59,20 @@ class Project(BaseModel):
 class ProjectCreate(BaseModel):
     name: str
     script: str | None = None
+
+
+class ProjectBatchDeleteRequest(BaseModel):
+    """The project ids selected for one destructive sidebar action."""
+
+    project_ids: list[str] = Field(min_length=1, max_length=100)
+
+    @field_validator("project_ids")
+    @classmethod
+    def project_ids_are_unique(cls, value: list[str]) -> list[str]:
+        unique_ids = list(dict.fromkeys(value))
+        if not all(project_id.strip() for project_id in unique_ids):
+            raise ValueError("Project ids cannot be blank")
+        return unique_ids
 
 
 class ProjectUpdate(BaseModel):

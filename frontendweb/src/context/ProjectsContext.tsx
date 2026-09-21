@@ -20,6 +20,7 @@ interface ProjectsContextType {
   createProject: (name: string, script?: string) => Promise<ProjectListItem>;
   renameProject: (id: string, name: string) => Promise<void>;
   removeProject: (id: string) => Promise<void>;
+  removeProjects: (ids: string[]) => Promise<void>;
   toggleLike: (id: string, liked: boolean) => Promise<void>;
 }
 
@@ -119,6 +120,18 @@ export const ProjectsProvider = ({ children }: { children: React.ReactNode }) =>
     setProjects((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
+  const removeProjects = useCallback(async (ids: string[]) => {
+    if (ids.length === 0) return;
+    const uniqueIds = [...new Set(ids)];
+    await authFetch("/projects/delete/batch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ project_ids: uniqueIds }),
+    });
+    const deleted = new Set(uniqueIds);
+    setProjects((prev) => prev.filter((p) => !deleted.has(p.id)));
+  }, []);
+
   // Single source of truth for is_liked -- the sidebar and /liked_projects both
   // read from this same context, so an optimistic update here is what keeps them
   // in sync with no lag rather than each page holding its own copy.
@@ -138,7 +151,7 @@ export const ProjectsProvider = ({ children }: { children: React.ReactNode }) =>
 
   return (
     <ProjectsContext.Provider
-      value={{ projects, loading, refresh, createProject, renameProject, removeProject, toggleLike }}
+      value={{ projects, loading, refresh, createProject, renameProject, removeProject, removeProjects, toggleLike }}
     >
       {children}
     </ProjectsContext.Provider>

@@ -59,7 +59,7 @@ Credits are **reserved before the AI provider is called**, not deducted after it
 - **Cancelling does not refund.** The provider has already been paid. What cancelling *does* guarantee is that the abandoned result is thrown away rather than saved — see "Cancelling a generation" under `/project_folder/{project_id}` below.
 - **Credits come back only when the provider produced nothing** — it errored out, or the request was rejected before reaching it. That refund is automatic.
 - **Concurrent generations each cost their full price.** Firing image generation on eight scene cards at once charges for eight. The balance is deducted through an atomic database function (`spend_credits`), so simultaneous requests can't read the same starting balance and each overwrite the others' deduction.
-- **The manual flows charge when the prompt is handed over, not when a result comes back.** "Generate Scenes (Manual)" and "Generate All Images (Manual)" call no AI provider — what they give the user is a ready-made prompt to run in their own ChatGPT/meta.ai session. That prompt *is* the product, so both deduct on the trigger click, before the popup opens. Charging on the way out instead would make either feature optional to pay for: copy the prompt, close the popup, do the work elsewhere. The upside for the user is that everything after the popup opens is free — pasting a scene-split response back can be retried as often as needed without paying again.
+- **The manual flows charge when the prompt is handed over, not when a result comes back.** "Generate Scenes (Manual)" and "Generate All Images (Manual)" call no AI provider — what they give the user is a ready-made prompt to run in their own Gemini/meta.ai session. That prompt *is* the product, so both deduct on the trigger click, before the popup opens. Charging on the way out instead would make either feature optional to pay for: copy the prompt, close the popup, do the work elsewhere. The upside for the user is that everything after the popup opens is free — pasting a scene-split response back can be retried as often as needed without paying again.
 
 ---
 
@@ -96,7 +96,7 @@ The refreshed studio shell uses violet-accented active navigation and an Overvie
 **Sidebar** has two sections:
 
 - **Library** — Characters, Style Templates, Generate Scripts, Liked Projects.
-- **Project Folders** — lists all of the user's projects (click to open `/project_folder/{project_id}`). At the bottom, the user can type a name and create a new project directly from the sidebar.
+- **Project Folders** — lists all of the user's projects (click to open `/project_folder/{project_id}`). Each row's hover tooltip provides the full project name and creation date; project names are renamed only in the workspace. A Select mode supports selecting any number of folders and permanently deleting them together after confirmation. At the bottom, the user can type a name and create a new project directly from the sidebar.
 
 ---
 
@@ -189,13 +189,13 @@ Clicking **Regenerate** on a scene that already has an image doesn't resubmit th
 
 #### Manual scene generation
 
-`GenerateScenesManualPopUp.tsx` asks ChatGPT for one valid JSON object and safely corrects only clear unescaped quotation marks inside narration before the free parse/persist request. If ChatGPT accidentally repeats a complete response, the popup uses the first response and tells the user. It deliberately avoids generic JSON-repair libraries because they can silently truncate narration; the backend remains the schema authority.
+`GenerateScenesManualPopUp.tsx` asks Gemini for one valid JSON object and safely corrects only clear unescaped quotation marks inside narration before the free parse/persist request. If Gemini accidentally repeats a complete response, the popup uses the first response and tells the user. It deliberately avoids generic JSON-repair libraries because they can silently truncate narration; the backend remains the schema authority.
 
-Clicking **Generate Scenes (Manual)** charges `ceil(script_word_count / 200)` credits up front and then opens a popup with a ready-to-copy prompt (script + scene-splitting instructions + involved characters, phrased so ChatGPT's response comes back in the same structured shape the automatic flow produces). The user pastes this into chatgpt.com themselves, copies back the full JSON response, pastes it into the popup, and clicks **Generate**. If characters are in use, the popup prominently tells the user to copy each character sheet image and paste it into the same ChatGPT chat before running the prompt.
+Clicking **Generate Scenes (Manual)** charges `ceil(script_word_count / 200)` credits up front and then opens a popup with a ready-to-copy prompt (script + scene-splitting instructions + involved characters, phrased so Gemini's response comes back in the same structured shape the automatic flow produces). The user pastes this into `gemini.google.com`, selects a Gemini Pro model, copies back the full JSON response, pastes it into the popup, and clicks **Generate**. If characters are in use, the popup prominently tells the user to copy each character sheet image and paste it into the same Gemini chat before running the prompt.
 
-**The charge lands on the button click, not on the paste-back**, mirroring "Generate All Images (Manual)" below. What this flow actually sells is the prompt itself — once the popup reveals it, the user has everything they need to run the split on chatgpt.com and generate images and animations elsewhere, and nothing obliges them to ever paste a result back. Billing at the paste-back step would make the whole feature optional to pay for. Charging on open also means the paste-back is free, including retries: a malformed or truncated response can be fixed and re-submitted as many times as needed without paying twice.
+**The charge lands on the button click, not on the paste-back**, mirroring "Generate All Images (Manual)" below. What this flow actually sells is the prompt itself — once the popup reveals it, the user has everything they need to run the split on gemini.google.com and generate images and animations elsewhere, and nothing obliges them to ever paste a result back. Billing at the paste-back step would make the whole feature optional to pay for. Charging on open also means the paste-back is free, including retries: a malformed or truncated response can be fixed and re-submitted as many times as needed without paying twice.
 
-No AI provider is billed on this path — the "AI" work happened for free in the user's own ChatGPT session — which is why Manual is 2x cheaper per word than Automatic Base and 6x cheaper than Automatic Pro, even though credits are still reserved (parsing and persisting the pasted response is still real backend work). This populates the exact same scene fields as the automatic flow — everything downstream (image/animation generation, cards, etc.) works identically either way.
+No AI provider is billed on this path — the "AI" work happened for free in the user's own Gemini session — which is why Manual is 2x cheaper per word than Automatic Base and 6x cheaper than Automatic Pro, even though credits are still reserved (parsing and persisting the pasted response is still real backend work). This populates the exact same scene fields as the automatic flow — everything downstream (image/animation generation, cards, etc.) works identically either way.
 
 #### Structured scene response
 
@@ -265,7 +265,7 @@ Google sign-in only, via **Supabase Auth**.
 - **Database & Auth:** Supabase (Postgres + Row Level Security for multi-tenant isolation, Google OAuth)
 - **AI Integrations:**
   - **OpenAI API** — text and structured output through LangChain `ChatOpenAI` (`gpt-5.6-luna` for Base and `gpt-5.6-terra` for Pro scene splitting), plus image creation/editing through OpenAI's image API (`gpt-image-2.5-flare` for Base and `gpt-image-2.5-sunburst` for Pro).
-  - **No provider at all** — manual scene splitting (see §5) doesn't call any AI API; it validates and persists the JSON the user pastes back from their own ChatGPT session, which is exactly why it's priced far below the automatic flow.
+  - **No provider at all** — manual scene splitting (see §5) doesn't call any AI API; it validates and persists the JSON the user pastes back from their own Gemini session, which is exactly why it's priced far below the automatic flow.
   - **OpenRouter** — gateway for **Perplexity** (viral topic research), **Claude** (script generation & "improvise" regeneration), and image-to-video **animation** (`alibaba/wan-2.6` on `"base"`, `google/veo-3.1-lite` on `"pro"`, via its long-running video-job API).
   - **ElevenLabs API** — chunked text-to-speech voiceover generation, kept independent of OpenRouter for dedicated TTS quality control. *(Voice settings are saved; generation itself is not built yet.)*
   - **FFmpeg** — stitching voiceover chunks into a single audio file. *(Not built yet.)*
@@ -301,7 +301,7 @@ Google sign-in only, via **Supabase Auth**.
 
 **Manual workflows**
 
-- Manual scene splitting does not call a vgAI model: the creator runs the copied prompt in their own ChatGPT session at chatgpt.com and pastes the JSON result back.
+- Manual scene splitting does not call a vgAI model: the creator runs the copied prompt in Gemini at gemini.google.com using a Gemini Pro model, then pastes the JSON result back.
 - Manual image generation does not call a vgAI model: the creator uses the copied prompts with their own Meta AI session.
 
 ---

@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Users, LayoutTemplate, Sparkles, Heart, FolderKanban, Folder, House, Pencil, LogIn, X, Plus, Trash2, Check, Loader2 } from "lucide-react";
+import { Users, LayoutTemplate, Sparkles, Heart, FolderKanban, Folder, House, LogIn, X, Plus, Trash2, CheckSquare, Square, Loader2 } from "lucide-react";
 import Logo from "./Logo";
 import { useAuth } from "@/context/AuthContext";
 import { useProjects, type ProjectListItem } from "@/context/ProjectsContext";
@@ -12,11 +12,6 @@ import AlertMessagePopUp from "./AlertMessagePopUp";
 
 const formatCreatedDate = (iso: string) =>
     new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
-
-// Double-click-to-rename overloads the single click that normally navigates --
-// a double click fires two click events, so navigation is delayed briefly and
-// cancelled if a second click lands in time instead of firing immediately.
-const NAVIGATE_DELAY_MS = 220;
 
 interface SidebarProps {
     onClose?: () => void;
@@ -34,23 +29,21 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
     const pathname = usePathname();
     const router = useRouter();
     const { user, openLoginModal, requireAuth, loading: authLoading } = useAuth();
-    const { projects, loading, createProject, renameProject, removeProject, toggleLike } = useProjects();
+    const { projects, loading, createProject, removeProject, removeProjects, toggleLike } = useProjects();
 
     const [newProjectName, setNewProjectName] = useState("");
     const [creating, setCreating] = useState(false);
 
-    const [editingId, setEditingId] = useState<string | null>(null);
-    const [editingName, setEditingName] = useState("");
-    const [renaming, setRenaming] = useState(false);
-
     const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
     const [deleting, setDeleting] = useState(false);
+    const [selectingProjects, setSelectingProjects] = useState(false);
+    const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
+    const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+    const [bulkDeleting, setBulkDeleting] = useState(false);
 
     const [likingId, setLikingId] = useState<string | null>(null);
 
     const [alert, setAlert] = useState<{ title: string; message: string } | null>(null);
-
-    const navigateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const handleCreate = async () => {
         if (!requireAuth()) return;
@@ -69,43 +62,15 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
         }
     };
 
-    const startEditing = (project: { id: string; name: string }) => {
-        setEditingId(project.id);
-        setEditingName(project.name);
+    const toggleProjectSelection = (projectId: string) => {
+        setSelectedProjectIds((current) =>
+            current.includes(projectId) ? current.filter((id) => id !== projectId) : [...current, projectId]
+        );
     };
 
-    const saveRename = async (id: string) => {
-        const name = editingName.trim();
-        if (!name) {
-            setEditingId(null);
-            return;
-        }
-        setRenaming(true);
-        try {
-            await renameProject(id, name);
-            setEditingId(null);
-        } catch (err) {
-            setAlert({ title: "Failed to rename project", message: err instanceof Error ? err.message : "Something went wrong." });
-        } finally {
-            setRenaming(false);
-        }
-    };
-
-    const handleNameClick = (project: ProjectListItem) => {
-        if (navigateTimer.current) return;
-        navigateTimer.current = setTimeout(() => {
-            router.push(`/project_folder/${project.id}`);
-            onClose?.();
-            navigateTimer.current = null;
-        }, NAVIGATE_DELAY_MS);
-    };
-
-    const handleNameDoubleClick = (project: ProjectListItem) => {
-        if (navigateTimer.current) {
-            clearTimeout(navigateTimer.current);
-            navigateTimer.current = null;
-        }
-        startEditing(project);
+    const exitProjectSelection = () => {
+        setSelectingProjects(false);
+        setSelectedProjectIds([]);
     };
 
     const handleToggleLike = async (project: ProjectListItem) => {
@@ -134,6 +99,24 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
         } finally {
             setDeleting(false);
             setDeleteTarget(null);
+        }
+    };
+
+    const confirmBulkDelete = async () => {
+        const ids = selectedProjectIds;
+        if (ids.length === 0) return;
+        setBulkDeleting(true);
+        try {
+            await removeProjects(ids);
+            if (ids.some((id) => pathname === `/project_folder/${id}`)) {
+                router.push("/");
+            }
+            setBulkDeleteOpen(false);
+            exitProjectSelection();
+        } catch (err) {
+            setAlert({ title: "Failed to delete projects", message: err instanceof Error ? err.message : "Something went wrong." });
+        } finally {
+            setBulkDeleting(false);
         }
     };
 
@@ -180,9 +163,20 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
 
                 {/* Project Folders */}
                 <div className="flex-1 flex flex-col min-h-0">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3 px-3">
+                    <div className="flex items-center justify-between gap-2 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3 px-3">
+                      <div className="flex items-center gap-2">
                         <FolderKanban className="w-3.5 h-3.5" />
                         Project Folders
+                      </div>
+                      {user && projects.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => selectingProjects ? exitProjectSelection() : setSelectingProjects(true)}
+                          className="normal-case text-[11px] font-semibold text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 cursor-pointer"
+                        >
+                          {selectingProjects ? "Cancel" : "Select"}
+                        </button>
+                      )}
                     </div>
 
                     {authLoading ? (
@@ -214,6 +208,26 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
                         </div>
                     ) : (
                         <>
+                            {selectingProjects && (
+                              <div className="mb-2 flex items-center justify-between gap-2 rounded-xl border border-brand-200 dark:border-brand-500/30 bg-brand-50/70 dark:bg-brand-500/10 px-3 py-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedProjectIds(selectedProjectIds.length === projects.length ? [] : projects.map((project) => project.id))}
+                                  className="text-[12px] font-medium text-brand-700 dark:text-brand-300 hover:underline cursor-pointer"
+                                >
+                                  {selectedProjectIds.length === projects.length ? "Clear all" : "Select all"}
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={selectedProjectIds.length === 0}
+                                  onClick={() => setBulkDeleteOpen(true)}
+                                  className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-2 py-1 text-[12px] font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                  Delete ({selectedProjectIds.length})
+                                </button>
+                              </div>
+                            )}
                             <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide flex flex-col gap-1 mb-3">
                                 {loading ? (
                                     <div className="flex items-center justify-center py-6">
@@ -226,49 +240,35 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
                                 ) : (
                                     projects.map((project) => {
                                         const active = pathname === `/project_folder/${project.id}`;
-                                        const isEditing = editingId === project.id;
+                                        const isSelected = selectedProjectIds.includes(project.id);
                                         return (
                                             <div
                                                 key={project.id}
-                                                title={`Created ${formatCreatedDate(project.created_at)}`}
-                                                className={`group flex items-center gap-1 px-2 py-1.5 rounded-xl transition-all ${active
+                                                title={`${project.name} — created ${formatCreatedDate(project.created_at)}`}
+                                                className={`group flex items-center gap-1 px-2 py-1.5 rounded-xl transition ${active
                                                     ? "bg-brand-50 dark:bg-brand-500/15 ring-1 ring-brand-100 dark:ring-brand-500/30"
                                                     : "hover:bg-slate-50 dark:hover:bg-slate-800/70"
                                                     }`}
                                             >
-                                                {isEditing ? (
-                                                    <>
-                                                        <input
-                                                            autoFocus
-                                                            value={editingName}
-                                                            onChange={(e) => setEditingName(e.target.value)}
-                                                            onKeyDown={(e) => {
-                                                                if (e.key === "Enter") saveRename(project.id);
-                                                                if (e.key === "Escape") setEditingId(null);
-                                                            }}
-                                                            onBlur={() => saveRename(project.id)}
-                                                            disabled={renaming}
-                                                            aria-label="Project name"
-                                                            className="flex-1 min-w-0 px-2 py-1 text-[13px] rounded-lg border border-brand-300 dark:border-brand-500/50 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
-                                                        />
-                                                        <button
-                                                            onMouseDown={(e) => e.preventDefault()}
-                                                            aria-label="Save project name"
-                                                            onClick={() => saveRename(project.id)}
-                                                            disabled={renaming}
-                                                            className="p-1.5 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 rounded-lg cursor-pointer disabled:opacity-60"
-                                                        >
-                                                            {renaming ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                                                        </button>
-                                                    </>
+                                                {selectingProjects ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => toggleProjectSelection(project.id)}
+                                                        aria-pressed={isSelected}
+                                                        aria-label={`${isSelected ? "Deselect" : "Select"} ${project.name}`}
+                                                        className="flex min-w-0 flex-1 items-center gap-2 px-1 py-1 text-left cursor-pointer"
+                                                    >
+                                                        {isSelected ? <CheckSquare className="h-4 w-4 shrink-0 text-brand-600 dark:text-brand-300" /> : <Square className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />}
+                                                        <Folder className="w-3.5 h-3.5 flex-shrink-0 text-amber-500 fill-amber-400/70" />
+                                                        <span className="min-w-0 truncate text-[13.5px] text-slate-700 dark:text-slate-300">{project.name}</span>
+                                                    </button>
                                                 ) : (
                                                     <>
                                                         <Folder className="w-3.5 h-3.5 flex-shrink-0 text-amber-500 fill-amber-400/70" />
                                                         <button
                                                             type="button"
                                                             aria-current={active ? "page" : undefined}
-                                                            onClick={() => handleNameClick(project)}
-                                                            onDoubleClick={() => handleNameDoubleClick(project)}
+                                                            onClick={() => { router.push(`/project_folder/${project.id}`); onClose?.(); }}
                                                             className={`flex-1 min-w-0 px-1 py-1 text-[13.5px] text-left truncate cursor-pointer select-none ${active
                                                                 ? "text-brand-700 dark:text-brand-300 font-medium"
                                                                 : "text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-100"
@@ -276,12 +276,11 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
                                                         >
                                                             {project.name}
                                                         </button>
-                                                        <button type="button" onClick={() => startEditing(project)} aria-label={`Rename ${project.name}`} className="rounded-lg p-1.5 text-slate-400 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-500/10 dark:hover:text-brand-300"><Pencil className="h-3.5 w-3.5" /></button>
                                                         <button
                                                             onClick={() => handleToggleLike(project)}
                                                             disabled={likingId === project.id}
                                                             aria-label={project.is_liked ? `Unlike ${project.name}` : `Like ${project.name}`}
-                                                            className={`p-1.5 rounded-lg transition-all cursor-pointer disabled:opacity-60 ${project.is_liked
+                                                            className={`p-1.5 rounded-lg transition cursor-pointer disabled:opacity-60 ${project.is_liked
                                                                 ? "text-red-500 hover:text-red-600"
                                                                 : "text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-white dark:hover:bg-slate-800"
                                                                 }`}
@@ -295,7 +294,7 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
                                                         <button
                                                             onClick={() => setDeleteTarget(project)}
                                                             aria-label={`Delete ${project.name}`}
-                                                            className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-all cursor-pointer"
+                                                            className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition cursor-pointer"
                                                         >
                                                             <Trash2 className="w-3.5 h-3.5" />
                                                         </button>
@@ -340,6 +339,18 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
                 cancelText="Cancel"
                 isDestructive
                 confirming={deleting}
+            />
+
+            <ConformationMessagePopUp
+                isOpen={bulkDeleteOpen}
+                onClose={() => !bulkDeleting && setBulkDeleteOpen(false)}
+                onConfirm={confirmBulkDelete}
+                title={`Delete ${selectedProjectIds.length} Projects`}
+                message={`Are you sure you want to permanently delete ${selectedProjectIds.length} selected project folder${selectedProjectIds.length === 1 ? "" : "s"}? Their scenes, imported characters, and generated media will be deleted. This action cannot be undone.`}
+                confirmText={`Delete ${selectedProjectIds.length} Projects`}
+                cancelText="Cancel"
+                isDestructive
+                confirming={bulkDeleting}
             />
 
             <AlertMessagePopUp

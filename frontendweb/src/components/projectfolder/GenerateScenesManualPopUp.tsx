@@ -26,7 +26,7 @@ type PreparedManualResponse = {
   discardedRepeatedResponse: boolean;
 };
 
-/** ChatGPT is asked for strict JSON, but a long response can still contain an
+/** Gemini is asked for strict JSON, but a long response can still contain an
  * unescaped quotation mark in narration or repeat the entire object. Repair
  * only the unambiguous former case and retain the first complete object in the
  * latter case. Unlike a generic JSON-repair package, this never silently
@@ -100,7 +100,7 @@ function prepareManualResponse(raw: string): PreparedManualResponse {
 
   const objectStart = repaired.indexOf("{");
   if (objectStart === -1) {
-    throw new Error("ChatGPT's response has no JSON object. Ask it to return the response again as JSON only.");
+    throw new Error("Gemini's response has no JSON object. Ask it to return the response again as JSON only.");
   }
 
   let depth = 0;
@@ -124,7 +124,7 @@ function prepareManualResponse(raw: string): PreparedManualResponse {
   }
 
   if (objectEnd === -1) {
-    throw new Error("ChatGPT's response ends before its JSON object is complete. Ask it to generate the JSON again.");
+    throw new Error("Gemini's response ends before its JSON object is complete. Ask it to generate the JSON again.");
   }
 
   const json = repaired.slice(objectStart, objectEnd + 1);
@@ -132,7 +132,7 @@ function prepareManualResponse(raw: string): PreparedManualResponse {
     JSON.parse(json);
   } catch (error) {
     const reason = error instanceof Error ? error.message : "unknown JSON error";
-    throw new Error(`ChatGPT returned invalid JSON (${reason}). Ask it to regenerate one valid JSON object.`);
+    throw new Error(`Gemini returned invalid JSON (${reason}). Ask it to regenerate one valid JSON object.`);
   }
 
   return {
@@ -150,7 +150,7 @@ interface GenerateScenesManualPopUpProps {
   onGenerated: (data: GenerateScenesResponse) => void;
 }
 
-/** Builds the copy-paste prompt for ChatGPT. Mirrors the shape the backend's
+/** Builds the copy-paste prompt for Gemini. Mirrors the shape the backend's
  * SceneSplitDraft/SceneDraft/VideoMetadataDraft pydantic models expect (see
  * scenesplitcommon.py + freescripttoscenesplitter.py's parser) — if either side's
  * schema changes, keep this in sync. */
@@ -273,7 +273,7 @@ export const GenerateScenesManualPopUp = ({
     try {
       preparedResponse = prepareManualResponse(rawResponse);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "ChatGPT returned invalid JSON.");
+      setError(err instanceof Error ? err.message : "Gemini returned invalid JSON.");
       return;
     }
 
@@ -334,7 +334,7 @@ export const GenerateScenesManualPopUp = ({
             <div className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/30 text-[12.5px] text-emerald-700 dark:text-emerald-400">
               <CreditCoinIcon className="w-3.5 h-3.5 flex-shrink-0" />
               <span>
-                <strong>{cost} credits</strong> were already charged when you opened this — pasting ChatGPT&apos;s
+                <strong>{cost} credits</strong> were already charged when you opened this — pasting Gemini&apos;s
                 response back below is free, including retries.
               </span>
             </div>
@@ -345,19 +345,19 @@ export const GenerateScenesManualPopUp = ({
             <li>
               Paste it into{" "}
               <a
-                href="https://chatgpt.com"
+                href="https://gemini.google.com"
                 target="_blank"
                 rel="noreferrer"
                 className="text-brand-600 dark:text-brand-400 hover:underline"
               >
-                chatgpt.com
+                gemini.google.com
               </a>{" "}
-              and run it.
+              then select a Gemini Pro model and run it.
             </li>
             {projectCharacters.length > 0 && (
-              <li>Copy each character sheet image below and paste it into that same ChatGPT chat before running the prompt.</li>
+              <li>Copy each character sheet image below and paste it into that same Gemini chat before running the prompt.</li>
             )}
-            <li>Copy ChatGPT&apos;s full JSON response.</li>
+            <li>Copy Gemini&apos;s full JSON response.</li>
             <li>Paste it back below and click Generate.</li>
           </ol>
 
@@ -389,8 +389,8 @@ export const GenerateScenesManualPopUp = ({
                 Characters included in this prompt
               </h3>
               <p className="text-[12px] text-slate-400 dark:text-slate-500 mb-2.5">
-                Copy the prompt above, paste it into chatgpt.com, then copy each character&apos;s sheet image below and
-                paste it in the same chat too so ChatGPT keeps each character&apos;s look consistent.
+                Copy the prompt above, paste it into gemini.google.com, choose a Gemini Pro model, then copy each character&apos;s sheet image below and
+                paste it in the same chat too so Gemini keeps each character&apos;s look consistent.
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {projectCharacters.map((c) => (
@@ -448,7 +448,7 @@ export const GenerateScenesManualPopUp = ({
 
           <div>
             <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">
-              2. Paste ChatGPT&apos;s JSON response
+              2. Paste Gemini&apos;s JSON response
             </label>
             <textarea
               value={rawResponse}
