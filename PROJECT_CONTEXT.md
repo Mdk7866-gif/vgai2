@@ -8,6 +8,8 @@ Project names are renamed only inside their workspace; Sidebar project rows navi
 
 Character descriptions have a uniform 300-word maximum: manual create/update and AI-generation input reject longer text, while the generated image prompt is instructed and hard-capped to 300 words before image generation and later acceptance as the saved description. Generated Script cards likewise show and enforce a 300-word Topic Description limit in both the browser and `GeneratedScriptUpdate` API.
 
+OpenAI text-model mapping uses `gpt-6-luna` at medium reasoning effort for Base automatic scene splitting and low reasoning effort for character-sheet prompt drafting, style-template drafting, and scene-prompt rewrites. Pro automatic scene splitting uses `gpt-6-sol` at medium reasoning effort. The shared constants are in `backend/app/openai_client.py`; all of these routes consume those constants rather than hard-coding a model.
+
 `vgai2admin/migration/006_generated_script_topic_word_limit.sql` has been applied manually in the shared Supabase SQL Editor. It widened `generated_scripts.topic_name` from 300 characters to `text`, which is required for the 300-word rule.
 
 Docker Hub deployment: use [DOCKERHUB_DEPLOY.md](./DOCKERHUB_DEPLOY.md) and

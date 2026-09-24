@@ -7,10 +7,10 @@ from app.auth import get_current_user
 from app.config import settings
 from app.credits import refund_project_credits, reserve_project_credits
 from app.openai_client import (
+    OPENAI_BASE_SCENE_SPLIT_REASONING_EFFORT,
     OPENAI_PRO_SCENE_SPLIT_MODEL,
     OPENAI_PRO_SCENE_SPLIT_REASONING_EFFORT,
     OPENAI_TEXT_MODEL,
-    OPENAI_TEXT_REASONING_EFFORT,
 )
 from app.routes.project.projectcrud import _get_owned_project
 from app.routes.project.scenesplitcommon import (
@@ -66,7 +66,7 @@ async def _build_scene_split_draft(project: dict, characters: list[dict], script
             model=OPENAI_TEXT_MODEL,
             api_key=settings.CHATGPT_PAID_API_KEY,
             temperature=0.6,
-            reasoning_effort=OPENAI_TEXT_REASONING_EFFORT,
+            reasoning_effort=OPENAI_BASE_SCENE_SPLIT_REASONING_EFFORT,
         )
 
     structured_llm = llm.with_structured_output(SceneSplitDraft)

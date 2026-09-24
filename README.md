@@ -266,7 +266,7 @@ Google sign-in only, via **Supabase Auth**.
 - **Orchestration:** LangChain
 - **Database & Auth:** Supabase (Postgres + Row Level Security for multi-tenant isolation, Google OAuth)
 - **AI Integrations:**
-  - **OpenAI API** — text and structured output through LangChain `ChatOpenAI` (`gpt-5.6-luna` for Base and `gpt-5.6-terra` for Pro scene splitting), plus image creation/editing through OpenAI's image API (`gpt-image-2.5-flare` for Base and `gpt-image-2.5-sunburst` for Pro).
+  - **OpenAI API** — text and structured output through LangChain `ChatOpenAI` (`gpt-6-luna` for Base and `gpt-6-sol` for Pro scene splitting), plus image creation/editing through OpenAI's image API (`gpt-image-2.5-flare` for Base and `gpt-image-2.5-sunburst` for Pro).
   - **No provider at all** — manual scene splitting (see §5) doesn't call any AI API; it validates and persists the JSON the user pastes back from their own Gemini session, which is exactly why it's priced far below the automatic flow.
   - **OpenRouter** — gateway for **Perplexity** (viral topic research), **Claude** (script generation & "improvise" regeneration), and image-to-video **animation** (`alibaba/wan-2.6` on `"base"`, `google/veo-3.1-lite` on `"pro"`, via its long-running video-job API).
   - **ElevenLabs API** — chunked text-to-speech voiceover generation, kept independent of OpenRouter for dedicated TTS quality control. *(Voice settings are saved; generation itself is not built yet.)*
@@ -281,8 +281,8 @@ Google sign-in only, via **Supabase Auth**.
 
 **Text and structured output**
 
-- `gpt-5.6-luna` — OpenAI through LangChain `ChatOpenAI`; Base automatic scene splitting, character-prompt drafts, style-template drafts, and image/animation-prompt rewriting during scene regeneration. Reasoning effort is explicitly configured as `low`.
-- `gpt-5.6-terra` — OpenAI through LangChain `ChatOpenAI`; Pro automatic scene splitting. Reasoning effort is explicitly configured as `medium`.
+- `gpt-6-luna` — OpenAI through LangChain `ChatOpenAI`; Base automatic scene splitting uses `medium` reasoning effort, while character-prompt drafts, style-template drafts, and image/animation-prompt rewriting during scene regeneration use `low`.
+- `gpt-6-sol` — OpenAI through LangChain `ChatOpenAI`; Pro automatic scene splitting. Reasoning effort is explicitly configured as `medium`.
 - `perplexity/sonar-pro` — Perplexity through OpenRouter; viral-topic research.
 - `anthropic/claude-sonnet-5` — Anthropic Claude through OpenRouter; full script generation and feedback-driven “Improvise” rewrites.
 
