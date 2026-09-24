@@ -6,8 +6,10 @@
 
 Docker Hub deployment: use [DOCKERHUB_DEPLOY.md](./DOCKERHUB_DEPLOY.md) and
 `compose.deploy.yaml` to pull `mdk7866/vgai2-backend` and
-`mdk7866/vgai2-frontend` on EC2 without server-side builds. The existing
-Dockerfiles and .dockerignore files remain in each application directory.
+`mdk7866/vgai2-frontend` on EC2 without server-side builds. The runbook covers
+first deployment, new-AWS-account migration, DNS cutover, and certificate
+issuance. The existing Dockerfiles and .dockerignore files remain in each
+application directory.
 
 Home and Liked Project cards always use a compact 16:9 thumbnail frame. Reels thumbnails use `object-contain` inside it against a neutral background, so portrait projects do not make either grid taller; the Home desktop grid shows four cards per row.
 
@@ -86,12 +88,12 @@ The authoritative constants are in `app/routes/project/scenesplitcommon.py`: Man
   - `migration/vgaidatabase_migration_styletemplate_extras.sql` — adds `style_templates.best_for` / `.demo_image_url`; both nullable, so an un-migrated DB degrades to those fields reading null rather than erroring
   - Note the **sibling repo's `vgai2admin/migration/` is the primary home for new migrations** (numbered, idempotent, with an applied checklist in its own `migration/README.md`) — the shared tables it added (`access_control_list`, `access_system_settings`, `admin_credit_grants`, `default_style_templates`, `default_characters`, `contact_submissions`, `user_access_requests`) live there, not here. Put a new schema change there unless it is genuinely vgAI-only.
 - `README.md` — full product/feature spec, routes, page-by-page behavior
-- **Deployment (AWS EC2 + Docker + nginx + Let's Encrypt)** — planned and written, not yet deployed:
-  - `DOCKERHUB_DEPLOY.md` — the end-to-end runbook (instance sizing, security group, DNS, certificate issuance, build/start, post-deploy dashboard changes, day-2 ops, troubleshooting). **Read this before touching any deployment question.**
+- **Deployment (AWS EC2 + Docker + nginx + Let's Encrypt)** — currently deployed:
+  - `DOCKERHUB_DEPLOY.md` — the end-to-end runbook for first deployment and moving production to an EC2 instance in a different AWS account (instance setup, secrets, DNS cutover, certificate issuance, start/verification, and troubleshooting). **Read this before touching any deployment question.**
   - `docker-compose.yml` — the four-container production stack (nginx / backend / frontend / certbot). Only nginx publishes ports; backend and frontend are `expose`-only on the internal network.
   - `nginx/templates/default.conf.template` — the reverse proxy: `/` → frontend, `/api/` → backend (trailing slash strips the prefix), 900s proxy timeouts for long generations, `client_max_body_size 200M` for animation uploads.
   - `.env.example` → copy to a root `.env` — the deployment stack's **own** env file, separate from `backend/.env` / `frontendweb/.env.local`, which local dev still uses unchanged. `DOMAIN` is written there exactly once; nginx and the backend's `ALLOWED_ORIGINS` both derive from it.
-- `QUICK_DEPLOYMENT.md` — repeatable Windows-to-EC2 update guide for `mdk7866/vgai2-backend` and `mdk7866/vgai2-frontend`. Initial EC2 setup lives only in `DOCKERHUB_DEPLOY.md`. Keep the required `nginx/templates/default.conf.template` mount. Never use the older MVP's `vgai-*` image tags.
+- `QUICK_DEPLOYMENT.md` — repeatable Windows-to-EC2 update guide for `mdk7866/vgai2-backend` and `mdk7866/vgai2-frontend` while the server is available. Initial setup and new-account migration live in `DOCKERHUB_DEPLOY.md`. Keep the required `nginx/templates/default.conf.template` mount. Never use the older MVP's `vgai-*` image tags.
 - `docker_setup.tex` — an older LaTeX write-up of the Docker setup, superseded by `DOCKERHUB_DEPLOY.md`.
 
 ## Commands
@@ -127,7 +129,7 @@ npm run lint                   # eslint (flat config, next/core-web-vitals + nex
 ```
 No test runner is configured yet in the frontend.
 
-### Production stack (Docker, not yet deployed)
+### Production stack (Docker, currently deployed)
 ```bash
 cp .env.example .env           # repo root — the deployment env file, NOT backend/.env
 sudo docker compose -f compose.deploy.yaml pull # prebuilt images

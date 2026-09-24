@@ -1,8 +1,26 @@
-# Deploy vgAI2 on your fresh EC2 instance
+# Deploy or move vgAI2 to an EC2 instance
 
 For your **Ubuntu t3.medium, 30 GiB gp3, Mumbai** instance. Run the commands below in your **EC2 Ubuntu terminal**, in order. Stop if a command fails.
 
 This guide uses `compose.deploy.yaml` to pull `mdk7866/vgai2-backend:latest` and `mdk7866/vgai2-frontend:latest`. Nginx and Certbot run in Docker. You do not need server-side builds, host nginx/Certbot, Node.js, Python, or a database installation. The admin portal stays local. Keep `nginx/templates/default.conf.template`: Compose mounts this required file for HTTPS and frontend/backend routing.
+
+Use this guide for a first deployment or to move the existing website to an EC2 instance in a different AWS account. An AWS account switch requires a new instance, security group, SSH key, Elastic IP, and HTTPS certificate; those resources do not move between accounts. Supabase and Cloudinary are hosted separately, so keep using the existing projects and credentials. Do not run a database import or create new Supabase/Cloudinary projects for this move.
+
+## Moving from an existing AWS account
+
+Plan a short maintenance window. The new server can be prepared before the domain cutover, but this guide's HTTP-01 certificate command only succeeds after `vgai2.com` points to the new server. During DNS propagation, some visitors may still reach the old server. Keep the old server intact until the new server is verified.
+
+1. A few hours before the move, lower the Hostinger apex `@` A-record TTL for `vgai2.com` to 300 seconds if the DNS panel allows it. Record the current value so you can restore it later.
+2. In the new AWS account, create a fresh Ubuntu EC2 instance, SSH key pair, security group, and Elastic IP. Use an `x86_64` instance type supported by your budget; the published images are `linux/amd64`. Apply the inbound rules in section 1. The old account's key pair, security group, and Elastic IP cannot be reused directly.
+3. Follow sections 2–4 on the new instance. In `.env`, use the same production Supabase, Cloudinary, OpenAI, OpenRouter, and Razorpay values as the current deployment. Copy secrets securely from your own machine; do not put them in Git, chat, or a public document. Preserve `CLOUDINARY_FOLDER_NAME` exactly. If rotating the Razorpay webhook secret, change it both in the new `.env` and in the Razorpay webhook configuration.
+4. Complete the pre-cutover checks in section 5 to confirm the new server can pull both Docker images and `docker compose ... config --quiet` succeeds. Keep the old website running. Do not run the certificate command in section 6 yet.
+5. At cutover, change the Hostinger `@` A record to the new Elastic IP and remove any conflicting apex AAAA record that points to another server. Keep MX/TXT email records. Query public DNS until both A lookups in section 5 return the new IP and AAAA is empty (for this IPv4-only setup).
+6. Once DNS points to the new instance, continue with sections 6–8 to issue its certificate, start the containers, and verify the site. The new account has no copy of the old account's certificate files, so issue a certificate for the same domain on the new server. Leave the old instance and its files untouched while you verify login, project access, media generation, and payment/webhook behavior.
+7. After DNS has settled and the new site is confirmed, stop the old instance. Keep a backup of its deployment `.env` and certificate data in a secure location until the new deployment has been stable. Then remove old-account resources you no longer need and restore the DNS TTL.
+
+If you are only pausing the current server between occasional friend testing sessions, do not repeat this account-migration process. Stop and start that same EC2 instance instead. It retains the EBS disk and Elastic IP; compute billing pauses while stopped, but disk and public IPv4 charges can continue. The website is unavailable while stopped.
+
+Use an AWS account whose owner has explicitly agreed to host the production service and is prepared to control its billing and access. AWS promotional credits and eligibility are account-specific; do not assume that opening another account or using another person's account automatically qualifies for additional credits.
 
 ## 1. AWS and Hostinger settings
 
@@ -89,27 +107,26 @@ GEMINI_PAID_API_KEY=''
 
 RAZORPAY_KEY_ID='COPY_LIVE_KEY_ID'
 RAZORPAY_KEY_SECRET='COPY_LIVE_KEY_SECRET'
-RAZORPAY_WEBHOOK_SECRET='COPY_NEW_PRIVATE_WEBHOOK_SECRET'
+RAZORPAY_WEBHOOK_SECRET='COPY_WEBHOOK_SECRET'
 ```
 
 Save with **Ctrl+O**, **Enter**, **Ctrl+X**.
 
 Checked against `backend/app/config.py`:
 
-- Razorpay ID must start with `rzp_live_` and use its matching secret. Rotate the webhook secret exposed in your screenshot; use the new identical value in Razorpay and this file.
+- Razorpay ID must start with `rzp_live_` and use its matching secret. Use the same webhook secret configured for the Razorpay webhook. When migrating, you can reuse the existing secret; rotate it only if it was exposed, and then update Razorpay and this file to the same new value.
 - Keep Cloudinary's existing folder value exactly. Gemini is reserved and can stay empty. ElevenLabs is not currently consumed.
 - Compose supplies `ALLOWED_ORIGINS=https://vgai2.com` automatically.
 - `DATABASE_NAME` is ignored; the Supabase URL selects the hosted project.
 - The frontend image already contains the public Supabase URL/key from `frontendweb/.env.local` and `NEXT_PUBLIC_BACKEND_URL=/api`. Template fields `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are build inputs; they are not required for this prebuilt deployment. You can populate them with the same public values, but changing them on EC2 does not change the frontend image. Never place backend secrets in public fields.
 - `ACME_EMAIL` records your contact; the commands below pass it explicitly.
 
-## 5. Check DNS and download images
+## 5. Prepare the deployment and check DNS
+
+Before the DNS cutover, run the configuration and image checks:
 
 ```bash
 cd /opt/vgai
-dig +short A vgai2.com @1.1.1.1
-dig +short A vgai2.com @8.8.8.8
-dig +short AAAA vgai2.com @1.1.1.1
 sudo ss -ltnp '( sport = :80 or sport = :443 )'
 sudo docker compose -f compose.deploy.yaml config --quiet
 sudo docker compose -f compose.deploy.yaml pull
@@ -117,7 +134,7 @@ mkdir -p certbot/conf certbot/www
 chmod 755 certbot certbot/conf certbot/www
 ```
 
-Both A lookups must return your Elastic IP. For IPv4-only deployment, AAAA should be empty. Wait for DNS propagation if needed. Ports 80/443 must be free for initial setup. Config validation succeeds silently without exposing secrets.
+Ports 80/443 must be free on the new server. Config validation succeeds silently without exposing secrets.
 
 If Docker Hub returns access denied or a rate limit:
 
@@ -127,6 +144,16 @@ sudo docker compose -f compose.deploy.yaml pull
 ```
 
 Enter a Docker Hub access token at the password prompt.
+
+At cutover, update Hostinger's `@` A record to the new Elastic IP. Then check public DNS:
+
+```bash
+dig +short A vgai2.com @1.1.1.1
+dig +short A vgai2.com @8.8.8.8
+dig +short AAAA vgai2.com @1.1.1.1
+```
+
+Both A lookups should return the new Elastic IP. For this IPv4-only setup, AAAA should be empty. Wait for propagation before requesting the certificate in section 6.
 
 ## 6. Issue HTTPS before starting nginx
 

@@ -4,8 +4,10 @@ Payment UI: checkout previews show INR without a hard-coded test-mode label. Suc
 
 Docker Hub deployment: use [DOCKERHUB_DEPLOY.md](./DOCKERHUB_DEPLOY.md) and
 `compose.deploy.yaml` to pull `mdk7866/vgai2-backend` and
-`mdk7866/vgai2-frontend` on EC2 without server-side builds. The existing
-Dockerfiles and .dockerignore files remain in each application directory.
+`mdk7866/vgai2-frontend` on EC2 without server-side builds. The runbook covers
+first deployment and moving the site to an EC2 instance in another AWS account,
+including DNS cutover and certificate issuance. The existing Dockerfiles and
+.dockerignore files remain in each application directory.
 
 Home and Liked Project cards always use a compact 16:9 thumbnail frame, including Reels projects. Portrait thumbnails use `object-contain` inside that frame, leaving a neutral background at the sides rather than making a tall card; the Home desktop grid shows four cards per row.
 
@@ -721,7 +723,7 @@ vgai2/
 
 Profile → Payment History displays a copyable Razorpay payment ID for each completed top-up and, when Razorpay supplied one, a failed attempt. Customers can send that reference to `hello@vgai2.com` when they need payment support. Pending attempts and failed attempts without a payment ID show no reference. Razorpay signatures remain server-side and are available only in the local vgai2admin payment lookup.
 
-**Written and verified to build; not yet deployed.** The target is a single AWS EC2 instance running four Docker containers behind nginx with a free Let's Encrypt certificate.
+**Currently deployed.** The production site runs on an AWS EC2 instance as four Docker containers behind nginx with a Let's Encrypt certificate. The runbook also documents migration to a new AWS account while retaining the existing Supabase and Cloudinary projects.
 
 [`DOCKERHUB_DEPLOY.md`](./DOCKERHUB_DEPLOY.md) is the end-to-end runbook — instance sizing, security group, DNS, certificate issuance, build/start, the post-deploy dashboard changes, day-2 operations, and the failures that actually happen. Read it rather than reconstructing the setup from the config files.
 
@@ -745,7 +747,7 @@ The shape, since everything else follows from it:
 - **The deployment env file is the root [`.env.example`](./.env.example) → `.env`**, separate from `backend/.env` and `frontendweb/.env.local`, which local development still uses unchanged. `NEXT_PUBLIC_*` values are baked into the browser bundle at **build** time, so changing one needs a local frontend image rebuild and Docker Hub push, not a restart.
 - After going live, update Supabase redirect URLs, add `vgai2.com` to Razorpay's authorised Checkout domains, and configure the required Razorpay Live webhook at `https://vgai2.com/api/payments/webhook`. Before enabling that webhook, run `vgai2admin/migration/004_atomic_razorpay_credit_settlement.sql` manually in Supabase; it makes webhook reconciliation and browser checkout verification atomic and prevents duplicate credit grants.
 
-[`QUICK_DEPLOYMENT.md`](./QUICK_DEPLOYMENT.md) is the repeatable Windows-to-EC2 update guide: commit, build and push only the changed Docker image(s), then pull/restart them on the live host. Initial deployment is covered only in `DOCKERHUB_DEPLOY.md`. Keep `nginx/templates/default.conf.template`; Compose requires it for HTTPS and routing.
+[`QUICK_DEPLOYMENT.md`](./QUICK_DEPLOYMENT.md) is the repeatable Windows-to-EC2 update guide: commit, build and push only the changed Docker image(s), then pull/restart them on the live host. First deployment and migration to a new AWS account are covered in `DOCKERHUB_DEPLOY.md`. Keep `nginx/templates/default.conf.template`; Compose requires it for HTTPS and routing.
 
 ## Starter style-template demo gallery
 

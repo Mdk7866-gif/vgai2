@@ -14,8 +14,11 @@ OpenAI text-model mapping uses `gpt-6-luna` at medium reasoning effort for Base 
 
 Docker Hub deployment: use [DOCKERHUB_DEPLOY.md](./DOCKERHUB_DEPLOY.md) and
 `compose.deploy.yaml` to pull `mdk7866/vgai2-backend` and
-`mdk7866/vgai2-frontend` on EC2 without server-side builds. The existing
-Dockerfiles and .dockerignore files remain in each application directory.
+`mdk7866/vgai2-frontend` on EC2 without server-side builds. The runbook covers
+first deployment and moving production to a different AWS account, including
+DNS cutover and issuing a certificate while retaining Supabase and Cloudinary.
+The existing Dockerfiles and .dockerignore files remain in each application
+directory.
 
 # Launch update — vgAI2.com (15 Sep 2026)
 
@@ -43,7 +46,7 @@ Everything below is true as of **11 Sep 2026**.
 
 | | Folder | What it is | Deployed? |
 |---|---|---|---|
-| **vgAI** | `C:\Users\ASUS\OneDrive\Desktop\vgai2` | The customer-facing product | **Not yet** — Docker/EC2 stack written and building, deployment planned. See that repo's `DOCKERHUB_DEPLOY.md`. |
+| **vgAI** | `C:\Users\ASUS\OneDrive\Desktop\vgai2` | The customer-facing product | **Yes** — running on AWS EC2 with Docker; `DOCKERHUB_DEPLOY.md` covers first deployment and account migration. |
 | **vgAI Admin** | `C:\Users\ASUS\OneDrive\Desktop\vgai2admin` | Internal portal for running vgAI | **No — local only, by design** |
 
 They are **two separate git repos**. There is no parent repo above them.
@@ -203,8 +206,8 @@ layer above them.
 | `vgai2\vgaidatabase.dbml` | Canonical DB schema. |
 | `vgai2\vgaidatabase.sql` | The sole canonical runnable DDL snapshot for the shared database, including credit-accounting functions. There is deliberately no duplicate in `vgai2admin`; admin migrations must update this file and the canonical DBML. |
 | `vgai2admin\migration\` | The primary home for schema changes: `vgai2admin_migration.sql` (the original, already applied) plus numbered ones since. Each idempotent, each run by hand in Supabase. (`vgai2\migration\` holds vgAI's own two earlier migrations, both applied — put new ones here.) |
-| `vgai2\DOCKERHUB_DEPLOY.md` | vgAI's deployment runbook — EC2 + Docker + nginx + Let's Encrypt, end to end. Read it before answering any deployment question; don't reconstruct the setup from `docker-compose.yml` alone. |
-| `vgai2\QUICK_DEPLOYMENT.md` | Repeatable Windows-to-EC2 update guide for current `vgai2-*` images. Initial setup lives in `DOCKERHUB_DEPLOY.md`; the nginx template is required. |
+| `vgai2\DOCKERHUB_DEPLOY.md` | vgAI's deployment runbook — EC2 + Docker + nginx + Let's Encrypt, first deployment and new-account migration. Read it before answering any deployment question; don't reconstruct the setup from `compose.deploy.yaml` alone. |
+| `vgai2\QUICK_DEPLOYMENT.md` | Repeatable Windows-to-EC2 update guide for current `vgai2-*` images. Initial setup and new-account migration live in `DOCKERHUB_DEPLOY.md`; the nginx template is required. |
 
 ---
 
