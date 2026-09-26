@@ -63,8 +63,8 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
       <div inert={isMobileMenuOpen} className="flex-1 flex flex-col min-w-0 h-full">
         <Navbar mobileMenuOpen={isMobileMenuOpen} onMenuClick={() => setIsMobileMenuOpen(true)} />
         
-        <main id="main-content" tabIndex={-1} className="relative flex-1 overflow-y-auto px-4 py-5 md:px-8 md:py-7">
-          <div className="mx-auto h-full w-full max-w-7xl 2xl:max-w-[100rem]">
+        <main id="main-content" tabIndex={-1} className="relative flex-1 min-w-0 overflow-x-hidden overflow-y-auto px-4 py-5 md:px-8 md:py-7">
+          <div className="mx-auto h-full w-full min-w-0 max-w-7xl 2xl:max-w-[100rem]">
             {children}
           </div>
         </main>

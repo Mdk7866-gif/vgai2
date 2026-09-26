@@ -567,7 +567,7 @@ export const SceneCard = ({
       </div>
 
       <div className="p-4 flex flex-col gap-3">
-        <div className={`grid grid-cols-1 gap-3 ${is916 ? "xl:grid-cols-[minmax(0,1fr)_minmax(0,520px)]" : "xl:grid-cols-[minmax(0,1fr)_minmax(0,440px)]"}`}>
+        <div className={`min-w-0 grid grid-cols-1 gap-3 ${is916 ? "xl:grid-cols-[minmax(0,1fr)_minmax(0,520px)]" : "xl:grid-cols-[minmax(0,1fr)_minmax(0,440px)]"}`}>
           {/* Left: characters + scene text + tabbed prompt editor + insert/delete controls */}
           <div className="flex flex-col gap-3 min-w-0">
             {scene.involved_characters.length > 0 && (
@@ -576,7 +576,7 @@ export const SceneCard = ({
                 {scene.involved_characters.map((c) => (
                   <span
                     key={c.id}
-                    className="flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full text-[11px] font-medium bg-brand-50 dark:bg-brand-500/10 text-brand-700 dark:text-brand-300 border border-brand-100 dark:border-brand-500/30"
+                    className="flex max-w-full items-center gap-1 break-words pl-2 pr-1 py-0.5 rounded-full text-[11px] font-medium bg-brand-50 dark:bg-brand-500/10 text-brand-700 dark:text-brand-300 border border-brand-100 dark:border-brand-500/30"
                   >
                     {c.name}
                     <button
@@ -703,13 +703,13 @@ export const SceneCard = ({
           </div>
 
           {/* Right: image + animation previews, aspect-ratio matched to the project's style template */}
-          <div className={`flex gap-3 ${is916 ? "flex-row" : "flex-col"}`}>
+          <div className={`flex min-w-0 gap-3 ${is916 ? "flex-col sm:flex-row" : "flex-col"}`}>
             <div className="flex flex-col gap-1.5 flex-1 min-w-0">
               <div className="flex items-center justify-between gap-1 flex-wrap">
                 <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
                   Image
                 </span>
-                <div className="flex items-center gap-0.5">
+                <div className="flex flex-wrap items-center gap-0.5">
                   {generatingImage ? (
                     <button
                       onClick={handleCancelImage}
@@ -834,7 +834,7 @@ export const SceneCard = ({
                 <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
                   Animation
                 </span>
-                <div className="flex items-center gap-0.5">
+                <div className="flex flex-wrap items-center gap-0.5">
                   {generatingAnimation ? (
                     <button
                       onClick={handleCancelAnimation}

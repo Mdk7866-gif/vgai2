@@ -53,14 +53,14 @@ export default function Home() {
   };
 
   return (
-    <div className="home-page space-y-8 pb-12">
+    <div className="home-page min-w-0 space-y-8 pb-12">
       <section className="home-intro grid items-center gap-8 rounded-[2rem] border border-slate-200/80 bg-white p-6 sm:p-9 xl:grid-cols-[1.1fr_1fr] xl:p-12 dark:border-white/10 dark:bg-surface">
-        <div>
+        <div className="min-w-0">
           <p className="eyebrow">{returning ? "Your video studio" : "Script → scenes → video assets"}</p>
           <h1 className="mt-4 max-w-2xl text-balance text-4xl font-semibold leading-[1.08] tracking-[-.045em] text-slate-950 sm:text-5xl dark:text-white">
             {returning ? `Welcome back${firstName ? `, ${firstName}` : ""}.` : <>Turn your script into <span className="text-brand-600 dark:text-brand-300">images & animations.</span></>}
           </h1>
-          <p className="mt-5 max-w-xl text-base leading-7 text-slate-600 dark:text-slate-300">
+          <p className="mt-5 max-w-xl break-words text-base leading-7 text-slate-600 dark:text-slate-300">
             {returning ? "Continue a project below, or start a new story. Your characters and visual styles are ready to reuse." : "vgAI2 helps video creators break a script into scenes, generate matching visuals, and download the assets for editing. You stay in control of every scene."}
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
@@ -77,12 +77,12 @@ export default function Home() {
           <p className="mt-4 text-xs leading-5 text-slate-500 dark:text-slate-400">{inviteOnly ? "Browse the tools now. An approved Google account is required to create." : "Creating a project does not spend credits. Generation costs are shown before you start."}</p>
         </div>
         {!returning ? (
-          <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 sm:p-6 dark:border-white/10 dark:bg-slate-900">
+          <div className="min-w-0 rounded-3xl border border-slate-200 bg-slate-50 p-4 sm:p-6 dark:border-white/10 dark:bg-slate-900">
             <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">How it works · select a step</p>
             <div className="grid grid-cols-3 gap-2" aria-label="Explore the workflow">
               {steps.map((item, index) => (
-                <button key={item.title} type="button" aria-pressed={step === index} aria-controls="workflow-detail" onClick={() => setStep(index)} className={`rounded-xl border px-2 py-3 text-left transition ${step === index ? "border-brand-300 bg-brand-50 text-brand-800 dark:border-brand-400/40 dark:bg-brand-400/10 dark:text-brand-200" : "border-transparent text-slate-500 hover:bg-white dark:text-slate-400 dark:hover:bg-white/5"}`}>
-                  <span className="mb-2 block text-xs font-semibold">0{index + 1}</span><span className="text-xs font-semibold leading-5 sm:text-sm">{item.title}</span>
+                <button key={item.title} type="button" aria-pressed={step === index} aria-controls="workflow-detail" onClick={() => setStep(index)} className={`min-w-0 rounded-xl border px-2 py-3 text-left transition ${step === index ? "border-brand-300 bg-brand-50 text-brand-800 dark:border-brand-400/40 dark:bg-brand-400/10 dark:text-brand-200" : "border-transparent text-slate-500 hover:bg-white dark:text-slate-400 dark:hover:bg-white/5"}`}>
+                  <span className="mb-2 block text-xs font-semibold">0{index + 1}</span><span className="block break-words text-xs font-semibold leading-5 sm:text-sm">{item.title}</span>
                 </button>
               ))}
             </div>
@@ -97,7 +97,7 @@ export default function Home() {
           <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6 dark:border-white/10 dark:bg-slate-900">
             <FolderOpen className="h-8 w-8 text-brand-500 dark:text-brand-300" />
             <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">Your newest project</p>
-            <h2 className="mt-2 truncate text-xl font-semibold text-slate-900 dark:text-white">{newest?.name}</h2>
+            <h2 className="mt-2 break-words text-xl font-semibold leading-7 text-slate-900 dark:text-white">{newest?.name}</h2>
             {newest && <Link href={`/project_folder/${newest.id}`} className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-brand-600 dark:text-brand-300">Open project <ArrowRight className="h-4 w-4" /></Link>}
           </div>
         )}

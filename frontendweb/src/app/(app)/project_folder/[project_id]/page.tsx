@@ -94,7 +94,7 @@ export default function ProjectFolderPage() {
   const projectId = params.project_id;
 
   const { requireAuth } = useAuth();
-  const { balance, setBalance, reserveBalance, refreshBalance } = useCreditBalance();
+  const { setBalance, reserveBalance, refreshBalance } = useCreditBalance();
   const { renameProject } = useProjects();
 
   const [project, setProject] = useState<Project | null>(null);
@@ -750,9 +750,9 @@ export default function ProjectFolderPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 pb-16 animate-in fade-in duration-500">
+    <div className="flex min-w-0 flex-col gap-6 pb-16 animate-in fade-in duration-500">
       {/* Header */}
-      <div className="flex flex-wrap items-center gap-3 rounded-3xl border border-brand-200/60 bg-gradient-to-r from-white to-brand-50 p-6 dark:border-white/10 dark:from-surface dark:to-slate-900">
+      <div className="flex min-w-0 flex-wrap items-center gap-3 rounded-3xl border border-brand-200/60 bg-gradient-to-r from-white to-brand-50 p-4 sm:p-6 dark:border-white/10 dark:from-surface dark:to-slate-900">
         <p className="eyebrow w-full">Production workspace</p>
         {nameEditing ? (
           <>
@@ -767,13 +767,13 @@ export default function ProjectFolderPage() {
               onBlur={saveName}
               disabled={savingName}
               aria-label="Project name"
-              className="text-2xl md:text-3xl font-bold tracking-tight min-w-0 max-w-full text-slate-900 dark:text-white bg-transparent border-b-2 border-brand-400 focus:outline-none"
+              className="w-full text-2xl md:text-3xl font-bold tracking-tight min-w-0 max-w-full text-slate-900 dark:text-white bg-transparent border-b-2 border-brand-400 focus:outline-none"
             />
             {savingName && <Loader2 className="w-4 h-4 animate-spin text-brand-500" />}
           </>
         ) : (
           <>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight break-words min-w-0 text-slate-900 dark:text-white">{project.name}</h1>
+            <h1 className="max-w-full text-2xl md:text-3xl font-bold tracking-tight break-words min-w-0 text-slate-900 dark:text-white">{project.name}</h1>
             <button
               onClick={startNameEditing}
               aria-label="Rename project"
