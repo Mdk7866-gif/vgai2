@@ -2,6 +2,10 @@
 
 > Workspace and favicon update (September 2026): `/project_folder/{project_id}` limits a pasted/edited script to 4,000 words. The client gives an immediate accessible reduction message and blocks autosave/generation while over the limit; `ProjectUpdate` enforces the same limit server-side. `frontendweb/src/app/favicon.ico` is the navbar's violet rounded-square vgAI2 mark, not the default Vercel icon.
 
+> Workspace copy control (September 2026): the `Copy script` button in `project_folder/[project_id]/page.tsx` copies the current `scriptDraft`, including unsaved text, via the Clipboard API. It is disabled for an empty draft, changes to an accessible `Copied` state briefly on success, and surfaces a normal alert when browser clipboard permission is blocked.
+
+> Sidebar project organization (September 2026): `projects.is_hidden` is a persisted non-destructive preference. Sidebar rows provide an eye-off control that hides completed/inactive folders from the normal list; a collapsed Hidden Projects section lets the user open or restore them. Hiding never changes the script, scenes, media, likes, or project history. Sidebar Select mode intentionally operates on visible projects only.
+
 > Thumbnail-ratio update (September 2026): `VideoMetaDataCard.tsx` uses `project.snapshot_styletemplate_video_aspect_ratio` for its thumbnail frame, rendering Reels projects as 9:16 and defaulting older/long-form projects to 16:9. Its 9:16 preview is capped at the same 240px width as scene-card media rather than filling the metadata column. Home and Liked Project cards deliberately remain compact 16:9 frames; portrait thumbnails are contained on a neutral background instead of producing tall cards, and Home uses a four-column desktop grid.
 
 Docker Hub deployment: use [DOCKERHUB_DEPLOY.md](./DOCKERHUB_DEPLOY.md) and

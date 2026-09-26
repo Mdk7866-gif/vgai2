@@ -75,6 +75,9 @@ create table projects (
   script text,
 
   is_liked boolean not null default false,
+  -- A per-user organizational preference. Hidden projects remain intact and
+  -- can be restored from the sidebar's collapsed Hidden Projects section.
+  is_hidden boolean not null default false,
 
   llm_model_id varchar(200),
   image_model_id varchar(200),
@@ -118,6 +121,7 @@ create table projects (
 --   alter table projects add column snapshot_styletemplate_image_aspect_ratio text;
 --   alter table projects add column snapshot_styletemplate_video_aspect_ratio text;
 --   alter table projects add column snapshot_styletemplate_scene_density scene_density;
+--   alter table projects add column is_hidden boolean not null default false;
 
 create table style_templates (
   id uuid primary key default gen_random_uuid(),

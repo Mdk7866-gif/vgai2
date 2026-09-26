@@ -2,6 +2,10 @@
 
 Payment UI: checkout previews show INR without a hard-coded test-mode label. Successful top-ups and failed attempts that have a Razorpay payment ID expose that ID as a copyable support reference; pending attempts and failed attempts without an ID do not. When Payment History contains a failed attempt, it explains that no credits were added, a debited amount is usually automatically reversed within 5 working days (subject to bank processing), and how to contact support with the reference. Browser signature failures only mark still-pending orders failed, so they cannot overwrite a payment already settled by the webhook.
 
+Sidebar organization: each project has an `is_hidden` preference. The eye-off control hides an inactive or completed folder without deleting its script, scenes, media, or other data. Hidden folders are omitted from the normal Project Folders list, remain available in a collapsed Hidden Projects section, and can be restored there. Multi-select deletion applies only to the visible list.
+
+Workspace script copy: the project workspace has a Copy script control beside the word count. It copies the entire current editor value, including edits that have not yet been saved, shows an accessible temporary Copied state, and is disabled for an empty script.
+
 Docker Hub deployment: use [DOCKERHUB_DEPLOY.md](./DOCKERHUB_DEPLOY.md) and
 `compose.deploy.yaml` to pull `mdk7866/vgai2-backend` and
 `mdk7866/vgai2-frontend` on EC2 without server-side builds. The runbook covers
@@ -407,6 +411,7 @@ Table projects {
   script text
 
   is_liked boolean [not null, default: false]
+  is_hidden boolean [not null, default: false]
 
   // AI Models
   llm_model_id varchar(200)

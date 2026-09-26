@@ -93,6 +93,9 @@ Table projects {
   script text
 
   is_liked boolean [not null, default: false]
+  // Keeps an inactive/completed project out of the normal sidebar list.
+  // It remains fully available and can be restored from Hidden Projects.
+  is_hidden boolean [not null, default: false]
 
 
 

@@ -4,7 +4,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useParams } from "next/navigation";
 import {
   Clock,
+  Check,
   ClipboardList,
+  Copy,
   Download,
   ImageIcon,
   Loader2,
@@ -102,6 +104,7 @@ export default function ProjectFolderPage() {
 
   const [scriptDraft, setScriptDraft] = useState("");
   const [savingScript, setSavingScript] = useState(false);
+  const [scriptCopied, setScriptCopied] = useState(false);
 
   const [nameEditing, setNameEditing] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
@@ -294,6 +297,20 @@ export default function ProjectFolderPage() {
       setAlert({ title: "Failed to save script", message: err instanceof Error ? err.message : "Something went wrong." });
     } finally {
       setSavingScript(false);
+    }
+  };
+
+  const handleCopyScript = async () => {
+    if (!scriptDraft.trim()) return;
+    try {
+      await navigator.clipboard.writeText(scriptDraft);
+      setScriptCopied(true);
+      window.setTimeout(() => setScriptCopied(false), 1500);
+    } catch {
+      setAlert({
+        title: "Couldn't copy script",
+        message: "Your browser blocked clipboard access. Select the script and copy it manually instead.",
+      });
     }
   };
 
@@ -771,8 +788,18 @@ export default function ProjectFolderPage() {
       {/* Script + menus */}
       <div className="flex flex-col lg:flex-row gap-4">
         <div className="flex-1 flex flex-col gap-1.5 min-w-0">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <label htmlFor="project-script" className="text-sm font-medium text-slate-700 dark:text-slate-300">Your script</label>
+            <button
+              type="button"
+              onClick={handleCopyScript}
+              disabled={!scriptDraft.trim()}
+              aria-label={scriptCopied ? "Script copied" : "Copy script"}
+              className="ml-auto inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-brand-700 dark:text-brand-300 hover:bg-brand-50 dark:hover:bg-brand-500/10 disabled:cursor-not-allowed disabled:opacity-50 transition-colors cursor-pointer"
+            >
+              {scriptCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+              <span aria-live="polite">{scriptCopied ? "Copied" : "Copy script"}</span>
+            </button>
             <span className="text-xs text-slate-400 dark:text-slate-500">
               {savingScript ? "Saving…" : `${wordCount} words`}
             </span>

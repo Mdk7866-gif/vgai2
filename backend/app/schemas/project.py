@@ -20,6 +20,7 @@ class Project(BaseModel):
     name: str
     script: str | None = None
     is_liked: bool
+    is_hidden: bool
 
     llm_model_id: LlmModelTier
     image_model_id: ImageModelTier
@@ -94,6 +95,10 @@ class ProjectUpdate(BaseModel):
     name: str | None = None
     script: str | None = None
     is_liked: bool | None = None
+    # Hiding is an organizational preference only. It keeps a completed or
+    # inactive project out of the normal sidebar list without deleting it,
+    # changing its media, or removing it from the rest of the product.
+    is_hidden: bool | None = None
     llm_model_id: LlmModelTier | None = None
     image_model_id: ImageModelTier | None = None
     animation_model_id: AnimationModelTier | None = None

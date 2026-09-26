@@ -8,6 +8,7 @@ export interface ProjectListItem {
   id: string;
   name: string;
   is_liked: boolean;
+  is_hidden: boolean;
   thumbnail_image_url: string | null;
   snapshot_styletemplate_video_aspect_ratio: string | null;
   created_at: string;
@@ -22,12 +23,14 @@ interface ProjectsContextType {
   removeProject: (id: string) => Promise<void>;
   removeProjects: (ids: string[]) => Promise<void>;
   toggleLike: (id: string, liked: boolean) => Promise<void>;
+  setProjectHidden: (id: string, hidden: boolean) => Promise<void>;
 }
 
 interface ProjectRow {
   id: string;
   name: string;
   is_liked: boolean;
+  is_hidden: boolean;
   thumbnail_image_url: string | null;
   snapshot_styletemplate_video_aspect_ratio: string | null;
   created_at: string;
@@ -37,6 +40,7 @@ const toListItem = (p: ProjectRow): ProjectListItem => ({
   id: p.id,
   name: p.name,
   is_liked: p.is_liked,
+  is_hidden: p.is_hidden,
   thumbnail_image_url: p.thumbnail_image_url,
   snapshot_styletemplate_video_aspect_ratio: p.snapshot_styletemplate_video_aspect_ratio,
   created_at: p.created_at,
@@ -149,9 +153,23 @@ export const ProjectsProvider = ({ children }: { children: React.ReactNode }) =>
     }
   }, []);
 
+  const setProjectHidden = useCallback(async (id: string, hidden: boolean) => {
+    setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, is_hidden: hidden } : p)));
+    try {
+      await authFetch(`/projects/update/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_hidden: hidden }),
+      });
+    } catch (err) {
+      setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, is_hidden: !hidden } : p)));
+      throw err;
+    }
+  }, []);
+
   return (
     <ProjectsContext.Provider
-      value={{ projects, loading, refresh, createProject, renameProject, removeProject, removeProjects, toggleLike }}
+      value={{ projects, loading, refresh, createProject, renameProject, removeProject, removeProjects, toggleLike, setProjectHidden }}
     >
       {children}
     </ProjectsContext.Provider>

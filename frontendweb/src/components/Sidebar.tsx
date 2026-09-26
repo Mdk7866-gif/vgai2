@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Users, LayoutTemplate, Sparkles, Heart, FolderKanban, Folder, House, LogIn, X, Plus, Trash2, CheckSquare, Square, Loader2 } from "lucide-react";
+import { Users, LayoutTemplate, Sparkles, Heart, FolderKanban, Folder, House, LogIn, X, Plus, Trash2, CheckSquare, Square, Loader2, Eye, EyeOff } from "lucide-react";
 import Logo from "./Logo";
 import { useAuth } from "@/context/AuthContext";
 import { useProjects, type ProjectListItem } from "@/context/ProjectsContext";
@@ -29,7 +29,7 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
     const pathname = usePathname();
     const router = useRouter();
     const { user, openLoginModal, requireAuth, loading: authLoading } = useAuth();
-    const { projects, loading, createProject, removeProject, removeProjects, toggleLike } = useProjects();
+    const { projects, loading, createProject, removeProject, removeProjects, toggleLike, setProjectHidden } = useProjects();
 
     const [newProjectName, setNewProjectName] = useState("");
     const [creating, setCreating] = useState(false);
@@ -42,6 +42,8 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
     const [bulkDeleting, setBulkDeleting] = useState(false);
 
     const [likingId, setLikingId] = useState<string | null>(null);
+    const [hidingId, setHidingId] = useState<string | null>(null);
+    const [hiddenProjectsOpen, setHiddenProjectsOpen] = useState(false);
 
     const [alert, setAlert] = useState<{ title: string; message: string } | null>(null);
 
@@ -101,6 +103,21 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
             setDeleteTarget(null);
         }
     };
+
+    const handleSetProjectHidden = async (project: ProjectListItem, hidden: boolean) => {
+        if (!requireAuth()) return;
+        setHidingId(project.id);
+        try {
+            await setProjectHidden(project.id, hidden);
+        } catch (err) {
+            setAlert({ title: `Failed to ${hidden ? "hide" : "restore"} project`, message: err instanceof Error ? err.message : "Something went wrong." });
+        } finally {
+            setHidingId(null);
+        }
+    };
+
+    const visibleProjects = projects.filter((project) => !project.is_hidden);
+    const hiddenProjects = projects.filter((project) => project.is_hidden);
 
     const confirmBulkDelete = async () => {
         const ids = selectedProjectIds;
@@ -168,7 +185,7 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
                         <FolderKanban className="w-3.5 h-3.5" />
                         Project Folders
                       </div>
-                      {user && projects.length > 0 && (
+                      {user && visibleProjects.length > 0 && (
                         <button
                           type="button"
                           onClick={() => selectingProjects ? exitProjectSelection() : setSelectingProjects(true)}
@@ -212,10 +229,10 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
                               <div className="mb-2 flex items-center justify-between gap-2 rounded-xl border border-brand-200 dark:border-brand-500/30 bg-brand-50/70 dark:bg-brand-500/10 px-3 py-2">
                                 <button
                                   type="button"
-                                  onClick={() => setSelectedProjectIds(selectedProjectIds.length === projects.length ? [] : projects.map((project) => project.id))}
+                                  onClick={() => setSelectedProjectIds(selectedProjectIds.length === visibleProjects.length ? [] : visibleProjects.map((project) => project.id))}
                                   className="text-[12px] font-medium text-brand-700 dark:text-brand-300 hover:underline cursor-pointer"
                                 >
-                                  {selectedProjectIds.length === projects.length ? "Clear all" : "Select all"}
+                                  {selectedProjectIds.length === visibleProjects.length ? "Clear all" : "Select all"}
                                 </button>
                                 <button
                                   type="button"
@@ -233,12 +250,12 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
                                     <div className="flex items-center justify-center py-6">
                                         <Loader2 className="w-4 h-4 animate-spin text-brand-500" />
                                     </div>
-                                ) : projects.length === 0 ? (
+                                ) : visibleProjects.length === 0 ? (
                                     <div className="mx-1 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 p-4 text-center">
-                                        <p className="text-[13px] text-slate-500 dark:text-slate-400">No projects yet.</p>
+                                        <p className="text-[13px] text-slate-500 dark:text-slate-400">{hiddenProjects.length > 0 ? "All projects are hidden." : "No projects yet."}</p>
                                     </div>
                                 ) : (
-                                    projects.map((project) => {
+                                    visibleProjects.map((project) => {
                                         const active = pathname === `/project_folder/${project.id}`;
                                         const isSelected = selectedProjectIds.includes(project.id);
                                         return (
@@ -292,6 +309,15 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
                                                             )}
                                                         </button>
                                                         <button
+                                                            onClick={() => handleSetProjectHidden(project, true)}
+                                                            disabled={hidingId === project.id}
+                                                            aria-label={`Hide ${project.name}`}
+                                                            title="Hide project"
+                                                            className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition cursor-pointer disabled:opacity-60"
+                                                        >
+                                                            {hidingId === project.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <EyeOff className="w-3.5 h-3.5" />}
+                                                        </button>
+                                                        <button
                                                             onClick={() => setDeleteTarget(project)}
                                                             aria-label={`Delete ${project.name}`}
                                                             className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition cursor-pointer"
@@ -305,6 +331,45 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
                                     })
                                 )}
                             </div>
+
+                            {hiddenProjects.length > 0 && !selectingProjects && (
+                                <div className="mb-3 rounded-xl border border-slate-200 dark:border-slate-700/80">
+                                    <button
+                                        type="button"
+                                        onClick={() => setHiddenProjectsOpen((open) => !open)}
+                                        aria-expanded={hiddenProjectsOpen}
+                                        className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-[12px] font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/70 rounded-xl cursor-pointer"
+                                    >
+                                        <span className="inline-flex items-center gap-2"><EyeOff className="h-3.5 w-3.5" />Hidden Projects ({hiddenProjects.length})</span>
+                                        <span>{hiddenProjectsOpen ? "Hide" : "Show"}</span>
+                                    </button>
+                                    {hiddenProjectsOpen && (
+                                        <div className="border-t border-slate-200 dark:border-slate-700/80 px-2 py-1.5 space-y-1">
+                                            {hiddenProjects.map((project) => (
+                                                <div key={project.id} title={`${project.name} â€” created ${formatCreatedDate(project.created_at)}`} className="group flex items-center gap-1 rounded-lg px-1 py-1">
+                                                    <Folder className="w-3.5 h-3.5 flex-shrink-0 text-slate-400 dark:text-slate-500" />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => { router.push(`/project_folder/${project.id}`); onClose?.(); }}
+                                                        className="min-w-0 flex-1 px-1 py-1 text-left text-[13px] text-slate-600 dark:text-slate-400 truncate hover:text-slate-900 dark:hover:text-slate-100 cursor-pointer"
+                                                    >
+                                                        {project.name}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleSetProjectHidden(project, false)}
+                                                        disabled={hidingId === project.id}
+                                                        aria-label={`Restore ${project.name}`}
+                                                        title="Restore project"
+                                                        className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-brand-600 dark:hover:text-brand-300 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition cursor-pointer disabled:opacity-60"
+                                                    >
+                                                        {hidingId === project.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                             <div className="flex items-center gap-1.5 px-1">
                                 <input
