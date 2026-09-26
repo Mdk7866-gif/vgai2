@@ -58,14 +58,12 @@ async def _build_scene_split_draft(project: dict, characters: list[dict], script
         llm = ChatOpenAI(
             model=OPENAI_PRO_SCENE_SPLIT_MODEL,
             api_key=settings.CHATGPT_PAID_API_KEY,
-            temperature=0.6,
             reasoning_effort=OPENAI_PRO_SCENE_SPLIT_REASONING_EFFORT,
         )
     else:
         llm = ChatOpenAI(
             model=OPENAI_TEXT_MODEL,
             api_key=settings.CHATGPT_PAID_API_KEY,
-            temperature=0.6,
             reasoning_effort=OPENAI_BASE_SCENE_SPLIT_REASONING_EFFORT,
         )
 
