@@ -9,7 +9,12 @@ from app.cloudinary import upload_image_bytes
 from app.config import settings
 from app.credits import refund_misc_credits, reserve_misc_credits
 from app.openai_client import OPENAI_TEXT_MODEL, OPENAI_TEXT_REASONING_EFFORT, openai_client
-from app.schemas.styletemplate import GenerateStyleTemplateRequest, GenerateStyleTemplateResponse
+from app.schemas.styletemplate import (
+    ANIMATION_PROMPT_MAX_WORDS,
+    IMAGE_PROMPT_MAX_WORDS,
+    GenerateStyleTemplateRequest,
+    GenerateStyleTemplateResponse,
+)
 
 from .crud import (
     DEMO_IMAGE_FOLDER,
@@ -33,8 +38,6 @@ GENERATE_CREDIT_COST = 2
 # to its limit before returning — otherwise an over-limit draft would fail the
 # frontend's own word-count validation the moment the user tries to import it.
 DESCRIPTION_MAX_WORDS = 150
-IMAGE_PROMPT_MAX_WORDS = 300
-ANIMATION_PROMPT_MAX_WORDS = 200
 YOUTUBE_PROMPT_MAX_WORDS = 150
 
 # Per-format creative brief injected into the prompt so the LLM writes image/animation/

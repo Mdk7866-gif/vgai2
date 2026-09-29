@@ -1,9 +1,16 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 SceneDensity = Literal["small", "medium", "high"]
+
+IMAGE_PROMPT_MAX_WORDS = 500
+ANIMATION_PROMPT_MAX_WORDS = 300
+
+
+def _within_word_limit(value: str, limit: int) -> bool:
+    return len(value.split()) <= limit
 
 
 class StyleTemplate(BaseModel):
@@ -70,6 +77,21 @@ class DefaultStyleTemplate(BaseModel):
     video_aspect_ratio: str
     best_for: str | None = None
     demo_image_url: str | None = None
+
+    @field_validator("image_prompt")
+    @classmethod
+    def image_prompt_within_word_limit(cls, value: str) -> str:
+        if not _within_word_limit(value, IMAGE_PROMPT_MAX_WORDS):
+            raise ValueError(f"Image prompt must be {IMAGE_PROMPT_MAX_WORDS} words or fewer.")
+        return value
+
+    @field_validator("animation_prompt")
+    @classmethod
+    def animation_prompt_within_word_limit(cls, value: str) -> str:
+        if not _within_word_limit(value, ANIMATION_PROMPT_MAX_WORDS):
+            raise ValueError(f"Animation prompt must be {ANIMATION_PROMPT_MAX_WORDS} words or fewer.")
+        return value
+
     # Catalog-only gallery; its first image is the only one copied on import.
     demo_image_urls: list[str] = Field(default_factory=list, max_length=3)
 
@@ -96,6 +118,13 @@ class GenerateDemoImageRequest(BaseModel):
     image_prompt: str
     best_for: str | None = None
     aspect_ratio: Literal["16:9", "9:16"] = "16:9"
+
+    @field_validator("image_prompt")
+    @classmethod
+    def image_prompt_within_word_limit(cls, value: str) -> str:
+        if not _within_word_limit(value, IMAGE_PROMPT_MAX_WORDS):
+            raise ValueError(f"Image prompt must be {IMAGE_PROMPT_MAX_WORDS} words or fewer.")
+        return value
 
 
 class GenerateDemoImageResponse(BaseModel):

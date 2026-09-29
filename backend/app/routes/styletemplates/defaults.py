@@ -30,7 +30,7 @@ from supabase_auth.types import User as SupabaseUser
 
 from app.auth import get_current_user
 from app.cloudinary import copy_image_from_url
-from app.schemas.styletemplate import DefaultStyleTemplate, StyleTemplate
+from app.schemas.styletemplate import DefaultStyleTemplate, StyleTemplate, StyleTemplateCreate
 from app.supabase import supabase
 
 from .crud import DEMO_IMAGE_FOLDER, _clear_existing_default
@@ -145,5 +145,8 @@ async def import_default_style_template(
     if new_template["is_default"]:
         _clear_existing_default(current_user.id)
 
-    created = supabase.table("style_templates").insert(new_template).execute()
+    # Validate catalog text through the same schema as a manually created
+    # template before copying it into the user's editable library.
+    validated_template = StyleTemplateCreate.model_validate(new_template).model_dump()
+    created = supabase.table("style_templates").insert({**validated_template, "user_id": current_user.id}).execute()
     return created.data[0]

@@ -3,6 +3,7 @@ from supabase_auth.types import User as SupabaseUser
 
 from app.auth import get_current_user
 from app.cloudinary import copy_image_from_url, delete_media, delete_project_media, upload_image
+from app.schemas.character import MAX_CHARACTER_DESCRIPTION_WORDS, character_description_within_word_limit
 from app.schemas.project import (
     CharacterImportRequest,
     Project,
@@ -322,6 +323,12 @@ async def update_project_character(
     if not existing.data:
         raise HTTPException(status_code=404, detail="Imported character not found")
     existing_row = existing.data[0]
+
+    if not character_description_within_word_limit(description):
+        raise HTTPException(
+            status_code=422,
+            detail=f"Description must be {MAX_CHARACTER_DESCRIPTION_WORDS} words or fewer.",
+        )
 
     update_data: dict = {
         "snapshot_name": name,

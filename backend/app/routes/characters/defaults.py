@@ -22,7 +22,12 @@ from supabase_auth.types import User as SupabaseUser
 
 from app.auth import get_current_user
 from app.cloudinary import copy_image_from_url
-from app.schemas.character import Character, DefaultCharacter
+from app.schemas.character import (
+    MAX_CHARACTER_DESCRIPTION_WORDS,
+    Character,
+    DefaultCharacter,
+    character_description_within_word_limit,
+)
 from app.supabase import supabase
 
 router = APIRouter(prefix="/characters", tags=["characters"])
@@ -88,6 +93,12 @@ async def import_default_character(
     if not result.data:
         raise HTTPException(status_code=404, detail="Default character not found")
     entry = result.data[0]
+
+    if not character_description_within_word_limit(entry.get("description") or ""):
+        raise HTTPException(
+            status_code=422,
+            detail=f"Character description must be {MAX_CHARACTER_DESCRIPTION_WORDS} words or fewer.",
+        )
 
     new_character = {field: entry.get(field) for field in _IMPORTABLE_FIELDS}
     new_character["user_id"] = current_user.id

@@ -55,8 +55,8 @@ const ASPECT_RATIO_OPTIONS = [
 ] as const;
 const SCENE_DENSITIES: SceneDensity[] = ["small", "medium", "high"];
 
-const IMAGE_PROMPT_MAX_WORDS = 300;
-const ANIMATION_PROMPT_MAX_WORDS = 200;
+const IMAGE_PROMPT_MAX_WORDS = 500;
+const ANIMATION_PROMPT_MAX_WORDS = 300;
 const DESCRIPTION_MAX_WORDS = 150;
 const YOUTUBE_PROMPT_MAX_WORDS = 150;
 

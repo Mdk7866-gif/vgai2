@@ -29,7 +29,7 @@ interface EditCharacterCardPopUpProps {
   scope?: "library" | "project";
 }
 
-const MAX_DESCRIPTION_WORDS = 300;
+const MAX_DESCRIPTION_WORDS = 500;
 
 const countWords = (text: string) => {
   const trimmed = text.trim();

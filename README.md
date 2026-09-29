@@ -6,6 +6,8 @@ Sidebar organization: each project has an `is_hidden` preference. The eye-off co
 
 Workspace script copy: the project workspace has a Copy script control beside the word count. It copies the entire current editor value, including edits that have not yet been saved, shows an accessible temporary Copied state, and is disabled for an empty script.
 
+Prompt limits: character descriptions allow up to 500 words; style-template image prompts allow 500 words and animation prompts 300. The browser, JSON import, AI draft generation, and backend validation apply the same limits.
+
 Docker Hub deployment: use [DOCKERHUB_DEPLOY.md](./DOCKERHUB_DEPLOY.md) and
 `compose.deploy.yaml` to pull `mdk7866/vgai2-backend` and
 `mdk7866/vgai2-frontend` on EC2 without server-side builds. The runbook covers

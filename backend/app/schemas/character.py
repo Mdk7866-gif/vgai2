@@ -3,7 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel
 
 
-MAX_CHARACTER_DESCRIPTION_WORDS = 300
+MAX_CHARACTER_DESCRIPTION_WORDS = 500
 
 
 def character_description_within_word_limit(value: str) -> bool:

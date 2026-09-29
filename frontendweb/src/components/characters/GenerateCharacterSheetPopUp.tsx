@@ -12,7 +12,7 @@ import Toggle from "@/components/Toggle";
 
 const GENERATE_CREDIT_COST = 4;
 const GENERATE_PRO_CREDIT_COST = 20;
-const MAX_DESCRIPTION_WORDS = 300;
+const MAX_DESCRIPTION_WORDS = 500;
 
 const countWords = (text: string) => {
   const trimmed = text.trim();

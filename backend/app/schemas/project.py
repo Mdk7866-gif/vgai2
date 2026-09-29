@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.schemas.styletemplate import SceneDensity
+from app.schemas.styletemplate import ANIMATION_PROMPT_MAX_WORDS, IMAGE_PROMPT_MAX_WORDS, SceneDensity
 
 # "base"/"pro" tiers, resolved server-side to actual provider model ids (see
 # paidscripttoscenesplitter.py / imagegeneration.py / animationgeneration.py) —
@@ -123,6 +123,20 @@ class ProjectUpdate(BaseModel):
     snapshot_styletemplate_image_aspect_ratio: str | None = None
     snapshot_styletemplate_video_aspect_ratio: str | None = None
     snapshot_styletemplate_scene_density: SceneDensity | None = None
+
+    @field_validator("snapshot_styletemplate_image_prompt")
+    @classmethod
+    def snapshot_image_prompt_within_word_limit(cls, value: str | None) -> str | None:
+        if value is not None and len(value.split()) > IMAGE_PROMPT_MAX_WORDS:
+            raise ValueError(f"Image prompt must be {IMAGE_PROMPT_MAX_WORDS} words or fewer.")
+        return value
+
+    @field_validator("snapshot_styletemplate_animation_prompt")
+    @classmethod
+    def snapshot_animation_prompt_within_word_limit(cls, value: str | None) -> str | None:
+        if value is not None and len(value.split()) > ANIMATION_PROMPT_MAX_WORDS:
+            raise ValueError(f"Animation prompt must be {ANIMATION_PROMPT_MAX_WORDS} words or fewer.")
+        return value
 
 
 class ProjectCharacter(BaseModel):

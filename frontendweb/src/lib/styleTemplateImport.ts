@@ -21,8 +21,8 @@ export interface StyleTemplateImportPayload {
 // ceilings — an import that slipped past validation here would fail the edit
 // form's own validation the moment the user tried to save it back.
 const NAME_MAX_CHARS = 200;
-const IMAGE_PROMPT_MAX_WORDS = 300;
-const ANIMATION_PROMPT_MAX_WORDS = 200;
+const IMAGE_PROMPT_MAX_WORDS = 500;
+const ANIMATION_PROMPT_MAX_WORDS = 300;
 const DESCRIPTION_MAX_WORDS = 150;
 const YOUTUBE_PROMPT_MAX_WORDS = 150;
 const BEST_FOR_MAX_CHARS = 200;
