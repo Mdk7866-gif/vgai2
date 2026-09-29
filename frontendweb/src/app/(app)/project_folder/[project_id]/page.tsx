@@ -1067,7 +1067,7 @@ export default function ProjectFolderPage() {
         <div className="flex flex-col gap-5">
           {scenes.map((scene) => (
             <SceneCard
-              key={scene.id}
+              key={`${scene.id}:${scene.generated_image_url ?? "no-image"}`}
               scene={scene}
               projectCharacters={projectCharacters}
               videoAspectRatio={project.snapshot_styletemplate_video_aspect_ratio}

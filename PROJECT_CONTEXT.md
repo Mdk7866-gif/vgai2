@@ -1,5 +1,7 @@
 # vgAI — project context (hand this to an AI first)
 
+Scene image iteration honors creator intent: an unchanged prompt on an existing image uses AI-assisted **Regenerate** (a fresh style-preserving variation, including its 1-credit prompt rewrite), while an edited image prompt changes the action to **Generate edit** and generates from the creator's exact saved text at the normal image-generation price. Editing still offers the optional 1-credit animation-prompt sync separately.
+
 Payment UI: checkout previews show INR without a hard-coded test-mode label. Successful top-ups and failed attempts with a Razorpay payment ID expose it as a copyable support reference; pending attempts and failed attempts without an ID do not. Failed-payment history shows a clear notice: no credits were added, a debited amount is usually reversed within 5 working days plus bank processing, and the user can contact support with the reference. Browser signature failures only mark still-pending orders failed, preserving any concurrent successful webhook settlement.
 
 Sidebar organization: `projects.is_hidden` is a persisted, non-destructive preference. The customer sidebar's eye-off control moves completed or inactive projects out of its normal list into a collapsed Hidden Projects section, where they can be opened or restored. Hiding never affects project data or generation history; sidebar multi-select deletion covers visible projects only.

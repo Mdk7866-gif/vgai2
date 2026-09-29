@@ -88,6 +88,13 @@ export const SceneCard = ({
   const [generatingAnimation, setGeneratingAnimation] = useState(false);
   const imageAbortRef = useRef<AbortController | null>(null);
   const animationAbortRef = useRef<AbortController | null>(null);
+  // Keep the prompt that produced the currently displayed image separate from
+  // the latest saved prompt. The parent keys this card by image URL, so a new
+  // generated or uploaded image gets a fresh baseline while prompt autosaves
+  // deliberately retain this one.
+  const [imagePromptForCurrentImage] = useState(
+    scene.generated_image_url ? scene.scene_image_prompt ?? "" : null
+  );
 
   // Manual upload (drag-and-drop or click-to-browse) of an image/animation the
   // user produced outside vgAI — a pure convenience path, no credits, no AI
@@ -131,7 +138,7 @@ export const SceneCard = ({
     scene_image_prompt?: string;
     scene_animation_prompt?: string;
     involved_character_ids?: string[];
-  }) => {
+  }): Promise<Scene | null> => {
     setSavingField(true);
     setError(null);
     try {
@@ -148,8 +155,10 @@ export const SceneCard = ({
       });
       const data: Scene = await res.json();
       onUpdated(data);
+      return data;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save scene.");
+      return null;
     } finally {
       setSavingField(false);
     }
@@ -305,30 +314,31 @@ export const SceneCard = ({
   };
 
   const handleGenerateImage = async () => {
+    suppressPromptSyncRef.current = true;
+    const imagePromptNeedsSaving = imagePrompt.trim() !== (scene.scene_image_prompt ?? "");
+    if (imagePromptNeedsSaving) {
+      const saved = await persist({ scene_image_prompt: imagePrompt });
+      if (!saved) return;
+    }
     if (!onAcquireImageSlot()) {
       onImageConcurrencyLimitReached();
       return;
     }
-    suppressPromptSyncRef.current = true;
-    if (imagePrompt.trim() !== (scene.scene_image_prompt ?? "")) {
-      await persist({ scene_image_prompt: imagePrompt });
-    }
-    // Once an image already exists, "Regenerate" doesn't resubmit the same
-    // prompt that already produced a disliked result — the backend rewrites
-    // both the image and animation prompts first (1 credit), then generates
-    // from the rewritten prompt. A first-time Generate is unaffected.
-    const isRegenerate = Boolean(scene.generated_image_url);
+    // A hand-edited prompt is an explicit creative direction: use it exactly as
+    // written. Only an unchanged prompt uses AI-assisted Regenerate, which
+    // rewrites both prompts before generating a deliberate fresh variation.
+    const usesAiPromptRewrite = Boolean(scene.generated_image_url) && !hasEditedImagePrompt;
     const controller = new AbortController();
     imageAbortRef.current = controller;
     setGeneratingImage(true);
     setError(null);
     // Mirror the backend reserving the cost up front, so the balance reflects
     // money already committed rather than only updating if this call succeeds.
-    const cost = imageCreditCost(imageModelId) + (isRegenerate ? PROMPT_REWRITE_CREDIT_COST : 0);
+    const cost = imageCreditCost(imageModelId) + (usesAiPromptRewrite ? PROMPT_REWRITE_CREDIT_COST : 0);
     reserveBalance(cost);
     try {
       const res = await authFetch(
-        isRegenerate ? "/projects/image/regenerate_and_save" : "/projects/image/generate_and_save",
+        usesAiPromptRewrite ? "/projects/image/regenerate_and_save" : "/projects/image/generate_and_save",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -521,6 +531,13 @@ export const SceneCard = ({
   };
 
   const activePromptValue = activeTab === "image" ? imagePrompt : animationPrompt;
+  const hasEditedImagePrompt =
+    Boolean(scene.generated_image_url) && imagePrompt.trim() !== (imagePromptForCurrentImage ?? "");
+  const imageActionLabel = scene.generated_image_url
+    ? hasEditedImagePrompt
+      ? "Generate edit"
+      : "Regenerate"
+    : "Generate";
   const handleActivePromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     if (activeTab === "image") setImagePrompt(e.target.value);
     else setAnimationPrompt(e.target.value);
@@ -726,13 +743,15 @@ export const SceneCard = ({
                         disabled={!imagePrompt.trim() || uploadingImage || syncingAnimation}
                         title={
                           scene.generated_image_url
-                            ? `Rewrites the image & animation prompts with AI (+${PROMPT_REWRITE_CREDIT_COST} credit) and generates a fresh image from them`
+                            ? hasEditedImagePrompt
+                              ? "Generates an image from your edited prompt exactly as written"
+                              : `Rewrites the image & animation prompts with AI (+${PROMPT_REWRITE_CREDIT_COST} credit) and generates a fresh image from them`
                             : undefined
                         }
                         className="flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-semibold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-500/10 hover:bg-brand-100 dark:hover:bg-brand-500/20 rounded-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Sparkles className="w-3.5 h-3.5" />
-                        {scene.generated_image_url ? "Regenerate" : "Generate"}
+                        {imageActionLabel}
                       </button>
                       <button
                         onClick={() => {
