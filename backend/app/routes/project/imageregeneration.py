@@ -75,7 +75,6 @@ def _rewrite_llm() -> ChatOpenAI:
     return ChatOpenAI(
         model=OPENAI_TEXT_MODEL,
         api_key=settings.CHATGPT_PAID_API_KEY,
-        temperature=0.8,
         reasoning_effort=OPENAI_TEXT_REASONING_EFFORT,
     )
 

@@ -109,7 +109,6 @@ async def _build_style_template_draft(
     llm = ChatOpenAI(
         model=OPENAI_TEXT_MODEL,
         api_key=settings.CHATGPT_PAID_API_KEY,
-        temperature=0.7,
         reasoning_effort=OPENAI_TEXT_REASONING_EFFORT,
     )
     structured_llm = llm.with_structured_output(_StyleTemplateDraft)
